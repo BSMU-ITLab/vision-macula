@@ -1,0 +1,51 @@
+[build-system]
+requires = [ 'setuptools >= 61.0' ]
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'orgname.vision-template'
+dynamic = [ 'version' ]
+description = 'This application serves as a template for developing custom applications using the Vision framework'
+readme = 'README.md'
+requires-python = '>= 3.10'
+license = { file = 'LICENSE' }
+authors = [
+    { name = 'Your Name', email = 'your.email@example.com' },
+]
+keywords = [
+    'template',
+    'vision framework',
+]
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Science/Research',
+    'License :: OSI Approved :: MIT License',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Operating System :: OS Independent',
+    'Topic :: Software Development :: Version Control :: Git',
+]
+dependencies = [
+    'bsmu.vision[common,build] @ git+https://github.com/BSMU-ITLab/vision.git@v0.20.2',
+]
+
+[project.urls]
+Homepage = 'https://github.com/orgname/vision-template'
+Repository = 'https://github.com/orgname/vision-template.git'
+Issues = 'https://github.com/orgname/vision-template/issues'
+
+[project.scripts]
+orgname-template-c = 'orgname.template.app.main:run_app'
+
+[project.gui-scripts]
+orgname-template = 'orgname.template.app.main:run_app'
+
+[tool.setuptools.dynamic]
+version = { attr = 'orgname.template.app.version.__version__' }
+
+[tool.setuptools.packages.find]
+where = [ 'src' ]
+
+[tool.setuptools.package-data]
+'*' = [ '*.conf.yaml' ]
