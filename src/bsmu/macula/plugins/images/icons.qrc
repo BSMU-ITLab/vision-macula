@@ -6,6 +6,6 @@ pyside6-rcc icons.qrc -o icons_rc.py
 <!DOCTYPE RCC>
 <RCC version="1.0">
 <qresource>
-    <file>icons/vision.svg</file>
+    <file>icons/macula.svg</file>
 </qresource>
 </RCC>

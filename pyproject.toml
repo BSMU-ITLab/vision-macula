@@ -3,23 +3,27 @@ requires = [ 'setuptools >= 61.0' ]
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = 'orgname.vision-template'
+name = 'bsmu.macula'
 dynamic = [ 'version' ]
-description = 'This application serves as a template for developing custom applications using the Vision framework'
+description = 'This application analyzes OCT images to detect and monitor Age-Related Macular Degeneration'
 readme = 'README.md'
 requires-python = '>= 3.10'
 license = { file = 'LICENSE' }
 authors = [
-    { name = 'Your Name', email = 'your.email@example.com' },
+    { name = 'Elena Himbitskaya', email = 'fpm.gimbicka@bsu.by' },
 ]
 keywords = [
-    'template',
-    'vision framework',
+    'age-related macular degeneration',
+    'amd',
+    'optical coherence tomography',
+    'oct',
+    'image analysis',
 ]
 classifiers = [
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Science/Research',
-    'License :: OSI Approved :: MIT License',
+    'Intended Audience :: Healthcare Industry',
+    'License :: OSI Approved :: BSD License',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
@@ -27,22 +31,22 @@ classifiers = [
     'Topic :: Software Development :: Version Control :: Git',
 ]
 dependencies = [
-    'bsmu.vision[common,build] @ git+https://github.com/BSMU-ITLab/vision.git@v0.20.2',
+    'bsmu.vision[common,nn_inference,build] @ git+https://github.com/BSMU-ITLab/vision.git@v0.20.2',
 ]
 
 [project.urls]
-Homepage = 'https://github.com/orgname/vision-template'
-Repository = 'https://github.com/orgname/vision-template.git'
-Issues = 'https://github.com/orgname/vision-template/issues'
+Homepage = 'https://github.com/BSMU-ITLab/vision-macula'
+Repository = 'https://github.com/BSMU-ITLab/vision-macula.git'
+Issues = 'https://github.com/BSMU-ITLab/vision-macula/issues'
 
 [project.scripts]
-orgname-template-c = 'orgname.template.app.main:run_app'
+bsmu-macula-c = 'bsmu.macula.app.main:run_app'
 
 [project.gui-scripts]
-orgname-template = 'orgname.template.app.main:run_app'
+bsmu-macula = 'bsmu.macula.app.main:run_app'
 
 [tool.setuptools.dynamic]
-version = { attr = 'orgname.template.app.version.__version__' }
+version = { attr = 'bsmu.macula.app.version.__version__' }
 
 [tool.setuptools.packages.find]
 where = [ 'src' ]

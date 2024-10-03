@@ -1,5 +1,5 @@
 plugins:
-  - orgname.template.plugins.main_window.TemplateMainWindowPlugin:
+  - bsmu.macula.plugins.main_window.MaculaMainWindowPlugin:
       replace: bsmu.vision.plugins.windows.main.MainWindowPlugin
       alias: main_window
 
@@ -21,7 +21,7 @@ plugins:
 
   - bsmu.vision.plugins.layer_controller.MdiImageViewerLayerControllerPlugin
   - bsmu.vision.plugins.layers_view.LayersTableViewPlugin
-  - bsmu.vision.plugins.task_storage_view.TaskStorageViewPlugin
+#  - bsmu.vision.plugins.task_storage_view.TaskStorageViewPlugin
 
 #  - bsmu.vision.plugins.overlayers.path.ImageViewerPathOverlayerPlugin
 #  - bsmu.vision.plugins.overlayers.intersection.ImageViewerIntersectionOverlayerPlugin
