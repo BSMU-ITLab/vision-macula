@@ -1,14 +1,8 @@
-from bsmu.vision.app import App
-
-from bsmu.macula.app import __title__, __version__
-
-
-class MaculaApp(App):
-    pass
+from bsmu.macula.app import MaculaApp
 
 
 def run_app():
-    app = MaculaApp(__title__, __version__)
+    app = MaculaApp()
     app.run()
 
 

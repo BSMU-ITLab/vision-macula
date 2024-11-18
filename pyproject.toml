@@ -1,5 +1,5 @@
 [build-system]
-requires = [ 'setuptools >= 61.0' ]
+requires = [ 'setuptools >= 69.0' ]
 build-backend = 'setuptools.build_meta'
 
 [project]
@@ -31,7 +31,7 @@ classifiers = [
     'Topic :: Software Development :: Version Control :: Git',
 ]
 dependencies = [
-    'bsmu.vision[common,nn_inference,build] @ git+https://github.com/BSMU-ITLab/vision.git@v0.20.2',
+    'bsmu.vision[common,nn_inference,build] @ git+https://github.com/BSMU-ITLab/vision.git@v0.27.1',
 ]
 
 [project.urls]
@@ -46,10 +46,10 @@ bsmu-macula-c = 'bsmu.macula.app.main:run_app'
 bsmu-macula = 'bsmu.macula.app.main:run_app'
 
 [tool.setuptools.dynamic]
-version = { attr = 'bsmu.macula.app.version.__version__' }
+version = { attr = 'bsmu.macula.__version__' }
 
 [tool.setuptools.packages.find]
 where = [ 'src' ]
 
 [tool.setuptools.package-data]
-'*' = [ '*.conf.yaml' ]
+'*' = [ '**/*.conf.yaml' ]
