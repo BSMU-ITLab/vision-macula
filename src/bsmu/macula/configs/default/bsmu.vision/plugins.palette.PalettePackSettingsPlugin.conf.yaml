@@ -1,0 +1,48 @@
+main_palette:
+  row_by_name:
+    background: [   0,   0,   0,   0,   0 ]
+
+    # Drusen
+    foreground: [   1, 154, 205,  50, 255 ]  # YellowGreen
+
+    # Subretinal Fluid
+    srf:        [   2, 148,   0, 211, 255 ]  # DarkViolet
+
+    # Intraretinal Fluid
+    irf:        [   3,   0,   0, 255, 255 ]  # Blue
+
+    # Subretinal Hyperreflective Material
+    shrm:       [   4, 255, 255,   0, 255 ]  # Yellow
+
+    # Intraretinal Hyperreflective Foci
+    ihrf:       [   5, 184, 134,  11, 255 ]  # DarkGoldenrod
+
+    # Exudative Retinal Detachment
+    erd:        [   6, 255,   0, 255, 255 ]  # Fuchsia
+
+    class_7:    [   7, 238, 130, 238, 255 ]  # Violet
+
+    # Retinal Angiomatous Proliferation
+    rap:        [   8, 255,   0,   0, 255 ]  # Red
+
+    # Retinal Pigment Epithelium
+    rpe:        [   9,   0, 255,   0, 255 ]  # Lime
+
+    class_10:   [  10,   0, 255, 255, 255 ]  # Aqua
+    class_11:   [  11, 255, 160, 122, 255 ]  # LightSalmon
+    class_12:   [  12,  85, 107,  47, 255 ]  # DarkOliveGreen
+    class_13:   [  13,  60, 179, 113, 255 ]  # MediumSeaGreen
+    choroid:    [  14,   0, 139, 139, 255 ]  # DarkCyan
+    class_15:   [  15,  72,  61, 139, 255 ]  # DarkSlateBlue
+    class_16:   [  16, 127, 255,   0, 255 ]  # Chartreuse
+    class_17:   [  17, 143, 188, 139, 255 ]  # DarkSeaGreen
+    class_18:   [  18, 139,  69,  19, 255 ]  # SaddleBrown
+    class_19:   [  19,   0, 191, 255, 255 ]  # DeepSkyBlue
+    class_20:   [  20,  65, 105, 225, 255 ]  # RoyalBlue
+    class_21:   [  21, 255,  69,   0, 255 ]  # OrangeRed
+    class_22:   [  22, 240, 230, 140, 255 ]  # Khaki
+    class_23:   [  23, 219, 112, 147, 255 ]  # PaleVioletRed
+    class_24:   [  24, 186,  85, 211, 255 ]  # MediumOrchid
+    class_25:   [  25, 178,  34,  34, 255 ]  # FireBrick
+    class_26:   [  26,   0,   0,   0, 255 ]  # Black
+    class_255:  [ 255,  50,   0,  50, 255 ]  # Dark Purple
