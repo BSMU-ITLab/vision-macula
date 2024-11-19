@@ -1,12 +1,12 @@
 # Resource object code (Python 3)
 # Created by: object code
-# Created by: The Resource Compiler for Qt version 6.7.3
+# Created by: The Resource Compiler for Qt version 6.8.0
 # WARNING! All changes made in this file will be lost!
 
 from PySide6 import QtCore
 
 qt_resource_data = b"\
-\x00\x00\x15F\
+\x00\x00\x14\xc9\
 <\
 ?xml version=\x221.\
 0\x22 encoding=\x22UTF\
@@ -62,9 +62,9 @@ pageopacity=\x220.0\
 pageshadow=\x222\x22\x0a \
     inkscape:zoo\
 m=\x221\x22\x0a     inksc\
-ape:cx=\x22201.9999\
+ape:cx=\x22201.4999\
 9\x22\x0a     inkscape\
-:cy=\x22103\x22\x0a     i\
+:cy=\x22117\x22\x0a     i\
 nkscape:document\
 -units=\x22mm\x22\x0a    \
  inkscape:curren\
@@ -207,7 +207,7 @@ utt;stroke-linej\
 oin:miter;stroke\
 -opacity:1\x22\x0a    \
    d=\x22m -595.563\
-82,392.33207 c -\
+82,393.91958 c -\
 2.23765,0.1157 -\
 4.91424,0.097 -6\
 .54448,1.9689 -1\
@@ -257,8 +257,8 @@ inecap:butt;stro\
 ke-linejoin:mite\
 r;stroke-opacity\
 :1\x22\x0a       d=\x22m \
--553.92594,402.2\
-5177 c -6.1657,1\
+-553.92594,403.8\
+3928 c -6.1657,1\
 .2404 -15.04374,\
 2.019 -24.91304,\
 2.019 -8.89925,0\
@@ -283,72 +283,64 @@ r;stroke-opacity\
 -0.8059 0.43696,\
 -1.2221 z\x22 />\x0a  \
   <path\x0a       i\
-d=\x22path49119-3-7\
--3-6-6-1-3\x22\x0a    \
-   style=\x22fill:#\
-f17e37;fill-opac\
-ity:1;stroke:non\
-e;stroke-width:3\
+d=\x22rect51589-2-7\
+-0-4-8\x22\x0a       s\
+tyle=\x22fill:#8792\
+81;fill-opacity:\
+1;stroke-width:3\
 ;stroke-linecap:\
 round;stroke-lin\
-ejoin:round;stro\
-ke-opacity:1;pai\
-nt-order:markers\
- fill stroke;sto\
-p-color:#000000\x22\
-\x0a       d=\x22m -57\
-7.9515,372.91637\
- a 13.115384,13.\
-115384 0 0 0 -13\
-.11548,13.1155 1\
-3.115384,13.1153\
-84 0 0 0 0.12144\
-,1.7317 c 2.9631\
-5,0.2132 5.89627\
-,0.7333 8.48578,\
-2.3435 2.6387,1.\
-5332 5.95483,1.7\
-6 8.64134,0.2196\
- 2.67807,-1.7668\
- 5.75502,-2.3325\
- 8.86096,-2.5647\
- a 13.115384,13.\
-115384 0 0 0 0.1\
-2143,-1.7301 13.\
-115384,13.115384\
- 0 0 0 -13.11547\
-,-13.1155 z\x22 />\x0a\
-    <path\x0a      \
- id=\x22rect51589-2\
--7-0-4-8\x22\x0a      \
- style=\x22fill:#87\
-9281;fill-opacit\
-y:1;stroke-width\
-:3;stroke-lineca\
-p:round;stroke-l\
-inejoin:round;pa\
-int-order:marker\
-s fill stroke;st\
-op-color:#000000\
-\x22\x0a       d=\x22m -5\
-77.95159,355.217\
-17 c -16.99881,0\
- -31.5189,10.937\
- -36.89129,26.13\
-38 l 8.88267,3.0\
-804 c 4.05781,-1\
-1.5524 15.03209,\
--19.7884 28.0086\
-2,-19.7884 12.97\
-652,0 23.9508,8.\
-236 28.00862,19.\
-7884 l 8.88266,-\
-3.0804 c -5.3723\
-9,-15.1968 -19.8\
-9249,-26.1338 -3\
-6.89128,-26.1338\
- z\x22 />\x0a  </g>\x0a</\
-svg>\x0a\
+ejoin:round;pain\
+t-order:markers \
+fill stroke;stop\
+-color:#000000\x22\x0a\
+       d=\x22m -577\
+.95159,355.21717\
+ c -16.99881,0 -\
+31.5189,10.937 -\
+36.89129,26.1338\
+ l 8.88267,3.080\
+4 c 4.05781,-11.\
+5524 15.03209,-1\
+9.7884 28.00862,\
+-19.7884 12.9765\
+2,0 23.9508,8.23\
+6 28.00862,19.78\
+84 l 8.88266,-3.\
+0804 c -5.37239,\
+-15.1968 -19.892\
+49,-26.1338 -36.\
+89128,-26.1338 z\
+\x22 />\x0a    <path\x0a \
+      id=\x22path70\
+41\x22\x0a       style\
+=\x22fill:#f17e37;s\
+troke-width:2.78\
+212;stroke-linec\
+ap:round;stroke-\
+linejoin:round;p\
+aint-order:marke\
+rs fill stroke;s\
+top-color:#00000\
+0\x22\x0a       d=\x22m -\
+577.95159,376.15\
+593 a 15.52836,1\
+5.52836 0 0 0 -1\
+5.51429,15.18615\
+ c 3.79331,0.129\
+69 7.68219,0.402\
+83 11.00604,2.46\
+962 2.6387,1.533\
+1 5.95483,1.7599\
+2 8.64134,0.2196\
+2 3.40551,-2.246\
+79 7.45547,-2.55\
+161 11.39052,-2.\
+69751 a 15.52836\
+,15.52836 0 0 0 \
+-15.52361,-15.17\
+788 z\x22 />\x0a  </g>\
+\x0a</svg>\x0a\
 "
 
 qt_resource_name = b"\
@@ -368,7 +360,7 @@ qt_resource_struct = b"\
 \x00\x00\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x02\
 \x00\x00\x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x10\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\
-\x00\x00\x01\x92S\x0d\xf8\x00\
+\x00\x00\x01\x93@rc\xcf\
 "
 
 def qInitResources():
