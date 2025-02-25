@@ -1,0 +1,11 @@
+binary_ensemble_models:
+  name: {"class_1.onnx":1, "class_6.onnx":6, "class_9.onnx":9, "class_12.onnx":12, "class_14.onnx":14, "class_2.onnx":2, "class_11.onnx":2}
+  output_object_name: 'Tissue'
+  output_object_short_name: 'T'
+  preload: false
+  batch_size: 4
+  input_size: [1, 512, 512]
+  channels_axis: 0
+  channels_order: 'rgb'
+  normalize: true
+  mask_binarization_threshold: 0.5

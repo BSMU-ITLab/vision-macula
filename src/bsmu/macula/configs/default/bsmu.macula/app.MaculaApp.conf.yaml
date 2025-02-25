@@ -27,3 +27,5 @@ plugins:
   - bsmu.vision.plugins.layers_view.LayersTableViewPlugin
 
 #  - bsmu.vision.plugins.task_storage_view.TaskStorageViewPlugin
+
+  - bsmu.macula.plugins.gui.ensemble_segmenter_gui.EnsembleSegmenterGuiPlugin
