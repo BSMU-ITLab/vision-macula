@@ -80,10 +80,11 @@ class EnsembleSegmentationTask(DnnTask):
     def _run(self) -> np.ndarray:
         logging.info("Starting ensemble segmentation task.")
         # Preparing image here, to avoid excessive preprocessing in DnnSegmenter
-        prepared_image = list(self._segmenters.values())[0].model_params.preprocessed_input(self._image, False)
-
+        prepared_image, cords = list(self._segmenters.values())[0].model_params.preprocessed_input(self._image, False)
+        x, y, w, h = cords
+        empty_mask = np.zeros(self._image.shape[:2], dtype=np.uint8) # to handel images with software info
         num_models = len(self._segmenters)
-        model_predictions = np.zeros((num_models, *self._image.shape[:2]), dtype=np.float32)
+        model_predictions = np.zeros((num_models, h, w), dtype=np.float32)
         labels = np.zeros(num_models, dtype=np.uint8)
 
         for i, (model_name, segmenter) in enumerate(self._segmenters.items()):
@@ -91,9 +92,8 @@ class EnsembleSegmentationTask(DnnTask):
             mask = segmenter.segment(prepared_image)
 
             # Code from DnnSegmenter.segment method
-            src_image_shape = self._image.shape
-            if src_image_shape[:2] != mask.shape[:2]:
-                mask = cv2.resize(mask, (src_image_shape[1], src_image_shape[0]), interpolation=cv2.INTER_LINEAR_EXACT)
+            if (w, h) != mask.shape[:2]:
+                mask = cv2.resize(mask, (w, h), interpolation=cv2.INTER_LINEAR_EXACT)
 
             model_predictions[i] = np.where(mask > segmenter.model_params.mask_binarization_threshold, mask, 0)
             labels[i] = self._name_to_mask_class[model_name]
@@ -102,6 +102,7 @@ class EnsembleSegmentationTask(DnnTask):
         zero_mask = np.all(model_predictions==0, axis=0)
         final_mask = labels[max_indices]
         final_mask[zero_mask] = 0
+        empty_mask[y:y + h, x:x + w] = final_mask
 
         logging.info("Ensemble segmentation task completed.")
-        return final_mask
+        return empty_mask

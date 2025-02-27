@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Dict, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -30,7 +30,7 @@ class EnsembleImageModelParams(ImageModelParams):
             name_to_mask_class = model_mapping,
             **field_name_to_config_value)
 
-    def preprocessed_input(self, image: np.ndarray, skip_preprocessing=True) -> np.ndarray:
+    def preprocessed_input(self, image: np.ndarray, skip_preprocessing=True) -> (np.ndarray, Tuple[int]):
 
         if skip_preprocessing:   # Quick fix to avoid DnnSegmenter preprocessing
             image = image[np.newaxis, :, :]
@@ -38,6 +38,13 @@ class EnsembleImageModelParams(ImageModelParams):
 
         if len(image.shape) == 3:
             image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+        # Crop software info
+        _, binary = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY_INV)
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        largest_contour = max(contours, key=cv2.contourArea)
+        x, y, w, h = cv2.boundingRect(largest_contour)
+        image = image[y:y + h, x:x + w]
 
         if image.shape != self.input_size[1:]:
             image = cv2.resize(image[1:], self.input_size[1:], interpolation=cv2.INTER_AREA)
@@ -48,7 +55,7 @@ class EnsembleImageModelParams(ImageModelParams):
             image -= self.IMAGENET_MEAN.mean()
             image /= self.IMAGENET_STD.mean()
 
-        return image
+        return image, (x, y, w, h)
 
     def preprocessed_input_batch(self, src_batch: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
         return super().preprocessed_input_batch(src_batch)

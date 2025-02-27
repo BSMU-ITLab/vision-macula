@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="vision-macula-py311" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.11 (vm)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.11 (vision-macula)" project-jdk-type="Python SDK" />
 </project>
