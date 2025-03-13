@@ -53,7 +53,7 @@ class EnsembleSegmenterGuiPlugin(Plugin):
             self.tr('Ensemble Segmentation'),
             partial(
                 self._ensemble_segmenter_gui.segment_async,
-                mask_layer_name='generated_masks',
+                mask_layer_name='masks',
                 mask_draw_mode=MaskDrawMode.OVERLAY_FOREGROUND,
             ),
         )

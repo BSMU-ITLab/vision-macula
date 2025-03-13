@@ -12,7 +12,7 @@ plugins:
   - bsmu.vision.plugins.visualizers.image.layered.LayeredImageVisualizerPlugin
 
   - bsmu.vision.plugins.overlayers.image.ImageViewerOverlayerPlugin
-#  - bsmu.vision.plugins.overlayers.path.ImageViewerPathOverlayerPlugin
+  - bsmu.vision.plugins.overlayers.path.ImageViewerPathOverlayerPlugin
 #  - bsmu.vision.plugins.overlayers.intersection.ImageViewerIntersectionOverlayerPlugin
 
   - bsmu.vision.plugins.writers.image.common.CommonImageFileWriterPlugin
@@ -21,7 +21,7 @@ plugins:
   - bsmu.vision.plugins.tools.viewer.image.hand_tool.HandImageViewerToolPlugin
   - bsmu.vision.plugins.tools.viewer.image.wsi_smart_brush.WsiSmartBrushImageViewerToolPlugin
 
-#  - bsmu.vision.plugins.walkers.file.MdiImageLayerFileWalkerPlugin
+  - bsmu.vision.plugins.walkers.file.MdiImageLayerFileWalkerPlugin
 
   - bsmu.vision.plugins.layer_controller.MdiImageViewerLayerControllerPlugin
   - bsmu.vision.plugins.layers_view.LayersTableViewPlugin
