@@ -67,6 +67,7 @@ class EnsembleMdiSegmenter(MdiSegmenter):
     ):
         from bsmu.vision.core.image import FlatImage
         mask_layer = layered_image.layer_by_name(mask_layer_name)
+        # Temp fix to redraw the entire mask even for MaskDrawMode.OVERLAY_FOREGROUND mode
         if mask_draw_mode == MaskDrawMode.REDRAW_ALL or mask_layer is None or not mask_layer.is_image_pixels_valid or MaskDrawMode.OVERLAY_FOREGROUND:
             layered_image.add_layer_or_modify_pixels(
                 mask_layer_name,
@@ -75,11 +76,9 @@ class EnsembleMdiSegmenter(MdiSegmenter):
                 palette=self._segmenter.mask_palette,
                 visibility=Visibility(True, 0.75),
             )
-
         elif mask_draw_mode == MaskDrawMode.FILL_BACKGROUND:
             is_modified = mask_layer.image_pixels == self.mask_background_class
             mask_layer.image_pixels[is_modified] = mask[is_modified]
             mask_layer.image.emit_pixels_modified()
-            print(3)
         else:
             raise ValueError(f'Invalid MaskDrawMode: {mask_draw_mode}')
