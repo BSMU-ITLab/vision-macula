@@ -7,7 +7,7 @@ from bsmu.vision.core.plugins import Plugin
 from bsmu.vision.plugins.doc_interfaces.mdi import MdiPlugin
 from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindowPlugin, MainWindow
 
-from bsmu.macula.plugins.SQLiteTableViewer import TableWidgetExample
+from bsmu.macula.plugins.db.SQLiteTableViewer import TableWidgetExample
 from bsmu.macula.plugins.ensemble_segmenter import BinaryEnsemblePlugin
 
 if TYPE_CHECKING:

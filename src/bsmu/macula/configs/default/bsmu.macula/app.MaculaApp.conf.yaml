@@ -28,6 +28,6 @@ plugins:
 
   - bsmu.vision.plugins.task_storage_view.TaskStorageViewPlugin
 
-  - bsmu.macula.plugins.BD.BD
+  - bsmu.macula.plugins.db.BD.BD
   - bsmu.macula.plugins.gui.ensemble_segmenter_gui.EnsembleSegmenterGuiPlugin
-  - bsmu.macula.plugins.database_manager.DatabaseManager
+  - bsmu.macula.plugins.db.database_manager.DatabaseManager

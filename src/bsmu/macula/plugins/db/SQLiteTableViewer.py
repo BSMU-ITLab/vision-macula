@@ -8,8 +8,10 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate, QMessageBox, QGroupBox, QFormLayout, QTabWidget, QDialog
 )
 
-from bsmu.macula.plugins.add_patient_dialog import AddRecordDialog
-from bsmu.macula.plugins.edit_pacirnt_delegate import EditPacientDelegate
+from bsmu.macula.plugins.db.add_patient_dialog import AddRecordDialog
+from bsmu.macula.plugins.db.edit_pacirnt_delegate import EditPacientDelegate
+from bsmu.macula.widgets.eye_data_widget import EyeDataWidget
+from bsmu.macula.records.eye_info_data import PatientExamData
 
 
 class TableWidgetExample(QWidget):
@@ -134,6 +136,10 @@ class TableWidgetExample(QWidget):
             self.tab_widget.removeTab(0)
         self.tab_widget.addTab(self.create_scrollable_area("Правый глаз", 0), "Правый глаз")
         self.tab_widget.addTab(self.create_scrollable_area("Левый глаз", 1), "Левый глаз")
+        eye_data = PatientExamData.from_query_model(self.appointment_data_model, 1)
+        eye_widget = EyeDataWidget(eye_data)
+        self.tab_widget.addTab(eye_widget, "Левый глаз")
+
 
 
     def create_scrollable_area(self, layout_name, index_eye):
@@ -149,16 +155,20 @@ class TableWidgetExample(QWidget):
         scroll_layout.addWidget(self.create_block("Обследование", [
             ("Дата посещения", self.get_app_data_in(index_eye, 3)),
             ("Продолжительность заболевания", self.get_app_data_in(index_eye, 4)),
-            ("Тип томографа ","Топкон"), ("Критерий AREDS", self.get_app_data_in(index_eye, 7)),
-            ("Рефракция", self.get_app_data_in(index_eye, 8)), ("Тип неоваскуляризации", self.get_app_data_in(index_eye, 9))
+            ("Тип томографа ","Топкон"),
+            ("Критерий AREDS", self.get_app_data_in(index_eye, 7)),
+            ("Рефракция", self.get_app_data_in(index_eye, 8)),
+            ("Тип неоваскуляризации", self.get_app_data_in(index_eye, 9))
         ]))
         scroll_layout.addWidget(self.create_block("Ретинальные показатели", [
-            ("Толщина хориоидеи в центре", self.get_app_data_in(index_eye, 10)), ("Толщина сетчатки в фовеоле", self.get_app_data_in(index_eye, 11)),
+            ("Толщина хориоидеи в центре", self.get_app_data_in(index_eye, 10)),
+            ("Толщина сетчатки в фовеоле", self.get_app_data_in(index_eye, 11)),
             ("Общий объем", self.get_app_data_in(index_eye, 14)),
             ("Средний объем", self.get_app_data_in(index_eye, 15))
         ]))
         scroll_layout.addWidget(self.create_block("", [
-            ("Состояние РПЭ", self.get_app_data_in(index_eye, 16)), ("Локализация дефектов РПЭ", self.get_app_data_in(index_eye, 17)),
+            ("Состояние РПЭ", self.get_app_data_in(index_eye, 16)),
+            ("Локализация дефектов РПЭ", self.get_app_data_in(index_eye, 17)),
             ("Локализация кистозного макулярного отека", self.get_app_data_in(index_eye, 18))
         ]))
         scroll_layout.addWidget(QLabel("Отслойки РПЭ"))
@@ -169,35 +179,46 @@ class TableWidgetExample(QWidget):
             ("Площадь", self.get_app_data_in(index_eye, 22))
         ]))
         scroll_layout.addWidget(self.create_block("Геморрагическая ОПЭ", [
-            ("Локализация", self.get_app_data_in(index_eye, 23)), ("Ширина", self.get_app_data_in(index_eye, 24)),
-            ("Высота", self.get_app_data_in(index_eye, 25)), ("Площадь", self.get_app_data_in(index_eye, 26))
+            ("Локализация", self.get_app_data_in(index_eye, 23)),
+            ("Ширина", self.get_app_data_in(index_eye, 24)),
+            ("Высота", self.get_app_data_in(index_eye, 25)),
+            ("Площадь", self.get_app_data_in(index_eye, 26))
         ]))
         scroll_layout.addWidget(self.create_block("Фиброваскулярная ОПЭ", [
-            ("Локализация", self.get_app_data_in(index_eye, 27)), ("Ширина", self.get_app_data_in(index_eye, 28)),
-            ("Высота", self.get_app_data_in(index_eye, 29)), ("Площадь", self.get_app_data_in(index_eye, 30))
+            ("Локализация", self.get_app_data_in(index_eye, 27)),
+            ("Ширина", self.get_app_data_in(index_eye, 28)),
+            ("Высота", self.get_app_data_in(index_eye, 29)),
+            ("Площадь", self.get_app_data_in(index_eye, 30))
         ]))
         scroll_layout.addWidget(self.create_block("Друзеноидная ОПЭ", [
-            ("Локализация", self.get_app_data_in(index_eye, 31)), ("Ширина", self.get_app_data_in(index_eye, 32)),
-            ("Высота", self.get_app_data_in(index_eye, 33)), ("Площадь", self.get_app_data_in(index_eye, 34))
+            ("Локализация", self.get_app_data_in(index_eye, 31)),
+            ("Ширина", self.get_app_data_in(index_eye, 32)),
+            ("Высота", self.get_app_data_in(index_eye, 33)),
+            ("Площадь", self.get_app_data_in(index_eye, 34))
         ]))
         scroll_layout.addWidget(self.create_block("Друзы", [
             ("Локализация", self.get_app_data_in(index_eye, 35)),
-            ("Ширина", self.get_app_data_in(index_eye, 36)), ("Высота", self.get_app_data_in(index_eye, 37)),
+            ("Ширина", self.get_app_data_in(index_eye, 36)),
+            ("Высота", self.get_app_data_in(index_eye, 37)),
             ("Площадь", self.get_app_data_in(index_eye, 38))
         ]))
         scroll_layout.addWidget(self.create_block("Жидкость под РПЭ", [
-            ("Пощадь", self.get_app_data_in(index_eye, 39)), ("Локализация", self.get_app_data_in(index_eye, 40))
+            ("Пощадь", self.get_app_data_in(index_eye, 39)),
+            ("Локализация", self.get_app_data_in(index_eye, 40))
         ]))
         scroll_layout.addWidget(self.create_block("Эллипсоидная зона", [
-            ("Состояние", self.get_app_data_in(index_eye, 41)), ("Локализация дефектов", self.get_app_data_in(index_eye, 42))
+            ("Состояние", self.get_app_data_in(index_eye, 41)),
+            ("Локализация дефектов", self.get_app_data_in(index_eye, 42))
         ]))
         scroll_layout.addWidget(self.create_block("Миоидная зона", [
             ("Состояние", self.get_app_data_in(index_eye, 43)),
             ("Локализация дефектов", self.get_app_data_in(index_eye, 44))
         ]))
         scroll_layout.addWidget(self.create_block("Отслойка нейросенсорной сетчатки", [
-            ("Локализация", self.get_app_data_in(index_eye, 45)), ("Ширина", self.get_app_data_in(index_eye, 46)),
-            ("Высота", self.get_app_data_in(index_eye, 47)), ("Площадь", self.get_app_data_in(index_eye, 48))
+            ("Локализация", self.get_app_data_in(index_eye, 45)),
+            ("Ширина", self.get_app_data_in(index_eye, 46)),
+            ("Высота", self.get_app_data_in(index_eye, 47)),
+            ("Площадь", self.get_app_data_in(index_eye, 48))
         ]))
         scroll_layout.addWidget(self.create_block("Гиперрефлективный материал", [
             ("Локализация", self.get_app_data_in(index_eye, 49)),
@@ -369,7 +390,7 @@ class TableWidgetExample(QWidget):
 class ButtonDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         """Рисуем кнопку в ячейке"""
-        icon_path = r"C:\Users\Evgeniy\Projects\macula\vision-macula\src\bsmu\macula\app\images\icons\edit.png"
+        icon_path = r"/bsmu/macula/app/images/icons/edit.png"
         icon = QIcon(icon_path) # 🔹 Здесь нужна иконка (например, карандаш)
         icon.paint(painter, option.rect)
 
