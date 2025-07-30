@@ -18,6 +18,9 @@ class BD(Plugin):
         'mdi_plugin': 'bsmu.vision.plugins.doc_interfaces.mdi.MdiPlugin'
     }
 
+    _SQL_DIR_NAME = 'sql'
+    _DATA_DIRS = (_SQL_DIR_NAME,)
+
     def __init__(
             self,
             main_window_plugin: MainWindowPlugin,

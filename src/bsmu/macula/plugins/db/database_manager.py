@@ -364,11 +364,16 @@ class DatabaseManager(Plugin):
     3.2, 1.5, 0, 0, 0
 );"""
 
+
+    _SQL_DIR_NAME = 'sql'
+    _DATA_DIRS = (_SQL_DIR_NAME,)
+
     def __init__(self, db_name="database.db"):
         super().__init__()
         self.db = QSqlDatabase.addDatabase("QSQLITE")
+        self.db_name_path = self.data_path(self._SQL_DIR_NAME) / db_name
         self.db.setDatabaseName(db_name)
-        self.connection = sqlite3.connect(db_name)
+        self.connection = sqlite3.connect(self.db_name_path)
         self.cursor = self.connection.cursor()
         self.execute_query(self.CREATE_PATIENTS)
         self.execute_query(self.CREATE_APPOINTMENTS)
@@ -379,7 +384,7 @@ class DatabaseManager(Plugin):
         self.close_connection()
 
     def start_connection(self, db_name="database.db"):
-        self.connection = sqlite3.connect(db_name)
+        self.connection = sqlite3.connect(self.db_name_path)
         self.cursor = self.connection.cursor()
 
     def execute_query(self, query, params=()):

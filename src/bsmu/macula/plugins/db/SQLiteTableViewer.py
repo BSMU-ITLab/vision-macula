@@ -1,5 +1,6 @@
 from functools import partial
 
+from PySide6.QtCore import QResource
 from PySide6.QtGui import QIcon, Qt, QPixmap
 from PySide6.QtSql import QSqlQueryModel, QSqlDatabase, QSqlQuery
 from PySide6.QtWidgets import (
@@ -12,6 +13,7 @@ from bsmu.macula.plugins.db.add_patient_dialog import AddRecordDialog
 from bsmu.macula.plugins.db.edit_pacirnt_delegate import EditPacientDelegate
 from bsmu.macula.widgets.eye_data_widget import EyeDataWidget
 from bsmu.macula.records.eye_info_data import PatientExamData
+from bsmu.macula.plugins.db.images import dbicons_rc  # noqa: F401
 
 
 class TableWidgetExample(QWidget):
@@ -87,7 +89,7 @@ class TableWidgetExample(QWidget):
         self.patients_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.patients_table.clicked.connect(self.patient_clicked)
 
-        self.appointment_edit_delegate = EditPacientDelegate(r"edit.png", self.patients_table, self.open_dialog)
+        self.appointment_edit_delegate = EditPacientDelegate(':/dbicons/edit.png', self.patients_table, self.open_dialog)
         self.patients_table.setItemDelegateForColumn(self.patients_model.columnCount() - 1, self.appointment_edit_delegate)
 
 
@@ -291,10 +293,10 @@ class TableWidgetExample(QWidget):
         self.appointments_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.appointments_table.clicked.connect(self.apointment_clicked)
 
-        self.appointment_edit_delegate2 = EditPacientDelegate(r"edit.png", self.patients_table, self.open_dialog_appointmernt)
+        self.appointment_edit_delegate2 = EditPacientDelegate(':/dbicons/edit.png', self.patients_table, self.open_dialog_appointmernt)
         self.appointments_table.setItemDelegateForColumn(self.patients_model.columnCount() - 2, self.appointment_edit_delegate2)
 
-        self.appointment_edit_delegate3 = EditPacientDelegate(r"2.png", self.patients_table, self.open_dialog_appointmernt)
+        self.appointment_edit_delegate3 = EditPacientDelegate(':/dbicons/show.png', self.patients_table, self.open_dialog_appointmernt)
         self.appointments_table.setItemDelegateForColumn(self.patients_model.columnCount() - 1, self.appointment_edit_delegate3)
 
         self.appointments_table.setColumnHidden(0, True)
@@ -390,7 +392,7 @@ class TableWidgetExample(QWidget):
 class ButtonDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         """Рисуем кнопку в ячейке"""
-        icon_path = r"/bsmu/macula/app/images/icons/edit.png"
+        icon_path = ':/dbicons/edit.png'
         icon = QIcon(icon_path) # 🔹 Здесь нужна иконка (например, карандаш)
         icon.paint(painter, option.rect)
 
