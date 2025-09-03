@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional
 
 import numpy as np
 
 from bsmu.macula.infervis.mdi import MdiSegmenter
 from bsmu.vision.core.visibility import Visibility
 from bsmu.macula.inference.enseble import EnsembleSegmenter
+from bsmu.macula.records.eye_info_data import Measurement
 from bsmu.vision.core.image import MaskDrawMode
 
 if TYPE_CHECKING:
     from bsmu.vision.core.image.layered import LayeredImage
     from bsmu.vision.core.image import FlatImage
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi
+import cv2
 
 class EnsembleMdiSegmenter(MdiSegmenter):
     def __init__(self, segmenter: EnsembleSegmenter, mdi: Mdi):
@@ -52,16 +54,22 @@ class EnsembleMdiSegmenter(MdiSegmenter):
     def _on_segmentation_finished(
             self,
             mask: np.ndarray,
-            layered_image: LayeredImage,
+            prepared_image: np.ndarray,
+            cords: tuple,
+            class_areas: Optional[Dict[int, int]] = None,  # <-- второй позиционный, опционален
+            *,
+            layered_image: 'LayeredImage',
             mask_layer_name: str,
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
     ):
+
+        # Обновляем маску с найденным L
         self.update_mask_layer(mask, layered_image, mask_layer_name, mask_draw_mode)
 
     def update_mask_layer(
             self,
             mask: np.ndarray,
-            layered_image: LayeredImage,
+            layered_image: 'LayeredImage',
             mask_layer_name: str,
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
     ):

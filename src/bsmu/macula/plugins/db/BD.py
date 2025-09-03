@@ -35,6 +35,7 @@ class BD(Plugin):
         return self._ensemble_segmenter_gui
 
     def _enable_gui(self):
+        
         self._main_window = self._main_window_plugin.main_window
 
         self._main_window.add_menu_action(

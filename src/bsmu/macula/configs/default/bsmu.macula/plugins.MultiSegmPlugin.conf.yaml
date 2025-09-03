@@ -1,0 +1,10 @@
+multi_segmenter_model:
+  name: "model_segmentation.onnx"
+  numclasses: 10
+  output_object_name: 'Tissue'
+  output_object_short_name: 'T'
+  preload: false
+  channels_axis: 0
+  channels_order: 'rgb'
+  normalize: true
+  mask_binarization_threshold: 0.5

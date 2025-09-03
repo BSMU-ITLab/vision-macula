@@ -31,3 +31,5 @@ plugins:
   - bsmu.macula.plugins.db.BD.BD
   - bsmu.macula.plugins.gui.ensemble_segmenter_gui.EnsembleSegmenterGuiPlugin
   - bsmu.macula.plugins.db.database_manager.DatabaseManager
+  
+  - bsmu.macula.plugins.analyser.mask_analyser.MaskAnalyserPlugin

@@ -46,7 +46,7 @@ class EnsembleSegmenter(QObject):
     def segment_async(
             self,
             image: Image,
-            on_finished: Callable[[np.ndarray], None] | None = None,
+            on_finished: Callable[[np.ndarray, Dict[int, int]], None] | None = None,
     ):
 
         task_name = f"Ensemble Segmentation [{image.path_name}]"
@@ -94,6 +94,7 @@ class EnsembleSegmentationTask(DnnTask):
             # Code from DnnSegmenter.segment method
             if (w, h) != mask.shape[:2]:
                 mask = cv2.resize(mask, (w, h), interpolation=cv2.INTER_LINEAR_EXACT)
+                im = cv2.resize(prepared_image, (w, h), interpolation=cv2.INTER_LINEAR_EXACT)
 
             model_predictions[i] = np.where(mask > segmenter.model_params.mask_binarization_threshold, mask, 0)
             labels[i] = self._name_to_mask_class[model_name]
@@ -103,6 +104,17 @@ class EnsembleSegmentationTask(DnnTask):
         final_mask = labels[max_indices]
         final_mask[zero_mask] = 0
         empty_mask[y:y + h, x:x + w] = final_mask
+        # ---------- Добавлено: расчет площадей ----------
+        class_areas: Dict[int, int] = {}
+        for label_id in np.unique(final_mask):
+            if label_id == 0:  # фон
+                continue
+            area_px = int(np.count_nonzero(final_mask == label_id))
+            class_areas[label_id] = area_px
+            logging.info(f"Class {label_id} area = {area_px} px")
+
+        self.class_areas = class_areas
+        # -----------------------------------------------
 
         logging.info("Ensemble segmentation task completed.")
-        return empty_mask
+        return empty_mask, im, cords, class_areas
