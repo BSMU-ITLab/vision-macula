@@ -42,15 +42,26 @@ class MaskAnalyserPlugin(Plugin):
         )
 
     def _process_mask(self):
-        layered_image = self._mdi.active_sub_window_with_type(LayeredImageViewerHolder)
-        mask = layered_image.layers[0].image_pixels  #############kak
+        layered_image_viewer_sub_window = self._mdi.active_sub_window_with_type(LayeredImageViewerHolder)
+        if layered_image_viewer_sub_window is None:
+            return
+
+        layered_image_viewer = layered_image_viewer_sub_window.layered_image_viewer
+        layered_image = layered_image_viewer.data
+        mask_layer = layered_image_viewer.layer_by_name('masks')
+        mask_pixels = mask_layer.image_pixels
+
+
+        # layered_image = self._mdi.active_sub_window_with_type(LayeredImageViewerHolder)
+        # mask = layered_image.layers[0].image_pixels  #############kak
 
         classes = self.config_value("classes", [])
 
-        mask_analyser = MaskAnalyser(mask, classes)
+        mask_analyser = MaskAnalyser(mask_pixels, classes)
 
         # Выполняем анализ
         results = mask_analyser.analyze()
+        print(results)
 
 
     def _find_contours_by_class(self, mask: np.ndarray, class_id: int) -> list:
@@ -86,7 +97,7 @@ class MaskAnalyser:
             for obj in objects:
                 rect = cv2.minAreaRect(obj)
                 box = cv2.boxPoints(rect)
-                box = np.int0(box)
+                box = np.int8(box)
 
                 width = rect[1][0]
                 height = rect[1][1]
