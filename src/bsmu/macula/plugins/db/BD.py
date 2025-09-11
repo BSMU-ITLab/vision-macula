@@ -8,7 +8,6 @@ from bsmu.vision.plugins.doc_interfaces.mdi import MdiPlugin
 from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindowPlugin, MainWindow
 
 from bsmu.macula.plugins.db.SQLiteTableViewer import TableWidgetExample
-from bsmu.macula.plugins.ensemble_segmenter import BinaryEnsemblePlugin
 
 if TYPE_CHECKING:
     pass
@@ -30,23 +29,20 @@ class BD(Plugin):
         self._main_window_plugin = main_window_plugin
         self._mdi_plugin = mdi_plugin
 
-        self._ensemble_segmenter_gui: BinaryEnsemblePlugin | None = None
         self._main_window: MainWindow | None = None
 
-    @property
-    def ensemble_segmenter_gui(self) -> BinaryEnsemblePlugin | None:
-        return self._ensemble_segmenter_gui
 
     def _enable_gui(self):
         self._main_window = self._main_window_plugin.main_window
 
         self._main_window.add_menu_action(
             AlgorithmsMenu,
-            self.tr('BD'),
+            self.tr('Database'),
             self._re
         )
     def _re(self):
-        self.window = TableWidgetExample()
+        db_name = 'database.db'
+        self.window = TableWidgetExample(self.data_path(self._SQL_DIR_NAME) / db_name)
         self.window.setWindowModality(Qt.ApplicationModal)
         self.window.show()
 

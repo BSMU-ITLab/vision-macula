@@ -35,7 +35,7 @@ class DatabaseManager(Plugin):
     choroidal_thickness_center                NUMERIC     NOT NULL,
     cts_foveola                               NUMERIC     NOT NULL,
     cts_sup_inner_fovea                       NUMERIC     NOT NULL,
-    cts_sup_out_fovea                         NUMERIC     NOT NULL,
+    cts_sup_inner_fovea                         NUMERIC     NOT NULL,
     total_volume                              NUMERIC     NOT NULL,
     average_volume                            NUMERIC     NOT NULL,
     rpe_status                                NUMERIC     NOT NULL,
@@ -372,6 +372,7 @@ class DatabaseManager(Plugin):
         super().__init__()
         self.db = QSqlDatabase.addDatabase("QSQLITE")
         self.db_name_path = self.data_path(self._SQL_DIR_NAME) / db_name
+        print(self.db_name_path)
         self.db.setDatabaseName(db_name)
         self.connection = sqlite3.connect(self.db_name_path)
         self.cursor = self.connection.cursor()
