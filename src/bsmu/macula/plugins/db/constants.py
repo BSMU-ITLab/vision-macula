@@ -257,4 +257,21 @@ COLUMN_INDEX_TO_FIELD_NAME = {
     47: "hyperreflective_material_area"
 }
 
-
+COLUMNS_EYES = [
+            "id", "eye", "appointment_id", "date", "duration_of_the_disease", "topkon", "areds", "refraction", "type_of_neovascularization",
+            "choroidal_thickness_center", "cts_foveola", "total_volume", "average_volume",
+            "rpe_status", "rpe_localisation", "cme_localisation",
+            "serouz_rpe_detachment_localisation", "serouz_rpe_detachment_width", "serouz_rpe_detachment_height",
+            "serouz_rpe_detachment_area",
+            "hemorrhagic_rpe_detachment_localisation", "hemorrhagic_rpe_detachment_width",
+            "hemorrhagic_rpe_detachment_heidgt", "hemorrhagic_rpe_detachment_area",
+            "fibrovascular_rpe_detachment_localisation", "fibrovascular_rpe_detachment_width",
+            "fibrovascular_rpe_detachment_heidgt", "fibrovascular_rpe_detachment_area",
+            "drusenoid_detachment_rpe_localisation", "drusenoid_detachment_rpe_width",
+            "drusenoid_detachment_rpe_height", "drusenoid_detachment_rpe_area",
+            "druses_localisation", "druses_weigt", "druses_heigt", "dzuses_area",
+            "fluid_under_rpe_area", "fluid_under_rpe_localisation",
+            "ez_status", "ez_localisation", "myoidnz_status", "myoidnz_localisation",
+            "rne_detachment_localisation", "rne_detachment_width", "rne_detachment_heigt", "rne_detachment_area",
+            "hyperreflective_material_localisation", "hyperreflective_material_area"
+        ]

@@ -6,16 +6,18 @@ from PySide6.QtSql import QSqlQueryModel, QSqlQuery
 from bsmu.macula.plugins.db.DynamicFormBuilder import DynamicFormBuilder
 from bsmu.macula.plugins.db.PatientsModel import PatientsModel
 from bsmu.macula.plugins.db.constants import DROPDOWN_DB_VALUES, DROPDOWN_DISPLAY_MAP, BLOCKS, \
-    COLUMN_INDEX_TO_FIELD_NAME
+    COLUMN_INDEX_TO_FIELD_NAME, COLUMNS_EYES
+from bsmu.macula.plugins.db.debug_utils import print_sql_debug
 from bsmu.macula.plugins.db.edit_pacirnt_delegate import EditPacientDelegate
 from PySide6.QtWidgets import (
-    QWidget, QTableView, QVBoxLayout, QHBoxLayout, QPushButton, QScrollArea, QGroupBox, QFormLayout, QLineEdit,
+    QWidget, QTableView, QVBoxLayout, QHBoxLayout, QPushButton, QScrollArea, QGroupBox, QLineEdit,
     QTabWidget, QMessageBox, QComboBox
 )
 import bsmu.macula.plugins.db.images.dbicons_rc
 
 from bsmu.macula.plugins.db.add_patient_dialog import AddRecordDialog
 from bsmu.macula.plugins.db.database_manager_v2 import DatabaseManager
+from bsmu.macula.plugins.db.query_builder import QueryBuilder
 
 
 class TableWidgetExample(QWidget):
@@ -32,6 +34,7 @@ class TableWidgetExample(QWidget):
             self.db_path = bd_path
             self.db_manager = DatabaseManager(bd_path)
             self.db = self.db_manager.get_connection()
+            self.builder = QueryBuilder("eyes", self.db_manager.get_connection())
             self.layoutBoxes = QVBoxLayout()
             self._setup_ui()
             self._load_initial_data()
@@ -85,23 +88,11 @@ class TableWidgetExample(QWidget):
 
         self.left_layout.addWidget(self.patients_table)
         self.left_layout.addWidget(add_button)
+
     def _load_patients_data(self):
         self.patients_model.setQuery("SELECT id, name, sex, year_of_birthday FROM pacients", self.db)
 
-        # headers = ["Ид", "Имя", "Пол", "Год рождения", "Редактировать"]
-        # for i, header in enumerate(headers):
-        #     self.patients_model.setHeaderData(i, Qt.Horizontal, header)
-
         self.patients_table.setModel(self.patients_model)
-        # self.patients_table.setSelectionBehavior(QTableView.SelectRows)
-        # self.patients_table.clicked.connect(self._on_patient_clicked)
-        # self.patients_table.setColumnHidden(0, True)
-
-        # add_button = QPushButton("Добавить пациента")
-        # add_button.clicked.connect(partial(self._open_dialog, 0))
-        #
-        # self.left_layout.addWidget(self.patients_table)
-        # self.left_layout.addWidget(add_button)
 
     def _setup_appointments_table(self):
         """Настройка таблицы приемов"""
@@ -155,31 +146,7 @@ class TableWidgetExample(QWidget):
 
     def _load_appointment_data(self, appointment_id: int):
         """Загрузка данных о приеме"""
-        # query = QSqlQuery(self.db)
-        # query.prepare("SELECT * FROM eyes WHERE appointment_id = ?")
-        # query.addBindValue(appointment_id)
-        #
-        # if not query.exec():
-        #     QMessageBox.warning(self, "Ошибка", f"Ошибка загрузки данных приема: {query.lastError().text()}")
-        #     return
-        columns = [
-            "id", "eye", "appointment_id", "date", "duration_of_the_disease", "topkon", "areds", "refraction", "type_of_neovascularization",
-            "choroidal_thickness_center", "cts_foveola", "total_volume", "average_volume",
-            "rpe_status", "rpe_localisation", "cme_localisation",
-            "serouz_rpe_detachment_localisation", "serouz_rpe_detachment_width", "serouz_rpe_detachment_height",
-            "serouz_rpe_detachment_area",
-            "hemorrhagic_rpe_detachment_localisation", "hemorrhagic_rpe_detachment_width",
-            "hemorrhagic_rpe_detachment_heidgt", "hemorrhagic_rpe_detachment_area",
-            "fibrovascular_rpe_detachment_localisation", "fibrovascular_rpe_detachment_width",
-            "fibrovascular_rpe_detachment_heidgt", "fibrovascular_rpe_detachment_area",
-            "drusenoid_detachment_rpe_localisation", "drusenoid_detachment_rpe_width",
-            "drusenoid_detachment_rpe_height", "drusenoid_detachment_rpe_area",
-            "druses_localisation", "druses_weigt", "druses_heigt", "dzuses_area",
-            "fluid_under_rpe_area", "fluid_under_rpe_localisation",
-            "ez_status", "ez_localisation", "myoidnz_status", "myoidnz_localisation",
-            "rne_detachment_localisation", "rne_detachment_width", "rne_detachment_heigt", "rne_detachment_area",
-            "hyperreflective_material_localisation", "hyperreflective_material_area"
-        ]
+        columns = COLUMNS_EYES
 
         # Формируем SQL-запрос
         column_clause = ", ".join(columns)
@@ -274,150 +241,16 @@ class TableWidgetExample(QWidget):
                 print(f"⚠️ Недопустимый индекс: строка {row_index}, колонка {column}")
         return initial_data
 
-    def clear_form_layout(self, form_layout5):
-        while form_layout5.count():
-            item = form_layout5.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-
-    def get_field_value(self, widget):
-        if isinstance(widget, QComboBox):
-            return widget.currentData()  # значение для базы
-        elif isinstance(widget, QLineEdit):
-            return widget.text()
-        return None
-
-    def create_field_widget(self, field_name, initial_value=None):
-        # Если поле имеет предопределённые значения — создаём QComboBox
-        if field_name in self.dropdown_db_values:
-            combo = QComboBox()
-            db_values = self.dropdown_db_values[field_name]
-            display_map = self.dropdown_display_map[field_name]
-
-            # Добавляем отображаемые значения
-            for db_value in db_values:
-                display_text = display_map.get(db_value, db_value)
-                combo.addItem(display_text, db_value)
-
-            # Устанавливаем начальное значение, если есть
-            if initial_value in db_values:
-                index = db_values.index(initial_value)
-                combo.setCurrentIndex(index)
-
-            return combo
-        else:
-            # Обычное текстовое поле
-            line_edit = QLineEdit()
-            if initial_value is not None:
-                line_edit.setText(str(initial_value))
-            return line_edit
-
-
-    def _toggle_edit_mode(self, group: QGroupBox, button: QPushButton, eye_index: int, eye_id_field: int):
-        """Переключает режим редактирования и сохраняет данные"""
-        is_editing = button.text() == "Редактировать"
-
-        for line_edit, column in self.editable_fields.get(group, []):
-            line_edit.setReadOnly(not is_editing)
-            if is_editing:
-                line_edit.setStyleSheet("background-color: #ffffff;")  # активный стиль
-            else:
-                line_edit.setStyleSheet("background-color: #f0f0f0;")  # обратно
-
-        if is_editing:
-            button.setText("Сохранить")
-        else:
-            button.setText("Редактировать")
-            self._save_block_data(group, eye_index, eye_id_field)  # вызов сохранения
-
-    def _toggle_edit_mode_2(self, button: QPushButton, eye_index: int):
-        """Переключает режим редактирования всех блоков и вставляет новую запись"""
-        is_editing = button.text() == "Редактировать"
-
-        # Переключаем все поля
-        table_name = "eyes"
+    def collect_form_data(self, form_dict, eye_index: int, blocks: list, get_column_name_fn) -> tuple[list, dict]:
         all_fields = []
         all_values = {}
-        blocks = [
-            ("Обследование", [
-                ("Дата посещения", 3),
-                ("Продолжительность заболевания", 4),
-                ("Тип томографа", 5),
-                ("Критерий AREDS", 6),
-                ("Рефракция", 7),
-                ("Тип неоваскуляризации", 8)
-            ]),
-            ("Ретинальные показатели", [
-                ("Толщина хориоидеи в центре", 9),
-                ("Толщина сетчатки в фовеоле", 10),
-                ("Общий объем", 11),
-                ("Средний объем", 12)
-            ]),
-            ("", [
-                ("Состояние РПЭ", 13),
-                ("Локализация дефектов РПЭ", 14),
-                ("Локализация кистозного макулярного отека", 15)
-            ]),
-            ("Серозная ОПЭ", [
-                ("Локализация", 16),
-                ("Ширина", 17),
-                ("Высота", 18),
-                ("Площадь", 19)
-            ]),
-            ("Геморрагическая ОПЭ", [
-                ("Локализация", 20),
-                ("Ширина", 21),
-                ("Высота", 22),
-                ("Площадь", 23)
-            ]),
-            ("Фиброваскулярная ОПЭ", [
-                ("Локализация", 24),
-                ("Ширина", 25),
-                ("Высота", 26),
-                ("Площадь", 27)
-            ]),
-            ("Друзеноидная ОПЭ", [
-                ("Локализация", 28),
-                ("Ширина", 29),
-                ("Высота", 30),
-                ("Площадь", 31)
-            ]),
-            ("Друзы", [
-                ("Локализация", 32),
-                ("Ширина", 33),
-                ("Высота", 34),
-                ("Площадь", 35)
-            ]),
-            ("Жидкость под РПЭ", [
-                ("Пощадь", 36),
-                ("Локализация", 37)
-            ]),
-            ("Эллипсоидная зона", [
-                ("Состояние", 38),
-                ("Локализация дефектов", 39)
-            ]),
-            ("Миоидная зона", [
-                ("Состояние", 40),
-                ("Локализация дефектов", 41)
-            ]),
-            ("Отслойка нейросенсорной сетчатки", [
-                ("Локализация", 42),
-                ("Ширина", 43),
-                ("Высота", 44),
-                ("Площадь", 45)
-            ]),
-            ("Гиперрефлективный материал", [
-                ("Локализация", 46),
-                ("Площадь", 47)
-            ])]
 
-
-        # Сбор данных из всех виджетов
         for block_title, fields in blocks:
             for label, field_name2 in fields:
-                field_name = self._get_column_name(field_name2)
-                widget = self.formDict[eye_index].get_all_field_widgets().get(field_name + str(eye_index))
+                field_name = get_column_name_fn(field_name2)
+                widget_key = field_name + str(eye_index)
+                widget = form_dict[eye_index].get_all_field_widgets().get(widget_key)
+
                 if widget is None:
                     continue
 
@@ -435,12 +268,25 @@ class TableWidgetExample(QWidget):
 
                 print(f"{field_name} = '{value}'")  # отладка
 
+        return all_fields, all_values
+
+    def _toggle_edit_mode_2(self, button: QPushButton, eye_index: int):
+        """Переключает режим редактирования всех блоков и вставляет новую запись"""
+        # Переключаем все поля
+        table_name = "eyes"
+        all_fields, all_values = self.collect_form_data(
+            self.formDict,
+            eye_index,
+            BLOCKS,
+            self._get_column_name
+        )
+
         # Проверка на наличие данных
         if not all_fields:
             print("❌ Нет данных для вставки.")
             return
 
-        if (self.appointment_id is None):
+        if (self.appointment_id is None or self.appointment_id is 0):
             # Вставка в appointments
             query1 = QSqlQuery(self.db_manager.get_connection())
             query1.prepare("""
@@ -465,19 +311,22 @@ class TableWidgetExample(QWidget):
         all_values["topkon"] = True
         all_values["optopol"] = True
 
+        # Вставка
+        query = self.builder.insert(all_values)
+        s = query.exec_()
         # Формируем SQL-запрос
-        field_clause = ", ".join(all_fields)
-        placeholder_clause = ", ".join([f":{field}" for field in all_fields])
-        query_text = f"INSERT INTO {table_name} ({field_clause}) VALUES ({placeholder_clause})"
+        # field_clause = ", ".join(all_fields)
+        # placeholder_clause = ", ".join([f":{field}" for field in all_fields])
+        # query_text = f"INSERT INTO {table_name} ({field_clause}) VALUES ({placeholder_clause})"
+        #
+        # query2 = QSqlQuery(self.db_manager.get_connection())
+        # query2.prepare(query_text)
+        #
+        # for field, value in all_values.items():
+        #     query2.bindValue(f":{field}", value)
 
-        query2 = QSqlQuery(self.db_manager.get_connection())
-        query2.prepare(query_text)
-
-        for field, value in all_values.items():
-            query2.bindValue(f":{field}", value)
-
-        if not query2.exec_():
-            print("❌ Ошибка при вставке eyes:", query2.lastError().text())
+        if not s:
+            print("❌ Ошибка при вставке eyes:", query.lastError().text())
         else:
             print("✅ Запись в eyes успешно добавлена.")
             self._load_appointments(self.patient_id_clicked)
@@ -496,75 +345,6 @@ class TableWidgetExample(QWidget):
             if header == column_name:
                 return col
         return -1  # если не найдено
-
-    def _save_block_data(self, group: QGroupBox, eye_index: int, eye_id_field: int):
-        table_name = "eyes"
-        fields = []
-        values = {}
-
-        # Сбор данных из формы
-        for line_edit, column in self.editable_fields.get(group, []):
-            if isinstance(column, int):
-                field_name = self._get_column_name(column)
-
-                value = line_edit.text()
-                if value is not None and str(value).strip():
-                    fields.append(field_name)
-                    values[field_name] = value
-
-                    # Обновление модели (если редактируемая)
-                    index = self.appointment_data_model.index(eye_index, column)
-                    if index.isValid():
-                        self.appointment_data_model.setData(index, value)
-
-        # Подготовка SQL-запроса
-        eye_id_name = 'id'
-        eye_id_value = self.appointment_data_model.index(eye_index, 0).data()
-
-        if fields and values and eye_id_value is not None:
-            set_clause = ", ".join([f"{field} = :{field}" for field in fields])
-            query_text = f"""
-                UPDATE {table_name}
-                SET {set_clause}
-                WHERE {eye_id_name} = :{eye_id_name}
-            """
-
-            query = QSqlQuery(self.db_manager.get_connection())
-            query.prepare(query_text)
-
-            # Привязка значений
-            for field, value in values.items():
-                field_clean = field
-                column_index = self.get_column_index_by_name(self.appointment_data_model, field_clean)
-
-                index = self.appointment_data_model.index(eye_index, column_index)
-                raw_data = index.data() if index.isValid() else None
-                data_type = type(raw_data) if raw_data is not None else str
-
-                try:
-                    converted_value = data_type(value) if callable(data_type) else value
-                except Exception as e:
-                    print(f"❌ Ошибка преобразования поля {field_clean}: {e}")
-                    converted_value = value
-
-                query.bindValue(f":{field_clean}", converted_value)
-
-            query.bindValue(f":{eye_id_name}", eye_id_value)
-
-            # Отладка
-            print("📤 SQL-запрос:")
-            print(query_text)
-            print("📦 Параметры:")
-            for field in values:
-                print(f"{field} → {query.boundValue(f':{field}')}")
-                print(f"{eye_id_name} → {eye_id_value}")
-
-                # Выполнение
-            if not query.exec_():
-                print(f"❌ Ошибка при обновлении: {query.lastError().text()}")
-            else:
-                print(f"✅ Данные блока '{group.title()}' успешно обновлены.")
-
 
     def _execute_insert(self, query: str, values: list):
         """Выполняет SQL INSERT в базу данных"""
@@ -601,3 +381,49 @@ class TableWidgetExample(QWidget):
         """Обработчик закрытия окна"""
         self.db_manager.close()
         super().closeEvent(event)
+
+def build_query(operation: str, table: str, data: dict, where: dict = None) -> QSqlQuery:
+    """
+    Универсальный конструктор SQL-запросов: INSERT, UPDATE, DELETE.
+
+    :param operation: 'insert', 'update', 'delete'
+    :param table: имя таблицы
+    :param data: словарь данных для вставки/обновления
+    :param where: словарь условий WHERE (только для update/delete)
+    :return: подготовленный QSqlQuery
+    """
+    query = QSqlQuery()
+
+    if operation == "insert":
+        fields = ", ".join(data.keys())
+        placeholders = ", ".join([f":{k}" for k in data])
+        sql = f"INSERT INTO {table} ({fields}) VALUES ({placeholders})"
+        query.prepare(sql)
+        for k, v in data.items():
+            query.bindValue(f":{k}", v)
+
+    elif operation == "update":
+        if not where:
+            raise ValueError("UPDATE требует параметр where")
+        set_clause = ", ".join([f"{k} = :{k}" for k in data])
+        where_clause = " AND ".join([f"{k} = :where_{k}" for k in where])
+        sql = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
+        query.prepare(sql)
+        for k, v in data.items():
+            query.bindValue(f":{k}", v)
+        for k, v in where.items():
+            query.bindValue(f":where_{k}", v)
+
+    elif operation == "delete":
+        if not where:
+            raise ValueError("DELETE требует параметр where")
+        where_clause = " AND ".join([f"{k} = :where_{k}" for k in where])
+        sql = f"DELETE FROM {table} WHERE {where_clause}"
+        query.prepare(sql)
+        for k, v in where.items():
+            query.bindValue(f":where_{k}", v)
+
+    else:
+        raise ValueError(f"Неизвестная операция: {operation}")
+
+    return query
