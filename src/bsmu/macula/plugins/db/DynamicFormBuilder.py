@@ -1,99 +1,33 @@
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QFont
 from PySide6.QtSql import QSqlQuery
-from PySide6.QtWidgets import QLineEdit, QComboBox, QPushButton, QGroupBox, QFormLayout, QWidget, QVBoxLayout
+import pandas as pd
+from PySide6.QtWidgets import QLineEdit, QComboBox, QPushButton, QGroupBox, QFormLayout, QWidget, QVBoxLayout, \
+    QTableView, QLabel
 
+from bsmu.macula.plugins.db.HoverComboBox import HoverComboBox
+from bsmu.macula.plugins.db.WheelBlocker import WheelBlocker
 from bsmu.macula.plugins.db.constants import DROPDOWN_DB_VALUES, DROPDOWN_DISPLAY_MAP, BLOCKS, \
-    COLUMN_INDEX_TO_FIELD_NAME
+    COLUMN_INDEX_TO_FIELD_NAME, DROPDOWN_DISPLAY_MAP2
 
 
 class DynamicFormBuilder(QWidget):
-    def __init__(self, blocks, initial_data, eye_index, appointment_data_model, db_manager, patient_id_clicked, parent=None):
+    def __init__(self, blocks, initial_data, eye_index, appointment_data_model, db_manager, patient_id_clicked,
+                 parent=None):
         super().__init__(parent)
-        self.eye_index  = eye_index
-        self.appointment_data_model  = appointment_data_model
-        self.db_manager  = db_manager
+        self.eye_index = eye_index
+        self.appointment_data_model = appointment_data_model
+        self.db_manager = db_manager
         self.patient_id_clicked = patient_id_clicked
         self.dropdown_db_values = DROPDOWN_DB_VALUES
 
         self.dropdown_display_map = DROPDOWN_DISPLAY_MAP
+        self.dropdown_display_map2 = DROPDOWN_DISPLAY_MAP2
         self.main_layout = QVBoxLayout(self)
         self.field_widgets = {}
         self.initial_data = initial_data or {}
 
         self.build_blocks(blocks, eye_index)
-
-    # def insert_new_eye_record(self, eye_index, patient_id_clicked, appointment_data_model, db_manager):
-    #     table_name = "eyes"
-    #     all_fields = []
-    #     all_values = {}
-    #     blocks = BLOCKS
-    #     # Сбор данных из всех виджетов
-    #     for block_title, fields in blocks:
-    #         for label, field_name in fields:
-    #             widget = self.formDict[eye_index].get_all_field_widgets().get(field_name + str(eye_index))
-    #             if widget is None:
-    #                 continue
-    #
-    #             # Получение значения
-    #             if isinstance(widget, QComboBox):
-    #                 value = widget.currentData()
-    #             elif isinstance(widget, QLineEdit):
-    #                 value = widget.text()
-    #             else:
-    #                 continue
-    #
-    #             all_fields.append(field_name)
-    #             if value is not None and str(value).strip():
-    #                 all_values[field_name] = value
-    #
-    #             print(f"{field_name} = '{value}'")  # отладка
-    #
-    #     # Проверка на наличие данных
-    #     if not all_fields:
-    #         print("❌ Нет данных для вставки.")
-    #         return
-    #
-    #     # Вставка в appointments
-    #     query1 = QSqlQuery(db_manager.get_connection())
-    #     query1.prepare("""
-    #         INSERT INTO appointments (pacient_id, date, duration_of_the_disease)
-    #         VALUES (:pacient_id, :date2, :duration_of_the_disease2)
-    #     """)
-    #     query1.bindValue(":pacient_id", patient_id_clicked)
-    #     query1.bindValue(":date2", all_values.get("date"))
-    #     query1.bindValue(":duration_of_the_disease2", all_values.get("duration_of_the_disease"))
-    #
-    #     if not query1.exec_():
-    #         print("❌ Ошибка при вставке appointments:", query1.lastError().text())
-    #         return
-    #
-    #     appointment_id = query1.lastInsertId()
-    #     print(f"✅ Создана запись appointments с ID: {appointment_id}")
-    #
-    #     # Добавляем служебные поля
-    #     all_fields += ["appointment_id", "eye", "MKO", "topkon", "optopol"]
-    #     all_values["appointment_id"] = appointment_id
-    #     all_values["eye"] = eye_index
-    #     all_values["MKO"] = eye_index
-    #     all_values["topkon"] = True
-    #     all_values["optopol"] = True
-    #
-    #     # Формируем SQL-запрос
-    #     field_clause = ", ".join(all_fields)
-    #     placeholder_clause = ", ".join([f":{field}" for field in all_fields])
-    #     query_text = f"INSERT INTO {table_name} ({field_clause}) VALUES ({placeholder_clause})"
-    #
-    #     query2 = QSqlQuery(db_manager.get_connection())
-    #     query2.prepare(query_text)
-    #
-    #     for field, value in all_values.items():
-    #         query2.bindValue(f":{field}", value)
-    #
-    #     if not query2.exec_():
-    #         print("❌ Ошибка при вставке eyes:", query2.lastError().text())
-    #     else:
-    #         print("✅ Запись в eyes успешно добавлена.")
-    #         # self._load_appointments(patient_id_clicked)
 
     def get_column_index_by_name(self, model, column_name: str) -> int:
         """Возвращает индекс столбца по его названию"""
@@ -123,31 +57,103 @@ class DynamicFormBuilder(QWidget):
                 edit_button.clicked.connect(lambda _, g=fields, b=edit_button: self.toggle_edit_block(g, b))
                 form_layout.addRow("", edit_button)
 
-    # def _toggle_edit_mode_2(self, button: QPushButton, eye_index: int):
-    #     is_editing = button.text() == "Редактировать"
-    #
-    #     # Переключаем все поля
-    #     for field_name, widget in self.field_widgets.items():
-    #         if isinstance(widget, QLineEdit):
-    #             widget.setReadOnly(not is_editing)
-    #             widget.setStyleSheet(
-    #                 "background-color: #ffffff;" if is_editing else "background-color: #f0f0f0;"
-    #             )
-    #         elif isinstance(widget, QComboBox):
-    #             widget.setEnabled(is_editing)
-    #
-    #     # Переключаем текст кнопки
-    #     if is_editing:
-    #         button.setText("Сохранить")
-    #     else:
-    #         button.setText("Редактировать")
-    #         # Вставка новой записи
-    #         self.insert_new_eye_record(
-    #             eye_index,
-    #             self.patient_id_clicked,
-    #             self.appointment_data_model,
-    #             self.db_manager
-    #         )
+        if (self.eye_index is not None):
+            fields_injections = ["avastin_injections",
+            "eylea_injections",
+            "visque_injections",
+            "diprospan_injections",
+            "kenalog_injections",
+            "lucentis_injections"]
+            values_injections = self.extract_fields_from_model(self.appointment_data_model, fields_injections, self.eye_index)
+            print("Значения:", values_injections)
+            fields_names = ["avastin",
+            "eylea",
+            "visque",
+            "diprospan",
+            "kenalog",
+            "lucentis"]
+            values_names = self.extract_fields_from_model(self.appointment_data_model, fields_names, self.eye_index)
+            print("Значения:", values_names)
+            injections_data = [
+                {"eye_id": 0, "lutein_therapy": "бевацизумаб (Авастин)"},
+                {"eye_id": 1, "lutein_therapy": "афлиберцепт (Эйлеа)"},
+                {"eye_id": 2, "lutein_therapy": "бролоцизумаб (Визкью)"},
+                {"eye_id": 3, "lutein_therapy": "Бетаметазон (Дипроспан)"},
+                {"eye_id": 4, "lutein_therapy": "триамциналон (Кеналог)"},
+                {"eye_id": 5, "lutein_therapy": "Луцентис"}
+            ]
+            title = QLabel("💉 Только ненулевые значения")
+            title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+            title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.main_layout.addWidget(title)
+
+            table = QTableView()
+            table.setMinimumHeight(250)
+            self.show_filtered_injections(table, values_names, values_injections, injections_data)
+            self.main_layout.addWidget(table)
+
+    def show_filtered_injections(self, table_view, values_names, values_injections, injections_data):
+        """
+        Отображает таблицу инъекций, где хотя бы одно значение ≠ 0.
+        :param table_view: QTableView
+        :param values_names: список названий препаратов (из модели)
+        :param values_injections: список количеств инъекций (из модели)
+        :param injections_data: список словарей с eye_id и lutein_therapy
+        """
+        model = QStandardItemModel()
+        model.setHorizontalHeaderLabels(["Препарат", "Количество"])
+
+        for i in range(len(values_injections)):
+            count = int(values_injections[i]) if values_injections[i] else 0
+            name = int(values_names[i]) if values_names[i] else 0
+            label = injections_data[i]["lutein_therapy"]
+
+            if count != 0 or name != 0:  # Показываем, если есть хоть что-то
+                items = [
+                    QStandardItem(label),
+                    QStandardItem(str(count))
+                ]
+                for item in items:
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                model.appendRow(items)
+
+        table_view.setModel(model)
+        table_view.setAlternatingRowColors(True)
+        table_view.setStyleSheet("""
+            QTableView {
+                font-size: 12pt;
+                gridline-color: #ccc;
+            }
+            QHeaderView::section {
+                background-color: #f0f0f0;
+                padding: 4px;
+                font-weight: bold;
+            }
+        """)
+        table_view.resizeColumnsToContents()
+
+    def extract_fields_from_model(self, model, field_names, row_index):
+        """
+        Возвращает список значений по именам столбцов из QSqlQueryModel для указанной строки.
+
+        :param model: QSqlQueryModel
+        :param field_names: список имён столбцов (как в SQL-запросе)
+        :param row_index: индекс строки (int)
+        :return: список значений
+        """
+        values = []
+        for field in field_names:
+            column_index = None
+            for col in range(model.columnCount()):
+                header = model.headerData(col, Qt.Orientation.Horizontal)
+                if header == field:
+                    column_index = col
+                    break
+            if column_index is None:
+                raise ValueError(f"Поле '{field}' не найдено в модели.")
+            index = model.index(row_index, column_index)
+            values.append(model.data(index))
+        return values
 
     def toggle_edit_block(self, fields, button):
         is_editing = button.text() == "Редактировать"
@@ -255,13 +261,23 @@ class DynamicFormBuilder(QWidget):
     def create_field_widget(self, field_name2, initial_value=None, disable=True):
         field_name = field_name2[:-1]
         if field_name in self.dropdown_db_values:
-            combo = QComboBox()
+            combo = HoverComboBox()
             db_values = self.dropdown_db_values[field_name]
             display_map = self.dropdown_display_map[field_name]
-
+            display_map2 = self.dropdown_display_map2.get(field_name)
+            combo.installEventFilter(WheelBlocker(combo))
+            combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             for db_value in db_values:
                 display_text = display_map.get(db_value, db_value)
-                combo.addItem(display_text, db_value)
+                if (display_map2 is None):
+                    combo.addItem(display_text, db_value)
+                else:
+                    display_text2 = display_map2.get(db_value, db_value)
+                    if (display_text2.strip()):
+                        combo.addItem(display_text, db_value, display_text2)
+                    else:
+                        combo.addItem(display_text, db_value)
+
 
             def to_str(value):
                 if value is None:
@@ -269,6 +285,7 @@ class DynamicFormBuilder(QWidget):
                 if isinstance(value, float):
                     return f"{value:.2f}"
                 return str(value)
+
             t = to_str(initial_value)
             if t in db_values:
                 index = db_values.index(t)
@@ -295,11 +312,6 @@ class DynamicFormBuilder(QWidget):
             return widget.text()
         return None
 
-    def get_all_values(self):
-        return {
-            field: self.get_field_value(field)
-            for field in self.field_widgets
-        }
     def get_all_field_widgets(self):
         return self.field_widgets
 

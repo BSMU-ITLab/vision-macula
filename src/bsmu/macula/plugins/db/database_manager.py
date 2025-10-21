@@ -31,7 +31,7 @@ class DatabaseManager(Plugin):
     areds                                     VARCHAR(10) NOT NULL,
     refraction                                VARCHAR(10) NOT NULL,
     type_of_neovascularization                VARCHAR(10) NOT NULL,
-    "МКОЗ"                                    NUMERIC     NOT NULL,
+    MKO                                       NUMERIC     NOT NULL,
     choroidal_thickness_center                NUMERIC     NOT NULL,
     cts_foveola                               NUMERIC     NOT NULL,
     cts_sup_inner_fovea                       NUMERIC     NOT NULL,

@@ -4,9 +4,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtSql import QSqlQueryModel, QSqlQuery
 
 from bsmu.macula.plugins.db.DynamicFormBuilder import DynamicFormBuilder
+from bsmu.macula.plugins.db.HoverComboBox import HoverComboBox
 from bsmu.macula.plugins.db.PatientsModel import PatientsModel
 from bsmu.macula.plugins.db.constants import DROPDOWN_DB_VALUES, DROPDOWN_DISPLAY_MAP, BLOCKS, \
-    COLUMN_INDEX_TO_FIELD_NAME, COLUMNS_EYES
+    COLUMN_INDEX_TO_FIELD_NAME, COLUMNS_EYES, EYE_TABLE_NAME, ERROR_TEXT, PACIENTS_TABLE_NAME, \
+    PARAMETERS_PATIENTS_SELECT
 from bsmu.macula.plugins.db.debug_utils import print_sql_debug
 from bsmu.macula.plugins.db.edit_pacirnt_delegate import EditPacientDelegate
 from PySide6.QtWidgets import (
@@ -22,8 +24,6 @@ from bsmu.macula.plugins.db.query_builder import QueryBuilder
 
 class TableWidgetExample(QWidget):
 
-
-
     def __init__(self, bd_path):
         super().__init__()
         self.formDict = {}
@@ -34,17 +34,26 @@ class TableWidgetExample(QWidget):
             self.db_path = bd_path
             self.db_manager = DatabaseManager(bd_path)
             self.db = self.db_manager.get_connection()
-            self.builder = QueryBuilder("eyes", self.db_manager.get_connection())
+            self.query_builder_eye = QueryBuilder(EYE_TABLE_NAME, self.db_manager)
+            self.query_builder_patient = QueryBuilder(PACIENTS_TABLE_NAME, self.db_manager)
             self.layoutBoxes = QVBoxLayout()
             self._setup_ui()
             self._load_initial_data()
         except ConnectionError as e:
-            QMessageBox.critical(self, "Ошибка", str(e))
+            QMessageBox.critical(self, ERROR_TEXT, str(e))
             self.close()
 
     def _setup_ui(self):
+        # self.setWindowTitle("Подсказка при наведении (PySide6)")
+        #
+        # layout = QVBoxLayout()
+        # self.combo = HoverComboBox()
+        # self.combo.addItems(["Опция 1", "Опция 2", "Опция 3", "Опция 4"])
+        #
+        # layout.addWidget(self.combo)
+        #
+        # self.setLayout(layout)
         self.appointment_data_model = QSqlQueryModel()
-        """Инициализация пользовательского интерфейса"""
         self.setWindowTitle("Пациенты")
         self.resize(1200, 800)
 
@@ -68,7 +77,7 @@ class TableWidgetExample(QWidget):
     def _setup_patients_table(self):
         """Настройка таблицы пациентов"""
         self.patients_table = QTableView()
-        self.patients_model.setQuery("SELECT id, name, sex, year_of_birthday FROM pacients", self.db)
+        self.patients_model.setQuery(self._create_load_patients_query())
 
         headers = ["Ид", "Имя", "Пол", "Год рождения", "Редактировать"]
         for i, header in enumerate(headers):
@@ -81,17 +90,19 @@ class TableWidgetExample(QWidget):
         self.appointment_edit_delegate = EditPacientDelegate(':/dbicons/edit.png', self.patients_table, self._open_dialog)
         self.patients_table.setItemDelegateForColumn(self.patients_model.columnCount() - 1, self.appointment_edit_delegate)
 
-        self.appointment_edit_delegate = EditPacientDelegate(':/dbicons/edit.png', self.patients_table, self._open_dialog)
-        self.patients_table.setItemDelegateForColumn(self.patients_model.columnCount(), self.appointment_edit_delegate)
         add_button = QPushButton("Добавить пациента")
         add_button.clicked.connect(partial(self._open_dialog, 0))
 
         self.left_layout.addWidget(self.patients_table)
         self.left_layout.addWidget(add_button)
 
-    def _load_patients_data(self):
-        self.patients_model.setQuery("SELECT id, name, sex, year_of_birthday FROM pacients", self.db)
+    def _create_load_patients_query(self):
+        patients_query = self.query_builder_patient.select(PARAMETERS_PATIENTS_SELECT)
+        patients_query.exec_()
 
+        return patients_query
+    def _load_patients_data(self):
+        self.patients_model.setQuery(self._create_load_patients_query())
         self.patients_table.setModel(self.patients_model)
 
     def _setup_appointments_table(self):
@@ -146,23 +157,57 @@ class TableWidgetExample(QWidget):
 
     def _load_appointment_data(self, appointment_id: int):
         """Загрузка данных о приеме"""
-        columns = COLUMNS_EYES
+        columns = COLUMNS_EYES + [
+            "injections.lutein_therapy",
+            "injections.avastin",
+            "injections.avastin_injections",
+            "injections.eylea",
+            "injections.eylea_injections",
+            "injections.visque",
+            "injections.visque_injections",
+            "injections.diprospan",
+            "injections.diprospan_injections",
+            "injections.kenalog",
+            "injections.kenalog_injections",
+            "injections.lucentis",
+            "injections.lucentis_injections"
+        ]
 
         # Формируем SQL-запрос
-        column_clause = ", ".join(columns)
-        query_text = f"SELECT {column_clause} FROM eyes WHERE appointment_id = {appointment_id}"
+        column_clause = ", ".join([f"eyes.{col}" if not col.startswith("injections.") else col for col in columns])
+
+        query_text = f"""
+        SELECT {column_clause}
+        FROM eyes
+        LEFT JOIN injections ON injections.eye_id = eyes.id
+        WHERE eyes.appointment_id = {appointment_id}
+        """
 
         # Выполняем запрос
         model = QSqlQueryModel()
         query = QSqlQuery(self.db_manager.get_connection())
-        query.exec_(query_text)
+        t = query.exec_(query_text)
         model.setQuery(query)
         self.appointment_id = appointment_id
         self.appointment_data_model = model
+        self.print_sql_model_data(model)
+
+
+    def get_value_by_field(self, model, row_index, field_name):
+        # Получаем индекс столбца по имени
+        column_index = None
+        for col in range(model.columnCount()):
+            header = model.headerData(col, Qt.Orientation.Horizontal)
+            if header == field_name:
+                column_index = col
+                break
+        if column_index is None:
+            raise ValueError(f"Поле '{field_name}' не найдено в модели.")
+
+        index = model.index(row_index, column_index)
+        return model.data(index)
 
     def _update_ui(self, eye_id_field):
-        """Обновление интерфейса после загрузки данных"""
-
         if (hasattr(self, "editable_fields")):
             self.editable_fields.clear()
         if (self.tab_widget.count() > 0):
@@ -179,22 +224,37 @@ class TableWidgetExample(QWidget):
         ids = []
         rId = None
         lId = None
+        rowIntL = None
+        rowIntR = None
+        rowInt = 0
         if eye_id_field is not None :
             for row in range(self.appointment_data_model.rowCount()):
                 index = self.appointment_data_model.index(row, 0)  # Предположим, что id в первом столбце
                 id_value = self.appointment_data_model.data(index)
                 eye_in = self.appointment_data_model.data(self.appointment_data_model.index(row, 1))
-                if eye_in == 'L' or eye_in == '1':
+                if eye_in == 'L' or eye_in == '0' or eye_in == 'ос':
                     lId = id_value
-                if eye_in == 'R' or eye_in == '0':
+                    rowIntL = rowInt
+                if eye_in == 'R' or eye_in == '1' or eye_in == 'од':
                     rId = id_value
+                    rowIntR = rowInt
                 ids.append(id_value)
+                rowInt = rowInt + 1
 
 
         # Добавление вкладок для каждого глаза
-        self.tab_widget.addTab(self._create_eye_tab(0, rId), "Правый глаз")
-        self.tab_widget.addTab(self._create_eye_tab(1, lId), "Левый глаз")
+        self.tab_widget.addTab(self._create_eye_tab(rowIntR, rId), "Правый глаз")
+        self.tab_widget.addTab(self._create_eye_tab(rowIntL, lId), "Левый глаз")
 
+    def print_sql_model_data(self, model):
+        rows = model.rowCount()
+        cols = model.columnCount()
+        for row in range(rows):
+            values = []
+            for col in range(cols):
+                index = model.index(row, col)
+                values.append(str(model.data(index)))
+            print(f"Row {row}: {values}")
 
     def _create_eye_tab(self, eye_index: int, eye_id_field: int) -> QScrollArea:
         """Создание вкладки с данными о глазе"""
@@ -286,8 +346,8 @@ class TableWidgetExample(QWidget):
             print("❌ Нет данных для вставки.")
             return
 
-        if (self.appointment_id is None or self.appointment_id is 0):
-            # Вставка в appointments
+        if (self.appointment_id is None or self.appointment_id == 0):
+            # Вставка в appointmentsw
             query1 = QSqlQuery(self.db_manager.get_connection())
             query1.prepare("""
                                INSERT INTO appointments (pacient_id, date, duration_of_the_disease)
@@ -304,29 +364,28 @@ class TableWidgetExample(QWidget):
             print(f"✅ Создана запись appointments с ID: {self.appointment_id}")
 
         # Добавляем служебные поля
-        all_fields += ["appointment_id", "eye", "MKO", "topkon", "optopol"]
+        all_fields += ["appointment_id", "eye", "topkon", "optopol"]
         all_values["appointment_id"] = self.appointment_id
         all_values["eye"] = eye_index
-        all_values["MKO"] = eye_index
-        all_values["topkon"] = True
+        # all_values["MKO"] = eye_index
         all_values["optopol"] = True
 
         # Вставка
-        query = self.builder.insert(all_values)
-        s = query.exec_()
+        # query = self.builder.insert(all_values)
+        # s = query.exec_()
         # Формируем SQL-запрос
-        # field_clause = ", ".join(all_fields)
-        # placeholder_clause = ", ".join([f":{field}" for field in all_fields])
-        # query_text = f"INSERT INTO {table_name} ({field_clause}) VALUES ({placeholder_clause})"
-        #
-        # query2 = QSqlQuery(self.db_manager.get_connection())
-        # query2.prepare(query_text)
-        #
-        # for field, value in all_values.items():
-        #     query2.bindValue(f":{field}", value)
+        field_clause = ", ".join(all_fields)
+        placeholder_clause = ", ".join([f":{field}" for field in all_fields])
+        query_text = f"INSERT INTO {table_name} ({field_clause}) VALUES ({placeholder_clause})"
 
-        if not s:
-            print("❌ Ошибка при вставке eyes:", query.lastError().text())
+        query2 = QSqlQuery(self.db_manager.get_connection())
+        query2.prepare(query_text)
+
+        for field, value in all_values.items():
+            query2.bindValue(f":{field}", value)
+        print_sql_debug(query_text, query2, all_fields, '1', '1')
+        if not query2.exec_():
+            print("❌ Ошибка при вставке eyes:", query2.lastError().text())
         else:
             print("✅ Запись в eyes успешно добавлена.")
             self._load_appointments(self.patient_id_clicked)
@@ -345,19 +404,6 @@ class TableWidgetExample(QWidget):
             if header == column_name:
                 return col
         return -1  # если не найдено
-
-    def _execute_insert(self, query: str, values: list):
-        """Выполняет SQL INSERT в базу данных"""
-        conn = self.db_manager.get_connection()  # путь к БД
-        cursor = conn.cursor()
-        try:
-            cursor.execute(query, values)
-            conn.commit()
-            print("✅ Данные успешно сохранены.")
-        except Exception as e:
-            print(f"❌ Ошибка при сохранении: {e}")
-        finally:
-            conn.close()
 
     def _get_column_name_app(self, column_index: int) -> str:
         """Возвращает имя поля по индексу"""
@@ -381,49 +427,3 @@ class TableWidgetExample(QWidget):
         """Обработчик закрытия окна"""
         self.db_manager.close()
         super().closeEvent(event)
-
-def build_query(operation: str, table: str, data: dict, where: dict = None) -> QSqlQuery:
-    """
-    Универсальный конструктор SQL-запросов: INSERT, UPDATE, DELETE.
-
-    :param operation: 'insert', 'update', 'delete'
-    :param table: имя таблицы
-    :param data: словарь данных для вставки/обновления
-    :param where: словарь условий WHERE (только для update/delete)
-    :return: подготовленный QSqlQuery
-    """
-    query = QSqlQuery()
-
-    if operation == "insert":
-        fields = ", ".join(data.keys())
-        placeholders = ", ".join([f":{k}" for k in data])
-        sql = f"INSERT INTO {table} ({fields}) VALUES ({placeholders})"
-        query.prepare(sql)
-        for k, v in data.items():
-            query.bindValue(f":{k}", v)
-
-    elif operation == "update":
-        if not where:
-            raise ValueError("UPDATE требует параметр where")
-        set_clause = ", ".join([f"{k} = :{k}" for k in data])
-        where_clause = " AND ".join([f"{k} = :where_{k}" for k in where])
-        sql = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
-        query.prepare(sql)
-        for k, v in data.items():
-            query.bindValue(f":{k}", v)
-        for k, v in where.items():
-            query.bindValue(f":where_{k}", v)
-
-    elif operation == "delete":
-        if not where:
-            raise ValueError("DELETE требует параметр where")
-        where_clause = " AND ".join([f"{k} = :where_{k}" for k in where])
-        sql = f"DELETE FROM {table} WHERE {where_clause}"
-        query.prepare(sql)
-        for k, v in where.items():
-            query.bindValue(f":where_{k}", v)
-
-    else:
-        raise ValueError(f"Неизвестная операция: {operation}")
-
-    return query

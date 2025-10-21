@@ -43,7 +43,7 @@ class EyeDataWidget(QWidget):
             ("Дата посещения", self.eye_data.visit_date),
             ("Продолжительность заболевания", self.eye_data.disease_duration),
             ("Тип томографа ", self.eye_data.tomograph_type),
-            ("Критерий AREDS", self.eye_data.areds_criteria),
+            ("Стадия по AREDS", self.eye_data.areds_criteria),
             ("Рефракция", self.eye_data.refraction),
             ("Тип неоваскуляризации", self.eye_data.neovascularization_type)
         ]))
