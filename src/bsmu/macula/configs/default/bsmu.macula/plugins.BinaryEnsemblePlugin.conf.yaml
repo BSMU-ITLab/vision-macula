@@ -1,7 +1,8 @@
 binary_ensemble_models:
-  tiler_name: {1 : "class_1.onnx", 3 : "class_3.onnx", 4 : "class_4.onnx",
-               5 : "class_5.onnx", 8 : "class_8.onnx", 9 : "class_9.onnx"}
-  fullseg_name: { 2: "bubbles.onnx", 12: "class_12.onnx",
+  tiler_name: {1 : "class_1.onnx"}
+  fullseg_name: { 1: "class_1.onnx", 2: "class_2.onnx", 3: "class_3.onnx",
+                  4: "class_4.onnx", 5: "class_5.onnx", 6: "class_6.onnx",
+                  9: "class_9.onnx", 10: "class_10-11.onnx", 12: "class_12.onnx",
                   13: "class_13.onnx", 14: "class_14.onnx", 15: "class_15.onnx" }
 #  tiler_name: {7 : "class_7.onnx"}
 #  fullseg_name: {2: "bubbles.onnx"}
