@@ -44,6 +44,13 @@ class EnsembleImageModelParams(ImageModelParams):
             image /= self.IMAGENET_STD.mean()
         return image[np.newaxis, :, :]
 
+    # def preprocessed_input(self, image: np.ndarray, skip_preprocessing=True) -> np.ndarray:
+    #     if self.normalize:
+    #         image = image.astype(np.float32)
+    #         image /= 255.0
+    #         image = (image - 0.5) / 0.5
+    #     return image[np.newaxis, :, :]
+
 
     def preprocessed_input_batch(self, src_batch: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
         return super().preprocessed_input_batch(src_batch)
