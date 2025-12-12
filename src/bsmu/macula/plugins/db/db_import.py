@@ -861,10 +861,10 @@ def main():
             cursor.execute("""
                     INSERT OR IGNORE INTO pacients (name, sex, year_of_birthday)
                     VALUES (?, ?, ?)
-                    """, (name, sex, year_of_birth))
+                    """, (id, sex, year_of_birth))
 
             pacient_id = cursor.execute("SELECT id FROM pacients WHERE name = ? AND sex = ? AND year_of_birthday = ?",
-                                        (name, sex, year_of_birth)).fetchone()[0]
+                                        (id, sex, year_of_birth)).fetchone()[0]
 
         # 📅 Insert into appointments
         exam_date = parse_date(row.get("дата_обследования"))

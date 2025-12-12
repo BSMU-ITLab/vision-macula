@@ -1,3 +1,4 @@
+import os
 from functools import partial
 
 from PySide6.QtSql import QSqlQuery
@@ -57,10 +58,22 @@ class AddRecordDialog(QDialog):
             query.addBindValue(sex)
             query.addBindValue(int(age))
             query.exec_()
+            last_id = query.lastInsertId()
+            self.create_forder(last_id)
             self.close()
         else:
             print("Ошибка: введите корректные данные")
 
+    def create_forder(self, last_id):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Относительный путь (например, "data" внутри папки программы)
+        folder = os.path.join(base_dir, "data", str(last_id))
+
+        # Создаём папку, если её нет
+        os.makedirs(folder, exist_ok=True)
+
+        print(f"Папка создана: {folder}")
     def edit_data(self, patient_id):
         name = self.name_input.text()
         sex = self.sex_input.text()

@@ -1,6 +1,6 @@
 DROPDOWN_DB_VALUES = {
     "areds": ["", "1", "2", "3", "4", "4a", "4b", "4c", "4d"],
-    "refraction": ["", "Мсл", "Мср", "Em", "Hmсл", "Hmср", "МКОЗ"],
+    "refraction": ["", "1", "2", "3", "4", "5"],
     "rpe_status": ["", "1", "2", "3", "4", "5"],
     "rpe_localisation": ["", "0", "1", "2", "3"],
     "cme_localisation": ["", "0", "1", "2", "3"],
@@ -11,13 +11,13 @@ DROPDOWN_DB_VALUES = {
     "druses_localisation": ["", "0", "1", "2", "3"],
     "fluid_under_rpe_localisation": ["", "0", "1", "2", "3"],
     "ez_status": ["", "1", "2", "3", "4"],
-    "ez_localisation": ["", "1", "2", "3"],
-    "myoidnz_status": ["", "1", "2", "3"],
-    "myoidnz_localisation": ["", "1", "2", "3"],
+    "ez_localisation": ["", "0", "1", "2", "3"],
+    "myoidnz_status": ["","1", "2", "3"],
+    "myoidnz_localisation": ["", "0", "1", "2", "3"],
     "rne_detachment_localisation": ["", "0", "1", "2", "3"],
     "hyperreflective_material_localisation": ["", "0", "1", "2", "3"],
     "type_of_neovascularization": ["", "0", "1", "2", "3"],
-    "topkon": ["", "0", "1"]
+    "topkon": [False, True]
 }
 
 DROPDOWN_DISPLAY_MAP2 = {
@@ -54,17 +54,15 @@ DROPDOWN_DISPLAY_MAP2 = {
 }
 DROPDOWN_DISPLAY_MAP = {
     "topkon": {
-        "": "",
-        "": "",
-        "0": "Оптопол",
-        "1": "Топкон",
+        False: "Оптопол",
+        True: "Топкон",
     },
     "type_of_neovascularization": {
         "": "",
-        "0": "ХНВ 0",
+        "0": "ХНВ отсутствует",
         "1": "ХНВ 1",
         "2": "ХНВ 2",
-        "3": "ХНВ 3",
+        "3": "ХНВ 3 (РАП)",
     },
     "areds": {
         "": "",
@@ -79,12 +77,11 @@ DROPDOWN_DISPLAY_MAP = {
     },
     "refraction": {
         "": "",
-        "Мсл": "Мсл",
-        "Мср": "Мср",
-        "Em": "Em",
-        "Hmсл": "Hmсл",
-        "Hmср": "Hmср",
-        "МКОЗ": "МКОЗ"
+        "4": "Мсл",
+        "5": "Мср",
+        "1": "Em",
+        "2": "Hmсл",
+        "3": "Hmср"
     },
     "rpe_status": {
         "": "",
@@ -199,8 +196,9 @@ BLOCKS = [
         ("Продолжительность заболевания", 4),
         ("Тип томографа", 5),
         ("Стадия по AREDS", 6),
+        ("Тип неоваскуляризации", 8),
         ("Рефракция", 7),
-        ("Тип неоваскуляризации", 8)
+        ('MKO3', 50)
     ]),
     ("Ретинальные показатели", [
         ("Толщина хориоидеи в центре", 9),
@@ -315,7 +313,8 @@ COLUMN_INDEX_TO_FIELD_NAME = {
     46: "hyperreflective_material_localisation",
     47: "hyperreflective_material_area",
     48: "cts_sup_inner_fovea",
-    49: "cts_sup_out_fovea"
+    49: "cts_sup_out_fovea",
+    50: "MKO3"
 }
 
 COLUMNS_EYES = [
@@ -334,7 +333,7 @@ COLUMNS_EYES = [
             "fluid_under_rpe_area", "fluid_under_rpe_localisation",
             "ez_status", "ez_localisation", "myoidnz_status", "myoidnz_localisation",
             "rne_detachment_localisation", "rne_detachment_width", "rne_detachment_heigt", "rne_detachment_area",
-            "hyperreflective_material_localisation", "hyperreflective_material_area", "cts_sup_inner_fovea", "cts_sup_out_fovea"
+            "hyperreflective_material_localisation", "hyperreflective_material_area", "cts_sup_inner_fovea", "cts_sup_out_fovea", "MKO3"
         ]
 
 EYE_TABLE_NAME = "eyes"

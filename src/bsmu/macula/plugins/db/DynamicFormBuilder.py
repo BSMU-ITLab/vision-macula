@@ -12,10 +12,11 @@ from bsmu.macula.plugins.db.constants import DROPDOWN_DB_VALUES, DROPDOWN_DISPLA
 
 
 class DynamicFormBuilder(QWidget):
-    def __init__(self, blocks, initial_data, eye_index, appointment_data_model, db_manager, patient_id_clicked,
+    def __init__(self, blocks, initial_data, eye_index, appointment_data_model, db_manager, patient_id_clicked,rowInt = None,
                  parent=None):
         super().__init__(parent)
         self.eye_index = eye_index
+        self.rowInt = rowInt
         self.appointment_data_model = appointment_data_model
         self.db_manager = db_manager
         self.patient_id_clicked = patient_id_clicked
@@ -44,7 +45,7 @@ class DynamicFormBuilder(QWidget):
             form_layout = QFormLayout(group_box)
 
             for label, field_name2 in fields:
-                field_name = self._get_column_name(field_name2) + str(eye_index)
+                field_name = self._get_column_name(field_name2) + str(eye_index if eye_index is not None else "_")
                 value = self.initial_data.get(field_name)
                 widget = self.create_field_widget(field_name, value, has_initial_values)
                 form_layout.addRow(label, widget)
@@ -57,49 +58,42 @@ class DynamicFormBuilder(QWidget):
                 edit_button.clicked.connect(lambda _, g=fields, b=edit_button: self.toggle_edit_block(g, b))
                 form_layout.addRow("", edit_button)
 
-        if (self.eye_index is not None):
-            fields_injections = ["avastin_injections",
-            "eylea_injections",
-            "visque_injections",
-            "diprospan_injections",
-            "kenalog_injections",
-            "lucentis_injections"]
-            values_injections = self.extract_fields_from_model(self.appointment_data_model, fields_injections, self.eye_index)
-            print("Значения:", values_injections)
-            fields_names = ["avastin",
-            "eylea",
-            "visque",
-            "diprospan",
-            "kenalog",
-            "lucentis"]
-            values_names = self.extract_fields_from_model(self.appointment_data_model, fields_names, self.eye_index)
-            print("Значения:", values_names)
-            injections_data = [
-                {"eye_id": 0, "lutein_therapy": "бевацизумаб (Авастин)"},
-                {"eye_id": 1, "lutein_therapy": "афлиберцепт (Эйлеа)"},
-                {"eye_id": 2, "lutein_therapy": "бролоцизумаб (Визкью)"},
-                {"eye_id": 3, "lutein_therapy": "Бетаметазон (Дипроспан)"},
-                {"eye_id": 4, "lutein_therapy": "триамциналон (Кеналог)"},
-                {"eye_id": 5, "lutein_therapy": "Луцентис"}
-            ]
-            title = QLabel("💉 Только ненулевые значения")
-            title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-            title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.main_layout.addWidget(title)
-
-            table = QTableView()
-            table.setMinimumHeight(250)
-            self.show_filtered_injections(table, values_names, values_injections, injections_data)
-            self.main_layout.addWidget(table)
+        # if (self.eye_index is not None):
+        #     fields_injections = ["avastin_injections",
+        #     "eylea_injections",
+        #     "visque_injections",
+        #     "diprospan_injections",
+        #     "kenalog_injections",
+        #     "lucentis_injections"]
+        #     values_injections = self.extract_fields_from_model(self.appointment_data_model, fields_injections, self.eye_index)
+        #     print("Значения:", values_injections)
+        #     fields_names = ["avastin",
+        #     "eylea",
+        #     "visque",
+        #     "diprospan",
+        #     "kenalog",
+        #     "lucentis"]
+        #     values_names = self.extract_fields_from_model(self.appointment_data_model, fields_names, self.eye_index)
+        #     print("Значения:", values_names)
+        #     injections_data = [
+        #         {"eye_id": 0, "lutein_therapy": "бевацизумаб (Авастин)"},
+        #         {"eye_id": 1, "lutein_therapy": "афлиберцепт (Эйлеа)"},
+        #         {"eye_id": 2, "lutein_therapy": "бролоцизумаб (Визкью)"},
+        #         {"eye_id": 3, "lutein_therapy": "Бетаметазон (Дипроспан)"},
+        #         {"eye_id": 4, "lutein_therapy": "триамциналон (Кеналог)"},
+        #         {"eye_id": 5, "lutein_therapy": "Луцентис"}
+        #     ]
+        #     title = QLabel("💉 Только ненулевые значения")
+        #     title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        #     title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        #     self.main_layout.addWidget(title)
+        #
+        #     table = QTableView()
+        #     table.setMinimumHeight(250)
+        #     self.show_filtered_injections(table, values_names, values_injections, injections_data)
+        #     self.main_layout.addWidget(table)
 
     def show_filtered_injections(self, table_view, values_names, values_injections, injections_data):
-        """
-        Отображает таблицу инъекций, где хотя бы одно значение ≠ 0.
-        :param table_view: QTableView
-        :param values_names: список названий препаратов (из модели)
-        :param values_injections: список количеств инъекций (из модели)
-        :param injections_data: список словарей с eye_id и lutein_therapy
-        """
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["Препарат", "Количество"])
 
@@ -133,14 +127,6 @@ class DynamicFormBuilder(QWidget):
         table_view.resizeColumnsToContents()
 
     def extract_fields_from_model(self, model, field_names, row_index):
-        """
-        Возвращает список значений по именам столбцов из QSqlQueryModel для указанной строки.
-
-        :param model: QSqlQueryModel
-        :param field_names: список имён столбцов (как в SQL-запросе)
-        :param row_index: индекс строки (int)
-        :return: список значений
-        """
         values = []
         for field in field_names:
             column_index = None
@@ -156,6 +142,26 @@ class DynamicFormBuilder(QWidget):
         return values
 
     def toggle_edit_block(self, fields, button):
+        is_editing = button.text() == "Редактировать"
+
+        for _, field_name2 in fields:
+            field_name = self._get_column_name(field_name2)
+            widget = self.field_widgets.get(field_name + str(self.eye_index))
+            if isinstance(widget, QLineEdit):
+                widget.setReadOnly(not is_editing)
+                widget.setStyleSheet("background-color: #ffffff;" if is_editing else "background-color: #f0f0f0;")
+            elif isinstance(widget, QComboBox):
+                widget.setEnabled(is_editing)
+                widget.setStyleSheet("background-color: #ffffff;" if is_editing else "background-color: #f0f0f0;")
+
+        if is_editing:
+            button.setText("Сохранить")
+        else:
+            button.setText("Редактировать")
+            # вызов сохранения
+            self._save_block_data(fields)
+
+    def toggle_add_appointment_dialog(self, fields, button):
         is_editing = button.text() == "Редактировать"
 
         for _, field_name2 in fields:
@@ -206,7 +212,7 @@ class DynamicFormBuilder(QWidget):
 
         # Получение ID записи
         eye_id_name = "id"
-        eye_id_value = self.appointment_data_model.index(self.eye_index, 0).data()
+        eye_id_value = self.appointment_data_model.index(self.rowInt, 0).data()
 
         if fields_to_update and values and eye_id_value is not None:
             set_clause = ", ".join([f"{field} = :{field}" for field in fields_to_update])

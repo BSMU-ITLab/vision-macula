@@ -1,11 +1,13 @@
+import os
 from functools import partial
 
 from PySide6.QtCore import Qt
 from PySide6.QtSql import QSqlQueryModel, QSqlQuery
 
 from bsmu.macula.plugins.db.DynamicFormBuilder import DynamicFormBuilder
-from bsmu.macula.plugins.db.HoverComboBox import HoverComboBox
+from bsmu.macula.plugins.db.ImagePreview import ImagePreview
 from bsmu.macula.plugins.db.PatientsModel import PatientsModel
+from bsmu.macula.plugins.db.add_appoitment_dialog import AddAppoitmentRecordDialog
 from bsmu.macula.plugins.db.constants import DROPDOWN_DB_VALUES, DROPDOWN_DISPLAY_MAP, BLOCKS, \
     COLUMN_INDEX_TO_FIELD_NAME, COLUMNS_EYES, EYE_TABLE_NAME, ERROR_TEXT, PACIENTS_TABLE_NAME, \
     PARAMETERS_PATIENTS_SELECT
@@ -13,13 +15,14 @@ from bsmu.macula.plugins.db.debug_utils import print_sql_debug
 from bsmu.macula.plugins.db.edit_pacirnt_delegate import EditPacientDelegate
 from PySide6.QtWidgets import (
     QWidget, QTableView, QVBoxLayout, QHBoxLayout, QPushButton, QScrollArea, QGroupBox, QLineEdit,
-    QTabWidget, QMessageBox, QComboBox
+    QTabWidget, QMessageBox, QComboBox, QGridLayout
 )
 import bsmu.macula.plugins.db.images.dbicons_rc
 
 from bsmu.macula.plugins.db.add_patient_dialog import AddRecordDialog
 from bsmu.macula.plugins.db.database_manager_v2 import DatabaseManager
 from bsmu.macula.plugins.db.query_builder import QueryBuilder
+from bsmu.macula.plugins.db.work_with_pic import create_scroll_area
 
 
 class TableWidgetExample(QWidget):
@@ -38,21 +41,45 @@ class TableWidgetExample(QWidget):
             self.query_builder_patient = QueryBuilder(PACIENTS_TABLE_NAME, self.db_manager)
             self.layoutBoxes = QVBoxLayout()
             self._setup_ui()
-            self._load_initial_data()
+            # self._load_initial_data()
         except ConnectionError as e:
             QMessageBox.critical(self, ERROR_TEXT, str(e))
             self.close()
 
+    # def inital_pictures(self):
+    #     scroll_area = QScrollArea()
+    #     scroll_area.setWidgetResizable(True)
+    #     content = QWidget()
+    #     layout = QGridLayout(self)
+    #
+    #     # список картинок (замени на свои пути)
+    #     images = [
+    #         "C:\\Users\\Evgeniy\\OneDrive\\Pictures\\343433.jpg", "img2.jpg", "img3.jpg",
+    #         "img4.jpg", "img5.jpg", "img6.jpg"
+    #     ]
+    #
+    #     for i, path in enumerate(images):
+    #         preview = ImagePreview(path)
+    #         row, col = divmod(i, 3)  # 3 картинки в строке
+    #         layout.addWidget(preview, row, col)
+    #     content.setLayout(layout)
+    #     scroll_area.setWidget(content)
+    #     return scroll_area
+
+    def create_forder(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Относительный путь (например, "data" внутри папки программы)
+        folder = os.path.join(base_dir, "data")
+
+        # Создаём папку, если её нет
+        os.makedirs(folder, exist_ok=True)
+
+        print(f"Папка создана: {folder}")
+
     def _setup_ui(self):
-        # self.setWindowTitle("Подсказка при наведении (PySide6)")
-        #
-        # layout = QVBoxLayout()
-        # self.combo = HoverComboBox()
-        # self.combo.addItems(["Опция 1", "Опция 2", "Опция 3", "Опция 4"])
-        #
-        # layout.addWidget(self.combo)
-        #
-        # self.setLayout(layout)
+        # Папка, где лежит выполняемый скрипт
+        self.create_forder()
         self.appointment_data_model = QSqlQueryModel()
         self.setWindowTitle("Пациенты")
         self.resize(1200, 800)
@@ -114,18 +141,18 @@ class TableWidgetExample(QWidget):
 
         self.add_button_appointment = QPushButton("Добавить результаты приема")
         self.add_button_appointment.hide()
+
         self.add_button_appointment.clicked.connect(self._open_appointment_dialog)
 
         self.left_layout.addWidget(self.appointments_table)
         self.left_layout.addWidget(self.add_button_appointment)
 
-    def _load_initial_data(self):
-        """Загрузка начальных данных"""
-        # Можно добавить предварительную загрузку данных при необходимости
-        pass
+    # def _load_initial_data(self):
+    #     """Загрузка начальных данных"""
+    #     # Можно добавить предварительную загрузку данных при необходимости
+    #     pass
 
     def _on_patient_clicked(self, index):
-        """Обработчик клика по пациенту"""
         row = index.row()
         self.patient_id_clicked = self.patients_model.index(row, 0).data()
         patient_id = self.patients_model.index(row, 0).data()
@@ -232,19 +259,32 @@ class TableWidgetExample(QWidget):
                 index = self.appointment_data_model.index(row, 0)  # Предположим, что id в первом столбце
                 id_value = self.appointment_data_model.data(index)
                 eye_in = self.appointment_data_model.data(self.appointment_data_model.index(row, 1))
-                if eye_in == 'L' or eye_in == '0' or eye_in == 'ос':
-                    lId = id_value
-                    rowIntL = rowInt
-                if eye_in == 'R' or eye_in == '1' or eye_in == 'од':
-                    rId = id_value
-                    rowIntR = rowInt
-                ids.append(id_value)
-                rowInt = rowInt + 1
+                t = None
+
+                if eye_in == 'L' or eye_in == '1' or eye_in == 'ос':
+                    t = 1
+                if eye_in == 'R' or eye_in == '0' or eye_in == 'од':
+                    t = 0
+                self.tab_widget.addTab(self._create_eye_tab2(t, id_value, rowInt), "Правый глаз" if t == 0 else "Левый глаз")
+                rowInt += 1
+                # if eye_in == 'L' or eye_in == '0' or eye_in == 'ос':
+                #     lId = id_value
+                #     rowIntL = rowInt
+                # if eye_in == 'R' or eye_in == '1' or eye_in == 'од':
+                #     rId = id_value
+                #     rowIntR = rowInt
+                # ids.append(id_value)
+                # rowInt = rowInt + 1
 
 
         # Добавление вкладок для каждого глаза
-        self.tab_widget.addTab(self._create_eye_tab(rowIntR, rId), "Правый глаз")
-        self.tab_widget.addTab(self._create_eye_tab(rowIntL, lId), "Левый глаз")
+        # self.tab_widget.addTab(self._create_eye_tab(rowIntR, rId, 0), "Правый глаз")
+        # self.tab_widget.addTab(self._create_eye_tab(rowIntL, lId, 1), "Левый глаз")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Относительный путь (например, "data" внутри папки программы)
+        folder = os.path.join(base_dir, "data", str(self.patient_id_clicked), str(self.appointment_id))
+        self.tab_widget.addTab(create_scroll_area(folder), "Картинки")
 
     def print_sql_model_data(self, model):
         rows = model.rowCount()
@@ -256,7 +296,7 @@ class TableWidgetExample(QWidget):
                 values.append(str(model.data(index)))
             print(f"Row {row}: {values}")
 
-    def _create_eye_tab(self, eye_index: int, eye_id_field: int) -> QScrollArea:
+    def _create_eye_tab(self, eye_index: int = 0, eye_id_field: int = None, t: int = 0) -> QScrollArea:
         """Создание вкладки с данными о глазе"""
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -267,7 +307,7 @@ class TableWidgetExample(QWidget):
         layoutBoxes = QVBoxLayout()
         initial_data = {}
         if eye_id_field is not None:
-            initial_data = self.extract_initial_data(self.appointment_data_model, eye_index)
+            initial_data = self.extract_initial_data(self.appointment_data_model, t)
         new_data = {}
 
         for key, value in initial_data.items():
@@ -275,6 +315,39 @@ class TableWidgetExample(QWidget):
                 new_key = str(key) + str(eye_index)
                 new_data[new_key] = value
         self.formDict[eye_index] = DynamicFormBuilder(blocks, new_data, eye_index, self.appointment_data_model, self.db_manager.get_connection(), self.patient_id_clicked)
+        layoutBoxes.addWidget(self.formDict[eye_index])
+        # for title, fields in blocks:
+        #     layoutBoxes.addWidget(self._create_data_block(title, fields, eye_index, eye_id_field))
+
+        if eye_id_field is None:
+            self.edit_toggle_button = QPushButton("Сохранить")
+            self.edit_toggle_button.clicked.connect(lambda: self._toggle_edit_mode_2(self.edit_toggle_button, eye_index))
+            layoutBoxes.addWidget(self.edit_toggle_button)
+
+        content.setLayout(layoutBoxes)
+        scroll_area.setWidget(content)
+        return scroll_area
+
+
+    def _create_eye_tab2(self, eye_index: int = None, eye_id_field: int = None, rowInt: int = None) -> QScrollArea:
+        """Создание вкладки с данными о глазе"""
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+
+        content = QWidget()
+
+        blocks = BLOCKS
+        layoutBoxes = QVBoxLayout()
+        initial_data = {}
+        if eye_id_field is not None:
+            initial_data = self.extract_initial_data(self.appointment_data_model, rowInt)
+        new_data = {}
+
+        for key, value in initial_data.items():
+            if value:  # Проверка, что строка не пустая
+                new_key = str(key) + str(eye_index)
+                new_data[new_key] = value
+        self.formDict[eye_index] = DynamicFormBuilder(blocks, new_data, eye_index, self.appointment_data_model, self.db_manager.get_connection(), self.patient_id_clicked, rowInt)
         layoutBoxes.addWidget(self.formDict[eye_index])
         # for title, fields in blocks:
         #     layoutBoxes.addWidget(self._create_data_block(title, fields, eye_index, eye_id_field))
@@ -334,6 +407,12 @@ class TableWidgetExample(QWidget):
         """Переключает режим редактирования всех блоков и вставляет новую запись"""
         # Переключаем все поля
         table_name = "eyes"
+        # if not eye_index:
+        #     eye_index = len(self.formDict)
+        #     if eye_index < 0:
+        #         eye_index = 0
+        #     if eye_index > 1:
+        #         eye_index = 1
         all_fields, all_values = self.collect_form_data(
             self.formDict,
             eye_index,
@@ -419,9 +498,39 @@ class TableWidgetExample(QWidget):
     def _open_appointment_dialog(self):
         """Открытие диалога добавления приема"""
         """Обработчик клика по приему"""
-        self.appointment_id = None
-        self._update_ui(None)
-        pass
+        # self.appointment_id = None
+        # self._update_ui(None)
+        # pass
+        dialog = AddAppoitmentRecordDialog(self.db, self.patient_id_clicked)
+        dialog.dataReady.connect(lambda d: self._new_create_tabs(d))
+        dialog.exec()
+
+    def _new_create_tabs(self, date):
+        if (hasattr(self, "editable_fields")):
+            self.editable_fields.clear()
+        if (self.tab_widget.count() > 0):
+            self.tab_widget.clear()
+
+        self.appointment_id = date['ap_id']
+        self.create_forder_for_app(self.appointment_id)
+        for i in date['e']:
+            self.tab_widget.addTab(self._create_eye_tab2(0 if i == 'R' else 1), "Правый глаз" if i == 'R' else "Левый глаз")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Относительный путь (например, "data" внутри папки программы)
+        folder = os.path.join(base_dir, "data", str(self.patient_id_clicked), str(self.appointment_id))
+        self.tab_widget.addTab(create_scroll_area(folder), "Картинки")
+
+    def create_forder_for_app(self, appointment_id):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Относительный путь (например, "data" внутри папки программы)
+        folder = os.path.join(base_dir, "data", str(self.patient_id_clicked), str(appointment_id))
+
+        # Создаём папку, если её нет
+        os.makedirs(folder, exist_ok=True)
+
+        print(f"Папка создана: {folder}")
 
     def closeEvent(self, event):
         """Обработчик закрытия окна"""
