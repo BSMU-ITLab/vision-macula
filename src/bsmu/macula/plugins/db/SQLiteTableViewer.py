@@ -27,10 +27,13 @@ from bsmu.macula.plugins.db.work_with_pic import create_scroll_area
 
 class TableWidgetExample(QWidget):
 
-    def __init__(self, bd_path):
+    def __init__(self, bd_path, dataPath):
         super().__init__()
         self.formDict = {}
         self.dropdown_db_values = DROPDOWN_DB_VALUES
+        self.dataPath = dataPath
+        self.base_dir = dataPath
+            # os.path.dirname(os.path.abspath(__file__)))
 
         self.dropdown_display_map = DROPDOWN_DISPLAY_MAP
         try:
@@ -67,10 +70,8 @@ class TableWidgetExample(QWidget):
     #     return scroll_area
 
     def create_forder(self):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-
         # Относительный путь (например, "data" внутри папки программы)
-        folder = os.path.join(base_dir, "data")
+        folder = os.path.join(self.base_dir)
 
         # Создаём папку, если её нет
         os.makedirs(folder, exist_ok=True)
@@ -156,6 +157,7 @@ class TableWidgetExample(QWidget):
         row = index.row()
         self.patient_id_clicked = self.patients_model.index(row, 0).data()
         patient_id = self.patients_model.index(row, 0).data()
+        self.age = self.patients_model.index(row, 2).data()
         self.add_button_appointment.show()
         self._load_appointments(patient_id)
         if (self.tab_widget.count() > 0):
@@ -280,10 +282,9 @@ class TableWidgetExample(QWidget):
         # Добавление вкладок для каждого глаза
         # self.tab_widget.addTab(self._create_eye_tab(rowIntR, rId, 0), "Правый глаз")
         # self.tab_widget.addTab(self._create_eye_tab(rowIntL, lId, 1), "Левый глаз")
-        base_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Относительный путь (например, "data" внутри папки программы)
-        folder = os.path.join(base_dir, "data", str(self.patient_id_clicked), str(self.appointment_id))
+        folder = os.path.join(self.base_dir, str(self.patient_id_clicked), str(self.appointment_id))
         self.tab_widget.addTab(create_scroll_area(folder), "Картинки")
 
     def print_sql_model_data(self, model):
@@ -515,17 +516,14 @@ class TableWidgetExample(QWidget):
         self.create_forder_for_app(self.appointment_id)
         for i in date['e']:
             self.tab_widget.addTab(self._create_eye_tab2(0 if i == 'R' else 1), "Правый глаз" if i == 'R' else "Левый глаз")
-        base_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Относительный путь (например, "data" внутри папки программы)
-        folder = os.path.join(base_dir, "data", str(self.patient_id_clicked), str(self.appointment_id))
+        folder = os.path.join(self.base_dir, str(self.patient_id_clicked), str(self.appointment_id))
         self.tab_widget.addTab(create_scroll_area(folder), "Картинки")
 
     def create_forder_for_app(self, appointment_id):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-
         # Относительный путь (например, "data" внутри папки программы)
-        folder = os.path.join(base_dir, "data", str(self.patient_id_clicked), str(appointment_id))
+        folder = os.path.join(self.base_dir, str(self.patient_id_clicked), str(appointment_id))
 
         # Создаём папку, если её нет
         os.makedirs(folder, exist_ok=True)

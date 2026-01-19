@@ -20,6 +20,9 @@ class BD(Plugin):
     _SQL_DIR_NAME = 'sql'
     _DATA_DIRS = (_SQL_DIR_NAME,)
 
+    def get_dir(self):
+        return self._SQL_DIR_NAME
+
     def __init__(
             self,
             main_window_plugin: MainWindowPlugin,
@@ -42,7 +45,7 @@ class BD(Plugin):
         )
     def _re(self):
         db_name = 'database.db'
-        self.window = TableWidgetExample(self.data_path(self._SQL_DIR_NAME) / db_name)
+        self.window = TableWidgetExample(self.data_path(self._SQL_DIR_NAME) / db_name, self.data_path(self._SQL_DIR_NAME) / 'data')
         self.window.setWindowModality(Qt.ApplicationModal)
         self.window.show()
 
