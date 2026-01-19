@@ -44,9 +44,12 @@ class CurrentSOTA:
         return stack
 
     def fullsize_model_call(self, image):
-        stack = np.zeros((*image.shape, self.max_cls), dtype=np.float32)
+        oH, oW = image.shape
+        image = cv2.resize(image, (512, 256))
+        stack = np.zeros((oH, oW, self.max_cls), dtype=np.float32)
         for cls_idx, model in self.fullsize_model_dict.items():
             pred = self.run_model(model, image)
+            pred = cv2.resize(pred, (oW, oH), interpolation=cv2.INTER_LINEAR)
             pred = (pred >= 0.5) * pred
             stack[:, :, cls_idx] = pred
         return stack
@@ -55,8 +58,9 @@ class CurrentSOTA:
     def __call__(self, image):
         image, b_mask = self.preprocess(image)
         fullsize_mask = self.fullsize_model_call(image)
-        tiled_mask = self.model_call(image, b_mask)
-        result = np.argmax(tiled_mask + fullsize_mask, axis=2).astype(np.uint8)
+        # tiled_mask = self.model_call(image, b_mask)
+        # result = np.argmax(tiled_mask + fullsize_mask, axis=2).astype(np.uint8)
+        result = np.argmax(fullsize_mask, axis=2).astype(np.uint8)
         return result
 
 class EnsembleSegmenter(QObject):
