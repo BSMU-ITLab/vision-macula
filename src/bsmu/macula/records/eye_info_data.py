@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 
 from PySide6.QtSql import QSqlQueryModel
 
@@ -43,13 +43,16 @@ class PatientExamData:
     visit_date: Optional[date] = None
     disease_duration: Optional[str] = None
     tomograph_type: Optional[str] = "Топкон"  # Добавлено поле типа томографа
-    areds_criteria: Optional[str] = None
+    disease_duration: Optional[str] = None
     refraction: Optional[str] = None
     neovascularization_type: Optional[str] = None
+    bcva: Optional[str] = None  # Максимальная корригированная острота зрения
 
     # Общие измерения сетчатки
     choroidal_center_thickness: Optional[float] = None
     foveal_retinal_thickness: Optional[float] = None
+    cts_near_foveolla: Optional[float] = None  # ЦТС возле фовеолы (внутренняя)
+    cts_near_fovea: Optional[float] = None  # ЦТС возле фовеа (наружная)
     total_retinal_volume: Optional[float] = None
     average_retinal_volume: Optional[float] = None
 
@@ -64,7 +67,7 @@ class PatientExamData:
     drusenoid_ped: Measurement = field(default_factory=Measurement)
 
     # Друзы
-    drusen: Measurement = field(default_factory=Measurement)
+    drusen: Measurement = field(default_factory=list)
 
     # Жидкость под РПЭ
     sub_rpe_fluid: Measurement = field(default_factory=Measurement)

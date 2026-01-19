@@ -13,10 +13,10 @@ main_palette:
     irf:           [   3,   0,   0, 255, 255 ]  # Blue
 
     # Subretinal Hyperreflective Material (SHRM)
-    shrm:          [   4, 255, 255,   0, 255 ]  # Yellow
+    shrm:          [   4, 255, 255, 255, 255 ]  # White
 
     # Intraretinal Hyperreflective Foci (IHRF)
-    ihrf:          [   5, 184, 134,  11, 255 ]  # DarkGoldenrod
+    ihrf:          [   5, 255, 255, 255, 255 ]  # White
 
     # Subretinal Fluid (SRF) / Neuroepithelial Detachment (NED)
     srf:           [   6, 255,   0, 255, 255 ]  # Fuchsia
