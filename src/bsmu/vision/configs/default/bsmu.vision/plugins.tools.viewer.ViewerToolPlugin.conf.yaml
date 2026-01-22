@@ -1,0 +1,28 @@
+layers:
+  image: 'active_layer'
+#    name: 'images'
+#    number: 0
+  mask:
+    # If the active layer is indexed, then it's used as mask layer
+    use_active_indexed_layer: true
+    # Use the first found indexed layer as mask layer
+    use_first_indexed_layer: true
+    name: 'masks'
+    # Next properties will be used, if there is no mask, and we have to create one
+    palette: null  # if null, then default palette will be used
+    opacity: 0.5
+  tool_mask:
+    name: 'tool-mask'
+    # Next properties will be used, if we have to create new tool mask
+    palette:
+      row_by_name:
+        background: [ 0, 0, 0, 0, 0 ]
+        foreground: [ 1, 158, 255, 61, 255 ]  # tool region, where mask will be painted, if the tool is used
+        eraser: [ 2, 210, 60, 40, 255 ]  # tool region, where mask will be erased, if the tool is used
+        fixed: [3, 55, 89, 21, 255 ]  # tool region, where mask will not be painted, if the tool is used
+          # because it is already painted with the current tool class
+          # (or another one and Enable Repainting set to False)
+        unconnected_component: [ 4, 89, 55, 21, 255 ]  # tool region, where mask will not be painted,
+          # if the tool is used, because it is an isolated region
+        no_paint: [ 5, 0, 0, 0, 31 ]  # tool region, where mask will not be painted, if the tool is used
+    opacity: 0.5

@@ -1,0 +1,5 @@
+layers:
+  masks:
+    # Next properties will be used, if there is no mask, and we have to create one
+    palette: null  # if null, then default palette will be used
+    opacity: 0.5
