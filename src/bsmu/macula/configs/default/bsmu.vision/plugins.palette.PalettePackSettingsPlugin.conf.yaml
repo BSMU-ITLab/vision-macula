@@ -63,4 +63,4 @@ main_palette:
     class_24:      [  24, 186,  85, 211, 255 ]  # MediumOrchid
     class_25:      [  25, 178,  34,  34, 255 ]  # FireBrick
     class_26:      [  26,   0,   0,   0, 255 ]  # Black
-    class_255:     [ 255,  50,   0,  50, 255 ]  # Dark Purple
+    class_255:     [ 255,  50,   0,  50, 0 ]  # Dark Purple

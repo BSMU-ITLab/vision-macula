@@ -709,7 +709,7 @@ class MaskAnalyser:
         
         # Создаём группу для ручного заполнения
         rows.append({
-            "parameter": "Заполнение вручную",
+            "parameter": "       ",
             "value": "",
             "unit": "",
             "is_group": True,

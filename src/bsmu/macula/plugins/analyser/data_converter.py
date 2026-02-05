@@ -235,7 +235,14 @@ class DataConverter:
             return "3 – Вне макулы"
     
     def get_drusen_location(self, contour: np.ndarray, mask_shape: tuple) -> str | None:
-        """Определяет локализацию друзы по алгоритму 0-3 (аналогично дефектам РПЭ)."""
+        """Определяет локализацию друзы по совпадению X-координат с зонами фовеа.
+        
+        Классы:
+        - 2 – Фовеола + фовеа + макула (хотя бы одна общая X-координата с фовеолой)
+        - 1 – Фовеа + макула (без фовеолы, но хотя бы одна общая X с фовеа)
+        - 3 – Макула (без фовеа и фовеолы)
+        - 0 – отсутствует
+        """
         if contour is None or self.fovea_mask is None:
             return None
         
@@ -243,29 +250,40 @@ class DataConverter:
         drusen_mask = np.zeros(mask_shape, dtype=np.uint8)
         cv2.drawContours(drusen_mask, [contour], -1, 1, -1)
         
-        # Проверяем пересечение с зонами фовеа
+        # Проверяем совпадение X-координат с зонами фовеа
         in_foveola = False
         in_fovea = False
         in_macula = False
         
-        h, w = mask_shape
-        for y in range(h):
-            for x in range(w):
-                if drusen_mask[y, x] == 1:
-                    zone = self.fovea_mask[y, x]
-                    if zone == 1:  # Фовеола
-                        in_foveola = True
-                    elif zone == 2:  # Фовеа
-                        in_fovea = True
-                    else:  # Макула
-                        in_macula = True
+        # Получаем уникальные X координаты друзы
+        ys, xs = np.where(drusen_mask == 1)
+        if len(xs) > 0:
+            unique_xs_drusen = set(xs)
+            
+            # Получаем X координаты для каждой зоны фовеа
+            h, w = self.fovea_mask.shape
+            for x in unique_xs_drusen:
+                if x >= w:
+                    continue
+                # Проверяем все Y в этом X в маске фовеа
+                column = self.fovea_mask[:, x]
+                if 1 in column:  # Фовеола
+                    in_foveola = True
+                if 2 in column:  # Фовеа
+                    in_fovea = True
+                if 0 in column or 3 in column:  # Макула
+                    in_macula = True
+                
+                # Если уже нашли фовеолу, можем выйти
+                if in_foveola:
+                    break
         
-        # Применяем алгоритм определения (как для дефектов РПЭ)
+        # Применяем алгоритм определения с приоритетом
         if in_foveola:
-            return "0 – Фовеола"
+            return "2 – Фовеола + фовеа + макула"
         elif in_fovea:
-            return "1 – Фовеа (без фовеолы)"
+            return "1 – Фовеа + макула (без фовеолы)"
         elif in_macula:
-            return "2 – Макула (без фовеолы и фовеа)"
+            return "3 – Макула (без фовеа и фовеолы)"
         else:
-            return "3 – Вне макулы"
+            return "0 – отсутствует"

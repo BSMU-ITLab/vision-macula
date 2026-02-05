@@ -43,7 +43,6 @@ class ObjectsTableModel(QAbstractTableModel):
     HEADERS = [
         "Параметр",
         "Значение",
-        "Единица",
     ]
     
     # Параметры которые должны быть редактируемыми
@@ -96,10 +95,13 @@ class ObjectsTableModel(QAbstractTableModel):
                 arrow = "▼" if row.get("expanded") else "▶"
                 param = f"{arrow} {param}"
             
+            value = row.get("value", "")
+            unit = row.get("unit", "")
+            value_with_unit = f"{value} {unit}".strip()
+
             return [
                 param,
-                row.get("value", ""),
-                row.get("unit", ""),
+                value_with_unit,
             ][index.column()]
 
         return None
@@ -620,7 +622,7 @@ class TableWindow(QWidget):
 
 # ====== Модель для деталей друзы/отслойки ======
 class DetachmentDetailModel(QAbstractTableModel):
-    HEADERS = ["Параметр", "Значение", "Единица"]
+    HEADERS = ["Параметр", "Значение"]
     
     def __init__(self, measurements: list[dict]):
         super().__init__()
@@ -647,10 +649,13 @@ class DetachmentDetailModel(QAbstractTableModel):
             param = re.sub(r'^(Серозная отслойка ПЭ \(СОПЭ\)|Геморрагическая отслойка ПЭ \(ГОПЭ\)|Фиброваскулярная отслойка ПЭ \(ФВОПЭ\)|Друзеноидная отслойка ПЭ|Отслойка нейроэпителия) \(', '', param)
             param = re.sub(r'\)$', '', param)
             
+            value = row.get("value", "")
+            unit = row.get("unit", "")
+            value_with_unit = f"{value} {unit}".strip()
+
             return [
                 param.strip(),
-                row.get("value", ""),
-                row.get("unit", ""),
+                value_with_unit,
             ][index.column()]
         
         return None

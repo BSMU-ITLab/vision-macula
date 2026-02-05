@@ -80,23 +80,6 @@ def get_foveola_center(fovea_mask):
     return int(np.mean(xs)), int(np.mean(ys))
 
 
-def get_zone_center(fovea_mask, zone_id):
-    """
-    Находит центр заданной зоны в маске фовеа.
-    
-    Args:
-        fovea_mask: маска с зонами (0=фон, 1=фовеола, 2=фовеа, 3=макула)
-        zone_id: идентификатор зоны (1=фовеола, 2=фовеа, 3=макула)
-    
-    Returns:
-        Кортеж (x, y) центра зоны или None если зона не найдена
-    """
-    ys, xs = np.where(fovea_mask == zone_id)
-    if len(xs) == 0:
-        return None
-    return int(np.mean(xs)), int(np.mean(ys))
-
-
 def central_width_of_retina(smooth_upper, spline, foveola_center, mask,
                                   perp_len=200):
 
@@ -791,38 +774,49 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
     else:
         max_height_um = None
     
-    # Определяем локализацию (0-3, проверяем по линии хориоидеи)
+    # Определяем локализацию: проверяем совпадение X-координат объекта с зонами фовеа
+    # Если у объекта и фовеолы/фовеа есть хотя бы одна общая X-координата - объект в этой зоне
     location = None
     if fovea_mask is not None:
         in_foveola = False
         in_fovea = False
         in_macula = False
         
-        # Проверяем зоны фовеа на линии хориоидеи (от left_x до right_x)
-        for x in range(left_x, right_x + 1):
-            if x < 0 or x >= len(smooth_upper):
-                continue
-            y = int(smooth_upper[x])
-            if y < 0 or y >= h:
-                continue
+        # Получаем уникальные X координаты отслойки
+        ys, xs = np.where(target_mask == 1)
+        if len(xs) > 0:
+            unique_xs_detachment = set(xs)
             
-            zone = fovea_mask[y, x]
-            if zone == 1:
-                in_foveola = True
-            elif zone == 2:
-                in_fovea = True
-            else:
-                in_macula = True
+            # Получаем X координаты для каждой зоны фовеа
+            h, w = fovea_mask.shape
+            for x in unique_xs_detachment:
+                if x >= w:
+                    continue
+                # Проверяем все Y в этом X в маске фовеа
+                column = fovea_mask[:, x]
+                if 1 in column:  # Фовеола
+                    in_foveola = True
+                if 2 in column:  # Фовеа
+                    in_fovea = True
+                if 0 in column or 3 in column:  # Макула
+                    in_macula = True
+                
+                # Если уже нашли фовеолу, можем выйти
+                if in_foveola:
+                    break
         
-        # Алгоритм 0-3 (как для друз)
+        # Логика определения локализации по приоритету
+        # 2 – Фовеола + фовеа + макула (хотя бы одна общая X с фовеолой)
         if in_foveola:
-            location = "0 – Фовеола"
+            location = "2 – Фовеола + фовеа + макула"
+        # 1 – Фовеа + макула (без фовеолы, но хотя бы одна общая X с фовеа)
         elif in_fovea:
-            location = "1 – Фовеа (без фовеолы)"
+            location = "1 – Фовеа + макула (без фовеолы)"
+        # 3 – Макула (без фовеа и фовеолы)
         elif in_macula:
-            location = "2 – Макула (без фовеолы и фовеа)"
+            location = "3 – Макула (без фовеа и фовеолы)"
         else:
-            location = "3 – Вне макулы"
+            location = "0 – отсутствует"
     
     print(f"Detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, choroid_segment
@@ -985,32 +979,45 @@ def measure_drusen(mask, smooth_upper, spline, contour, fovea_mask=None, scale_x
         max_height_um = None
     
     # Определяем локализацию для этой конкретной друзы
+    # Проверяем совпадение X-координат друзы с зонами фовеа
     location = None
     if fovea_mask is not None:
         in_foveola = False
         in_fovea = False
         in_macula = False
         
-        # Проверяем только точки этой друзы (контур уже нарисован в target_mask)
+        # Получаем уникальные X координаты друзы
         ys, xs = np.where(target_mask == 1)
-        for y, x in zip(ys, xs):
-            zone = fovea_mask[y, x]
-            if zone == 1:
-                in_foveola = True
-            elif zone == 2:
-                in_fovea = True
-            else:
-                in_macula = True
+        if len(xs) > 0:
+            unique_xs_drusen = set(xs)
+            
+            # Получаем X координаты для каждой зоны фовеа
+            h, w = fovea_mask.shape
+            for x in unique_xs_drusen:
+                if x >= w:
+                    continue
+                # Проверяем все Y в этом X в маске фовеа
+                column = fovea_mask[:, x]
+                if 1 in column:  # Фовеола
+                    in_foveola = True
+                if 2 in column:  # Фовеа
+                    in_fovea = True
+                if 0 in column or 3 in column:  # Макула
+                    in_macula = True
+                
+                # Если уже нашли фовеолу, можем выйти
+                if in_foveola:
+                    break
         
-        # Алгоритм как для дефектов РПЭ (0-3)
+        # Логика определения локализации по приоритету
         if in_foveola:
-            location = "0 – Фовеола"
+            location = "2 – Фовеола + фовеа + макула"
         elif in_fovea:
-            location = "1 – Фовеа (без фовеолы)"
+            location = "1 – Фовеа + макула (без фовеолы)"
         elif in_macula:
-            location = "2 – Макула (без фовеолы и фовеа)"
+            location = "3 – Макула (без фовеа и фовеолы)"
         else:
-            location = "3 – Вне макулы"
+            location = "0 – отсутствует"
     
     print(f"Drusen: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, choroid_segment
@@ -1190,34 +1197,49 @@ def measure_neuroepithelial_detachment(mask, smooth_upper_choroid, spline_choroi
     else:
         max_height_um = None
     
-    # Определяем локализацию (0-3, проверяем по верхней границе отслойки)
+    # Определяем локализацию: проверяем совпадение X-координат отслойки с зонами фовеа
     location = None
     if fovea_mask is not None:
         in_foveola = False
         in_fovea = False
         in_macula = False
         
-        # Проверяем зоны фовеа по верхней границе отслойки (от left_x до right_x)
-        for i, x in enumerate(range(left_x, right_x + 1)):
-            if i >= len(smooth_upper_detachment):
-                continue
-            y = int(smooth_upper_detachment[i])
-            if y < 0 or y >= h or x < 0 or x >= w:
-                continue
+        # Получаем уникальные X координаты отслойки
+        ys_det, xs_det = np.where(detachment_mask == 1)
+        if len(xs_det) > 0:
+            unique_xs_detachment = set(xs_det)
             
-            zone = fovea_mask[y, x]
-            if zone == 1:
-                in_foveola = True
-            elif zone == 2:
-                in_fovea = True
-            else:
-                in_macula = True
+            # Получаем X координаты для каждой зоны фовеа
+            h, w = fovea_mask.shape
+            for x in unique_xs_detachment:
+                if x >= w:
+                    continue
+                # Проверяем все Y в этом X в маске фовеа
+                column = fovea_mask[:, x]
+                if 1 in column:  # Фовеола
+                    in_foveola = True
+                if 2 in column:  # Фовеа
+                    in_fovea = True
+                if 0 in column or 3 in column:  # Макула
+                    in_macula = True
+                
+                # Если уже нашли фовеолу, можем выйти
+                if in_foveola:
+                    break
         
-        # Алгоритм 0-3
+        # Логика определения локализации по приоритету
+        if in_foveola:
+            location = "2 – Фовеола + фовеа + макула"
+        elif in_fovea:
+            location = "1 – Фовеа + макула (без фовеолы)"
+        elif in_macula:
+            location = "3 – Макула (без фовеа и фовеолы)"
+        else:
+            location = "0 – отсутствует"
         if in_foveola:
             location = "0 – Фовеола"
         elif in_fovea:
-            location = "1 – Фовеа (без фовеолы)"
+            location = "1 – Фовеа (без фovеолы)"
         elif in_macula:
             location = "2 – Макула (без фовеолы и фовеа)"
         else:
