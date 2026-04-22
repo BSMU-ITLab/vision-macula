@@ -59,7 +59,7 @@ class MaskAnalyserPlugin(Plugin):
         return self._main_window
 
     def _enable_gui(self):
-        print("Enabling GUI for MaskAnalyzerPlugin...") 
+        # print("Enabling GUI for MaskAnalyzerPlugin...") 
         self._main_window = self._main_window_plugin.main_window
         self._mdi = self._mdi_plugin._mdi
         self._main_window.add_menu_action(
@@ -81,13 +81,23 @@ class MaskAnalyserPlugin(Plugin):
         # Получаем маску fovea из layered image
         mask_fovea_layer = layered_image_viewer.layer_by_name('mask-fovea')
         if mask_fovea_layer is None:
-            print("Ошибка: слой 'mask-fovea' не найден")
+            # print("Ошибка: слой 'mask-fovea' не найден")
             return
         mask_fovea_pixels = mask_fovea_layer.image_pixels
         
         image_pixels = layered_image_viewer.layer_by_name('images').image_pixels
 
         classes = self.config_value("classes", [])
+
+        _ANALYSIS_SIZE = (1024, 512)  # (width, height)
+        _src_h, _src_w = mask_pixels.shape[:2]
+        if (_src_w, _src_h) != _ANALYSIS_SIZE:
+            _rx = _ANALYSIS_SIZE[0] / float(_src_w)
+            _ry = _ANALYSIS_SIZE[1] / float(_src_h)
+            _interp_img = cv2.INTER_AREA if (_rx < 1 or _ry < 1) else cv2.INTER_LINEAR
+            image_pixels = cv2.resize(image_pixels, _ANALYSIS_SIZE, interpolation=_interp_img)
+            mask_pixels = cv2.resize(mask_pixels, _ANALYSIS_SIZE, interpolation=cv2.INTER_NEAREST)
+            mask_fovea_pixels = cv2.resize(mask_fovea_pixels, _ANALYSIS_SIZE, interpolation=cv2.INTER_NEAREST)
 
         mask_analyser = MaskAnalyser(image_pixels, mask_pixels, mask_fovea_pixels, classes)
         # Выполняем анализ
@@ -262,7 +272,7 @@ class MaskAnalyserPlugin(Plugin):
                             layered_image.remove_layer(existing)
                         return
                     
-                    print(f"Visualizing L-object, contour shape: {L_contour.shape}")
+                    # print(f"Visualizing L-object, contour shape: {L_contour.shape}")
                     
                     # Рисуем L-объект желтым цветом
                     highlight_mask_rgb = np.zeros((*mask_pixels.shape, 3), dtype=np.uint8)
@@ -303,7 +313,7 @@ class MaskAnalyserPlugin(Plugin):
                             FlatImage,
                             visibility=Visibility(True, 1.0),
                         )
-                        print("L-object layer added")
+                        # print("L-object layer added")
                 
                 # Случай 3б: РПЭ (Ретинальный пигментный эпителий)
                 elif 'rpe_contours' in row_data:
@@ -544,7 +554,7 @@ class MaskAnalyserPlugin(Plugin):
                         layered_image.remove_layer(existing)
                         
             except Exception as e:
-                print(f"Hover highlight error: {e}")
+                # print(f"Hover highlight error: {e}")
                 import traceback
                 traceback.print_exc()
 
@@ -794,14 +804,14 @@ class MaskAnalyser:
 
         # --- 4. Центральная толщина рядом с фовеолой / фовеей ---
         for ind, label, measure_id in [(1, "возле фовеолы", "cts_near_foveola"), (2, "возле фовеа", "cts_near_fovea")]:
-            print(f"Checking central width near: ind={ind}, label={label}")
+            # print(f"Checking central width near: ind={ind}, label={label}")
             pts = central_width_near(
                 self.image, smooth_upper, spline,
                 self.fovea_mask, self.mask, ind
             )
-            print(f"Result: pts={pts}")
+            # print(f"Result: pts={pts}")
             if pts is None:
-                print(f"Skipping {label} - no points found")
+                # print(f"Skipping {label} - no points found")
                 continue
 
             left_pt, right_pt = pts
@@ -1107,14 +1117,14 @@ class MaskAnalyser:
         }
 
         for class_id, (name, measure_id) in DETACHMENTS.items():
-            print(f"Checking detachment class {class_id}: {name}")
+            # print(f"Checking detachment class {class_id}: {name}")
             width, height, area, left_x, right_x, max_perp_point, location, choroid_segment = detect_and_measure_detachments(
                 self.mask, smooth_upper, spline, class_id, self.fovea_mask, self.scale_x, self.scale_y
             )
-            print(f"Result: width={width}, height={height}, area={area}, location={location}")
+            # print(f"Result: width={width}, height={height}, area={area}, location={location}")
             
             if width is None or height is None:
-                print(f"Skipping {name} - no detachment found")
+                # print(f"Skipping {name} - no detachment found")
                 continue
             
             # Добавляем ширину
@@ -1156,14 +1166,14 @@ class MaskAnalyser:
                     "unit": "",
                     "detachment_bounds": (left_x, right_x, max_perp_point, choroid_segment),
                 })
-                print(f"Added {name} with location: {location}")
+                # print(f"Added {name} with location: {location}")
 
         # --- 6а. Отслойка нейроэпителия (СРЖ) - класс 6 ---
-        print("Checking neuroepithelial detachment class 6")
+        # print("Checking neuroepithelial detachment class 6")
         neuro_width, neuro_height, neuro_area, neuro_left_x, neuro_right_x, neuro_max_perp_point, neuro_location, neuro_upper_segment = measure_neuroepithelial_detachment(
             self.mask, smooth_upper, spline, 6, self.fovea_mask, self.scale_x, self.scale_y
         )
-        print(f"Neuroepithelial detachment result: width={neuro_width}, height={neuro_height}, area={neuro_area}, location={neuro_location}")
+        # print(f"Neuroepithelial detachment result: width={neuro_width}, height={neuro_height}, area={neuro_area}, location={neuro_location}")
         
         if neuro_width is not None and neuro_height is not None:
             # Добавляем ширину
@@ -1205,7 +1215,7 @@ class MaskAnalyser:
                     "unit": "",
                     "detachment_bounds": (neuro_left_x, neuro_right_x, neuro_max_perp_point, neuro_upper_segment),
                 })
-                print(f"Added neuroepithelial detachment with location: {neuro_location}")
+                # print(f"Added neuroepithelial detachment with location: {neuro_location}")
 
         # --- 6б. Sub-Bruch's Fluid (SBF) - класс 7 ---
         sbf_mask = (self.mask == 7).astype(np.uint8)
@@ -1263,7 +1273,7 @@ class MaskAnalyser:
                     "unit": "",
                 })
             
-            print(f"Sub-Bruch's Fluid: area={sbf_area_um2}, location={sbf_location}")
+            # print(f"Sub-Bruch's Fluid: area={sbf_area_um2}, location={sbf_location}")
 
         # --- 6в. Гиперрефлективный материал - классы 4 и 5 ---
         subretinal_mask = (self.mask == 4).astype(np.uint8)  # Субретинальный
@@ -1272,9 +1282,9 @@ class MaskAnalyser:
         subretinal_present = subretinal_mask.sum() > 0
         intraretinal_present = intraretinal_mask.sum() > 0
         
-        print(f"=== ГИПЕРРЕФЛЕКТИВНЫЙ МАТЕРИАЛ ===")
-        print(f"Субретинальный (класс 4): {subretinal_mask.sum()} пикселей, present={subretinal_present}")
-        print(f"Интраретинальный (класс 5): {intraretinal_mask.sum()} пикселей, present={intraretinal_present}")
+        # print(f"=== ГИПЕРРЕФЛЕКТИВНЫЙ МАТЕРИАЛ ===")
+        # print(f"Субретинальный (класс 4): {subretinal_mask.sum()} пикселей, present={subretinal_present}")
+        # print(f"Интраретинальный (класс 5): {intraretinal_mask.sum()} пикселей, present={intraretinal_present}")
         
         # Определяем локализацию
         if not subretinal_present and not intraretinal_present:
@@ -1286,7 +1296,7 @@ class MaskAnalyser:
         else:
             hyperreflective_location = "Интраретинальный"
         
-        print(f"Локализация: {hyperreflective_location}")
+        # print(f"Локализация: {hyperreflective_location}")
         
         # Добавляем локализацию
         rows.append({
@@ -1301,7 +1311,7 @@ class MaskAnalyser:
             subretinal_area_px = subretinal_mask.sum()
             if self.scale_x is not None and self.scale_y is not None:
                 subretinal_area_um2 = subretinal_area_px * self.scale_x * self.scale_y
-                print(f"Субретинальный: {subretinal_area_px} пикселей = {subretinal_area_um2:.2f} мкм²")
+                # print(f"Субретинальный: {subretinal_area_px} пикселей = {subretinal_area_um2:.2f} мкм²")
                 rows.append({
                     "parameter": "Гиперрефлективный материал субретинальный (площадь)",
                     "measurement_id": "hyperreflective_subretinal_area",
@@ -1314,7 +1324,7 @@ class MaskAnalyser:
             intraretinal_area_px = intraretinal_mask.sum()
             if self.scale_x is not None and self.scale_y is not None:
                 intraretinal_area_um2 = intraretinal_area_px * self.scale_x * self.scale_y
-                print(f"Интраретинальный: {intraretinal_area_px} пикселей = {intraretinal_area_um2:.2f} мкм²")
+                # print(f"Интраретинальный: {intraretinal_area_px} пикселей = {intraretinal_area_um2:.2f} мкм²")
                 rows.append({
                     "parameter": "Гиперрефлективный материал интраретинальный (площадь)",
                     "measurement_id": "hyperreflective_intraretinal_area",
@@ -1326,7 +1336,7 @@ class MaskAnalyser:
         if subretinal_present and intraretinal_present:
             if self.scale_x is not None and self.scale_y is not None:
                 total_hyperreflective_area = subretinal_area_um2 + intraretinal_area_um2
-                print(f"Общая площадь: {total_hyperreflective_area:.2f} мкм²")
+                # print(f"Общая площадь: {total_hyperreflective_area:.2f} мкм²")
                 rows.append({
                     "parameter": "Гиперрефлективный материал общая площадь",
                     "measurement_id": "hyperreflective_total_area",
@@ -1334,8 +1344,8 @@ class MaskAnalyser:
                     "unit": "мкм²",
                 })
         
-        print(f"Hyperreflective material: location={hyperreflective_location}")
-        print(f"=================================\n")
+        # print(f"Hyperreflective material: location={hyperreflective_location}")
+        # print(f"=================================\n")
 
         # --- 7. Объекты по сегментации (друзы и т.п.) ---
         for class_cfg in self.class_configs:

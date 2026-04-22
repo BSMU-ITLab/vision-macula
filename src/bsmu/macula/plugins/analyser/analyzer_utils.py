@@ -128,43 +128,35 @@ def central_width_of_retina(smooth_upper, spline, foveola_center, mask,
 def central_width_near(img, smooth_upper, spline, fovea_mask, mask, ind):
     """
     Находит крайние левую и правую точки на границе зоны фовеа/фовеолы с фоном.
-    
+
     Args:
         ind: 1 для фовеолы, 2 для фовеа
-        
+
     Ищет точки, в окрестности которых есть и зона фовеа/фовеолы, и фон (класс 0).
     """
-    h, w = mask.shape
-    
-    # Ищем все точки, где в окрестности есть и зона фовеа, и фон
-    left_point = None
-    right_point = None
-    
-    for y in range(h):
-        for x in range(w):
-            # Проверяем соседей: должны быть и зона фовеа/фовеолы, и фон
-            has_zone = False
-            has_background = False
-            
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    ny, nx = y + dy, x + dx
-                    if 0 <= ny < h and 0 <= nx < w:
-                        if fovea_mask[ny, nx] == ind:
-                            has_zone = True
-                        if mask[ny, nx] == 0:
-                            has_background = True
-            
-            # Если в окрестности есть и зона, и фон - это граничная точка
-            if has_zone and has_background:
-                if left_point is None or x < left_point[0]:
-                    left_point = (x, y)
-                if right_point is None or x > right_point[0]:
-                    right_point = (x, y)
-    
-    if left_point is None or right_point is None:
+    # Векторизованная версия на numpy: dilate(zone) & dilate(background)
+    # даёт все пиксели, у которых в 3x3-окрестности есть и зона, и фон.
+    zone_mask = (fovea_mask == ind).astype(np.uint8)
+    bg_mask = (mask == 0).astype(np.uint8)
+
+    if zone_mask.sum() == 0 or bg_mask.sum() == 0:
         return None
-    
+
+    kernel = np.ones((3, 3), np.uint8)
+    zone_dilated = cv2.dilate(zone_mask, kernel, iterations=1)
+    bg_dilated = cv2.dilate(bg_mask, kernel, iterations=1)
+
+    boundary = (zone_dilated & bg_dilated).astype(bool)
+    ys, xs = np.where(boundary)
+
+    if len(xs) == 0:
+        return None
+
+    left_idx = int(np.argmin(xs))
+    right_idx = int(np.argmax(xs))
+    left_point = (int(xs[left_idx]), int(ys[left_idx]))
+    right_point = (int(xs[right_idx]), int(ys[right_idx]))
+
     return left_point, right_point
 
 
@@ -260,27 +252,28 @@ def measure_rpe_thickness(mask, fovea_mask, scale_x=None, scale_y=None, sample_i
         y_skel, x_skel = point
         
         # Вычисляем касательную к скелету через ближайшие точки
-        # Ищем соседние точки скелета в окрестности
+        # Ищем соседние точки скелета в окрестности (через numpy-срез вместо двойного цикла)
         window_size = 10
-        neighbors = []
-        
-        for dy in range(-window_size, window_size + 1):
-            for dx in range(-window_size, window_size + 1):
-                if dy == 0 and dx == 0:
-                    continue
-                yy = y_skel + dy
-                xx = x_skel + dx
-                if 0 <= yy < h and 0 <= xx < w and skeleton[yy, xx] > 0:
-                    neighbors.append((xx, yy))
-        
-        if len(neighbors) < 2:
+        y0 = max(0, y_skel - window_size)
+        y1 = min(h, y_skel + window_size + 1)
+        x0 = max(0, x_skel - window_size)
+        x1 = min(w, x_skel + window_size + 1)
+        patch = skeleton[y0:y1, x0:x1]
+        local_yx = np.argwhere(patch > 0)
+        # исключаем саму центральную точку
+        center_dy = y_skel - y0
+        center_dx = x_skel - x0
+        not_center = ~((local_yx[:, 0] == center_dy) & (local_yx[:, 1] == center_dx))
+        local_yx = local_yx[not_center]
+
+        if len(local_yx) < 2:
             # Недостаточно соседей, пропускаем эту точку
             continue
-        
+
         # Используем линейную регрессию для аппроксимации локального направления скелета
-        neighbors_x = np.array([n[0] for n in neighbors])
-        neighbors_y = np.array([n[1] for n in neighbors])
-        
+        neighbors_x = local_yx[:, 1] + x0
+        neighbors_y = local_yx[:, 0] + y0
+
         # Добавляем текущую точку
         neighbors_x = np.append(neighbors_x, x_skel)
         neighbors_y = np.append(neighbors_y, y_skel)
@@ -669,12 +662,13 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
         
         # ОТЛАДКА: выводим информацию для первой точки
         if not debug_printed:
-            print(f"\n=== ОТЛАДКА ПЕРПЕНДИКУЛЯРА (отслойка) ===")
-            print(f"Точка на хориоидее: x={x}, y_base={y_base}")
-            print(f"Наклон касательной (slope): {slope:.4f}")
-            print(f"Перпендикуляр ДО нормализации: nx={-slope:.4f}, ny={-1.0:.4f}")
-            print(f"Перпендикуляр ПОСЛЕ нормализации: nx={nx:.4f}, ny={ny:.4f}")
-            print(f"Длина вектора L: {L:.4f}")
+            pass
+            # print(f"\n=== ОТЛАДКА ПЕРПЕНДИКУЛЯРА (отслойка) ===")
+            # print(f"Точка на хориоидее: x={x}, y_base={y_base}")
+            # print(f"Наклон касательной (slope): {slope:.4f}")
+            # print(f"Перпендикуляр ДО нормализации: nx={-slope:.4f}, ny={-1.0:.4f}")
+            # print(f"Перпендикуляр ПОСЛЕ нормализации: nx={nx:.4f}, ny={ny:.4f}")
+            # print(f"Длина вектора L: {L:.4f}")
         
         # Идем по перпендикуляру в ОБЕ СТОРОНЫ от точки (x, y_base) на хориоидее
         points_in_detachment = []
@@ -691,7 +685,8 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             py = int(round(fy_new))
             
             if not debug_printed and t < 5:
-                print(f"  ВВЕРХ t={t}: fx_new={fx_new:.2f}, fy_new={fy_new:.2f}, px={px}, py={py}, delta_x={px-x}, delta_y={py-y_base}")
+                pass
+                # print(f"  ВВЕРХ t={t}: fx_new={fx_new:.2f}, fy_new={fy_new:.2f}, px={px}, py={py}, delta_x={px-x}, delta_y={py-y_base}")
             
             if px < 0 or px >= w or py < 0 or py >= h:
                 break
@@ -699,7 +694,8 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             if target_mask[py, px] == 1:
                 points_in_detachment.append((fx_new, fy_new))
                 if not debug_printed:
-                    print(f"  >>> Нашли точку в отслойке (вверх): ({fx_new:.2f}, {fy_new:.2f}) -> px={px}, py={py}")
+                    pass
+                    # print(f"  >>> Нашли точку в отслойке (вверх): ({fx_new:.2f}, {fy_new:.2f}) -> px={px}, py={py}")
         
         # Направление 2: ВНИЗ (противоположное направление)
         for t in range(1, perp_len):  # начинаем с 1, чтобы не дублировать t=0
@@ -710,7 +706,8 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             py = int(round(fy_new))
             
             if not debug_printed and t < 5:
-                print(f"  ВНИЗ t={t}: fx_new={fx_new:.2f}, fy_new={fy_new:.2f}, px={px}, py={py}, delta_x={px-x}, delta_y={py-y_base}")
+                pass
+                # print(f"  ВНИЗ t={t}: fx_new={fx_new:.2f}, fy_new={fy_new:.2f}, px={px}, py={py}, delta_x={px-x}, delta_y={py-y_base}")
             
             if px < 0 or px >= w or py < 0 or py >= h:
                 break
@@ -718,12 +715,13 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             if target_mask[py, px] == 1:
                 points_in_detachment.append((fx_new, fy_new))
                 if not debug_printed:
-                    print(f"  >>> Нашли точку в отслойке (вниз): ({fx_new:.2f}, {fy_new:.2f}) -> px={px}, py={py}")
+                    pass
+                    # print(f"  >>> Нашли точку в отслойке (вниз): ({fx_new:.2f}, {fy_new:.2f}) -> px={px}, py={py}")
         
         if not debug_printed:
             debug_printed = True
-            print(f"Всего точек в отслойке: {len(points_in_detachment)}")
-            print("==========================================\n")
+            # print(f"Всего точек в отслойке: {len(points_in_detachment)}")
+            # print("==========================================\n")
         
         # Если нашли точки в отслойке, вычисляем длину перпендикуляра
         if len(points_in_detachment) >= 2:
@@ -764,13 +762,13 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
         # ОТЛАДКА: выводим финальные координаты
         if max_perp_point is not None:
             x_base, y_base_final, x_top, y_top_final = max_perp_point
-            print(f"\n=== ФИНАЛЬНЫЙ РАСЧЕТ ВЫСОТЫ (отслойка) ===")
-            print(f"max_height_px = {max_height_px:.2f} пикселей")
-            print(f"max_height_um = {max_height_um:.2f} мкм")
-            print(f"Начальная точка (на хориоидее): ({x_base}, {y_base_final})")
-            print(f"Конечная точка (в отслойке): ({x_top:.2f}, {y_top_final:.2f})")
-            print(f"Расстояние: sqrt(({x_top:.2f}-{x_base})^2 + ({y_top_final:.2f}-{y_base_final})^2) = {max_height_px:.2f}")
-            print("==========================================\n")
+            # print(f"\n=== ФИНАЛЬНЫЙ РАСЧЕТ ВЫСОТЫ (отслойка) ===")
+            # print(f"max_height_px = {max_height_px:.2f} пикселей")
+            # print(f"max_height_um = {max_height_um:.2f} мкм")
+            # print(f"Начальная точка (на хориоидее): ({x_base}, {y_base_final})")
+            # print(f"Конечная точка (в отслойке): ({x_top:.2f}, {y_top_final:.2f})")
+            # print(f"Расстояние: sqrt(({x_top:.2f}-{x_base})^2 + ({y_top_final:.2f}-{y_base_final})^2) = {max_height_px:.2f}")
+            # print("==========================================\n")
     else:
         max_height_um = None
     
@@ -818,7 +816,7 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
         else:
             location = "0 – отсутствует"
     
-    print(f"Detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
+    # print(f"Detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, choroid_segment
 
 
@@ -1019,7 +1017,7 @@ def measure_drusen(mask, smooth_upper, spline, contour, fovea_mask=None, scale_x
         else:
             location = "0 – отсутствует"
     
-    print(f"Drusen: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
+    # print(f"Drusen: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, choroid_segment
 
 
@@ -1245,7 +1243,7 @@ def measure_neuroepithelial_detachment(mask, smooth_upper_choroid, spline_choroi
         else:
             location = "3 – Вне макулы"
     
-    print(f"Neuroepithelial detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
+    # print(f"Neuroepithelial detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, upper_boundary_segment
 
 
@@ -1344,10 +1342,10 @@ def visualize(img, mask, fovea_mask, smooth_upper, spline, out_path):
 
     for target_class, color in zip([2, 16, 10, 11], [(0, 255, 255), (0, 0, 255), (255, 0, 0), (255, 255, 0)]):
         width, height, left_x, right_x, max_point = detect_and_measure_detachments(mask, smooth_upper, spline, target_class)
-        print(width, height, left_x, right_x, max_point)
+        # print(width, height, left_x, right_x, max_point)
 
         if width is not None and height is not None:
-            print(f"Отслойка класса {target_class}: ширина = {width}, высота = {height}")
+            # print(f"Отслойка класса {target_class}: ширина = {width}, высота = {height}")
             
             # Отображаем прямоугольник, ограничивающий отслойку
             cv2.rectangle(vis, (left_x, max_point[1] - height), (right_x, max_point[1]), color, 2)
@@ -1372,7 +1370,7 @@ def process_all():
         fovea_path = os.path.join(fovea_dir, fname)
 
         if not os.path.exists(img_path) or not os.path.exists(fovea_path):
-            print(f"[skip] {fname}")
+            # print(f"[skip] {fname}")
             continue
 
         img = cv2.imread(img_path)
@@ -1385,7 +1383,7 @@ def process_all():
         out_path = os.path.join(out_dir, fname.replace(".png", "_foveola_thickness.png"))
         visualize(img, mask, fovea_mask, smooth_upper, spline, out_path)
 
-        print("→", out_path)
+        # print("→", out_path)
 
 
 # ============================================================
