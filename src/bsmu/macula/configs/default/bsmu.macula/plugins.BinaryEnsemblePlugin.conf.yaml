@@ -1,18 +1,17 @@
 binary_ensemble_models:
-  tiler_name: {1 : "class_1.onnx"}
-  fullseg_name: { 1: "class_1.onnx", 2: "class_2.onnx", 3: "class_3.onnx",
-                  4: "class_4.onnx", 5: "class_5.onnx", 6: "class_6.onnx",
-                  9: "class_9.onnx", 10: "class_10-11.onnx", 12: "class_12.onnx",
-                  13: "class_13.onnx", 14: "class_14.onnx", 15: "class_15.onnx" }
-#  tiler_name: {7 : "class_7.onnx"}
-#  fullseg_name: {2: "bubbles.onnx"}
-  boundary_model: "boundary_model.onnx"
+  class_models: { 1: "Class_1.onnx", 3: "Class_3.onnx", 4: "Class_4.onnx",
+                  5: "Class_5.onnx", 6: "Class_6.onnx", 9: "Class_9.onnx",
+                  12: "Class_12.onnx", 13: "Class_13.onnx", 14: "Class_14.onnx",
+                  15: "Class_15.onnx" }
+  boundary_model: "Class_bnd.onnx"
+  ped_model: "Class_4PED.onnx"
+  three_and_six_model: "Class_3and6.onnx"
   output_object_name: 'Tissue'
   output_object_short_name: 'T'
   preload: false
   batch_size: 4
-  input_size: [1, 512, 512]
+  input_size: [1, 256, 512]
   channels_axis: 0
   channels_order: 'rgb'
-  normalize: true
+  normalize: false
   mask_binarization_threshold: 0.5
