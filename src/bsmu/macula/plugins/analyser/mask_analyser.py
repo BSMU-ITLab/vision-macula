@@ -357,10 +357,10 @@ class MaskAnalyserPlugin(Plugin):
                         if existing is not None:
                             layered_image.remove_layer(existing)
                         return
-                    
+
                     # Создаем RGBA маску с прозрачным фоном
                     temp_mask = np.zeros((*mask_pixels.shape, 3), dtype=np.uint8)
-                    
+
                     # Рисуем разрывы красным цветом
                     cv2.drawContours(temp_mask, gap_contours, -1, color=(0, 0, 255), thickness=2)
                     # Заполняем разрывы полупрозрачным красным
@@ -711,12 +711,7 @@ class MaskAnalyser:
             "value": "",
             "unit": "",
         })
-        manual_fields.append({
-            "parameter": "Локализация кистозного макулярного отека",
-            "value": "",
-            "unit": "",
-        })
-        
+
         # Создаём группу для ручного заполнения
         rows.append({
             "parameter": "       ",
@@ -727,22 +722,27 @@ class MaskAnalyser:
             "children": manual_fields,
         })
 
-        # --- 0. Расчёт масштаба по L-объекту (отдельно по X и Y) ---
-        L_contour = find_L_in_image(self.image)
-        if L_contour is not None:
-            result = calculate_scales_from_L(L_contour, L_size_micrometers=200.0)
-            if result is not None:
-                self.scale_x, self.scale_y, L_width_px, L_height_px = result
-                avg_scale = (self.scale_x + self.scale_y) / 2
-                
-                # Сохраняем L-контур для визуализации при наведении на измерения
-                self.L_contour = L_contour
-                self.L_width_px = L_width_px
-                self.L_height_px = L_height_px
-                
-                # НЕ добавляем записи о L-объекте в таблицу
-                # L-объект используется только для расчёта масштаба
-                # и визуализируется при наведении на любое измерение
+        # --- 0. Масштаб ---
+        # Автодетект L нестабилен, поэтому фиксируем масштаб по эталонному L
+        # из скана 021-01-R (рабочий размер 1024x512): L = 200 мкм,
+        # ширина 24 px по X, высота 60 px по Y.
+        self.scale_x = 200.0 / 24.0   # = 8.333 мкм/px (по ширине)
+        self.scale_y = 200.0 / 60.0   # = 3.333 мкм/px (по высоте)
+        # L_contour = find_L_in_image(self.image)
+        # if L_contour is not None:
+        #     result = calculate_scales_from_L(L_contour, L_size_micrometers=200.0)
+        #     if result is not None:
+        #         self.scale_x, self.scale_y, L_width_px, L_height_px = result
+        #         avg_scale = (self.scale_x + self.scale_y) / 2
+        #
+        #         # Сохраняем L-контур для визуализации при наведении на измерения
+        #         self.L_contour = L_contour
+        #         self.L_width_px = L_width_px
+        #         self.L_height_px = L_height_px
+        #
+        #         # НЕ добавляем записи о L-объекте в таблицу
+        #         # L-объект используется только для расчёта масштаба
+        #         # и визуализируется при наведении на любое измерение
 
         # --- 1. Верхняя граница хориоидеи ---
         xs, upper = extract_upper_boundary(self.mask)
@@ -760,24 +760,28 @@ class MaskAnalyser:
                 smooth_upper, spline, foveola_center, self.mask
             )
             if cts is not None:
-                x0, y0, dist, pt = cts
-                
+                x0, y0, dist_corrected_px, pt, count_sub_px = cts
+
                 row_entry = {
                     "parameter": "Центральная толщина сетчатки (фовеола)",
                     "measurement_id": "cts_foveola",
                     "points": [(x0, y0), pt],
                     "center": foveola_center,
                 }
-                
-                # Вычисляем расстояние с учетом раздельных масштабов
-                dist_um = self._calculate_distance_um((x0, y0), pt)
-                if dist_um is not None:
-                    row_entry["value"] = f"{dist_um:.2f}"
+
+                # Полный путь до хориоидеи и его длина в мкм
+                full_um = self._calculate_distance_um((x0, y0), pt)
+                full_px = float(np.sqrt((pt[0] - x0) ** 2 + (pt[1] - y0) ** 2))
+
+                if full_um is not None and full_px > 0:
+                    # Доля «чистой» сетчатки от полного пути
+                    cts_um = full_um * dist_corrected_px / full_px
+                    row_entry["value"] = f"{cts_um:.2f}"
                     row_entry["unit"] = "мкм"
                 else:
-                    row_entry["value"] = f"{dist:.2f}"
+                    row_entry["value"] = f"{dist_corrected_px:.2f}"
                     row_entry["unit"] = "пиксели"
-                    
+
                 rows.append(row_entry)
 
         # --- 3б. Толщина хориоидеи в центре (перпендикуляр к верхней границе) ---
@@ -803,99 +807,51 @@ class MaskAnalyser:
                 rows.append(row_entry_total)
 
         # --- 4. Центральная толщина рядом с фовеолой / фовеей ---
-        for ind, label, measure_id in [(1, "возле фовеолы", "cts_near_foveola"), (2, "возле фовеа", "cts_near_fovea")]:
-            # print(f"Checking central width near: ind={ind}, label={label}")
+        # Тот же алгоритм, что и для ЦТС в фовеоле: длина пути до хориоидеи
+        # минус пиксели патологических классов.
+        for ind, label, measure_id in [(1, "возле фовеолы", "cts_near_foveola"),
+                                       (2, "возле фовеа", "cts_near_fovea")]:
             pts = central_width_near(
                 self.image, smooth_upper, spline,
                 self.fovea_mask, self.mask, ind
             )
-            # print(f"Result: pts={pts}")
             if pts is None:
-                # print(f"Skipping {label} - no points found")
                 continue
 
             left_pt, right_pt = pts
-            
-            # Строим перпендикуляры прямо из найденных точек (как для ЦТС)
-            cx_l, cy_l = left_pt
-            cx_r, cy_r = right_pt
-            h, w = self.mask.shape
-            
-            RETINA_LAYERS = {4, 5, 6, 9}  # Слои сетчатки
-            CHOROID_ID = 14
-            
-            # Для левой точки
-            best_point_l = None
-            if 0 <= cx_l < len(smooth_upper):
-                slope_l = float(spline.derivative()(cx_l))
-                nx_l = -slope_l
-                ny_l = 1.0
-                L_l = np.sqrt(nx_l*nx_l + ny_l*ny_l)
-                nx_l /= L_l
-                ny_l /= L_l
-                
-                # Ищем первое попадание в хориоидею или слои сетчатки
-                for t in range(0, 200):
-                    xx = int(cx_l + nx_l * t)
-                    yy = int(cy_l + ny_l * t)
-                    if xx < 0 or xx >= w or yy < 0 or yy >= h:
-                        break
-                    if self.mask[yy, xx] == CHOROID_ID or self.mask[yy, xx] in RETINA_LAYERS:
-                        best_point_l = (xx, yy)
-                        break
-            
-            # Для правой точки
-            best_point_r = None
-            if 0 <= cx_r < len(smooth_upper):
-                slope_r = float(spline.derivative()(cx_r))
-                nx_r = -slope_r
-                ny_r = 1.0
-                L_r = np.sqrt(nx_r*nx_r + ny_r*ny_r)
-                nx_r /= L_r
-                ny_r /= L_r
-                
-                # Ищем первое попадание в хориоидею или слои сетчатки
-                for t in range(0, 200):
-                    xx = int(cx_r + nx_r * t)
-                    yy = int(cy_r + ny_r * t)
-                    if xx < 0 or xx >= w or yy < 0 or yy >= h:
-                        break
-                    if self.mask[yy, xx] == CHOROID_ID or self.mask[yy, xx] in RETINA_LAYERS:
-                        best_point_r = (xx, yy)
-                        break
-            
-            # Если нашли точки для обеих линий
-            if best_point_l is not None and best_point_r is not None:
-                # Вычисляем расстояния с учетом раздельных масштабов
-                dist_l_um = self._calculate_distance_um(left_pt, best_point_l)
-                dist_r_um = self._calculate_distance_um(right_pt, best_point_r)
-                
-                row_entry = {
-                    "parameter": f"Центральная толщина сетчатки ({label})",
-                    "measurement_id": measure_id,
-                    "perpendiculars": [(left_pt, best_point_l), (right_pt, best_point_r)],
-                }
-                
-                if dist_l_um is not None and dist_r_um is not None:
-                    # Среднее расстояние в микрометрах
-                    avg_um = (dist_l_um + dist_r_um) / 2
-                    row_entry["value"] = f"{avg_um:.2f}"
-                    row_entry["unit"] = "мкм"
-                else:
-                    # Если нет масштаба, используем пиксели
-                    dx_l = abs(best_point_l[0] - left_pt[0])
-                    dy_l = abs(best_point_l[1] - left_pt[1])
-                    dist_l_px = np.sqrt(dx_l**2 + dy_l**2)
-                    
-                    dx_r = abs(best_point_r[0] - right_pt[0])
-                    dy_r = abs(best_point_r[1] - right_pt[1])
-                    dist_r_px = np.sqrt(dx_r**2 + dy_r**2)
-                    
-                    avg_px = (dist_l_px + dist_r_px) / 2
-                    row_entry["value"] = f"{avg_px:.2f}"
-                    row_entry["unit"] = "пиксели"
-                    
-                rows.append(row_entry)
+
+            cts_l = central_width_of_retina(smooth_upper, spline, left_pt, self.mask)
+            cts_r = central_width_of_retina(smooth_upper, spline, right_pt, self.mask)
+            if cts_l is None or cts_r is None:
+                continue
+
+            x0_l, y0_l, dist_l_corr_px, pt_l, _ = cts_l
+            x0_r, y0_r, dist_r_corr_px, pt_r, _ = cts_r
+
+            row_entry = {
+                "parameter": f"Центральная толщина сетчатки ({label})",
+                "measurement_id": measure_id,
+                "perpendiculars": [(left_pt, pt_l), (right_pt, pt_r)],
+            }
+
+            full_l_um = self._calculate_distance_um((x0_l, y0_l), pt_l)
+            full_r_um = self._calculate_distance_um((x0_r, y0_r), pt_r)
+            full_l_px = float(np.sqrt((pt_l[0] - x0_l) ** 2 + (pt_l[1] - y0_l) ** 2))
+            full_r_px = float(np.sqrt((pt_r[0] - x0_r) ** 2 + (pt_r[1] - y0_r) ** 2))
+
+            if (full_l_um is not None and full_r_um is not None
+                    and full_l_px > 0 and full_r_px > 0):
+                cts_l_um = full_l_um * dist_l_corr_px / full_l_px
+                cts_r_um = full_r_um * dist_r_corr_px / full_r_px
+                avg_um = (cts_l_um + cts_r_um) / 2
+                row_entry["value"] = f"{avg_um:.2f}"
+                row_entry["unit"] = "мкм"
+            else:
+                avg_px = (dist_l_corr_px + dist_r_corr_px) / 2
+                row_entry["value"] = f"{avg_px:.2f}"
+                row_entry["unit"] = "пиксели"
+
+            rows.append(row_entry)
 
         # --- 5. Состояние РПЭ ---
         # Анализируем состояние РПЭ и собираем все характеристики
@@ -912,24 +868,24 @@ class MaskAnalyser:
             self.mask, self.fovea_mask, self.scale_x, self.scale_y
         )
         
-        # Определяем разрывы
-        _, gap_contours, defect_coord = detect_rpe_defects(
-            self.mask, self.fovea_mask, smooth_upper, spline
+        # Определяем разрывы и локализацию дефектов РПЭ (одним вызовом)
+        rpe_defects_location, gap_contours, defect_coord = detect_rpe_defects(
+            self.mask, self.fovea_mask, smooth_upper, spline, min_gap_width=32
         )
-        
+
         # Формируем итоговое состояние РПЭ по приоритету:
         # 1. Эпителий сохранен
         # 2. Эпителий неравномерный
         # 3. Единичные разрывы
         # 4. Множественные разрывы
         # 5. Эпителий не определяется
-        
+
         if rpe_mask.sum() == 0 or rpe_mask.sum() < 100:
             rpe_state_combined = "Эпителий не определяется"
         else:
             # Проверяем количество разрывов
             num_gaps = len(gap_contours) if gap_contours else 0
-            
+
             if num_gaps > 3:
                 rpe_state_combined = "Множественные разрывы"
             elif num_gaps > 0:
@@ -945,16 +901,6 @@ class MaskAnalyser:
                 else:
                     # Если не удалось измерить высоту, используем результат analyze_rpe
                     rpe_state_combined = rpe_state if rpe_state else "Эпителий сохранен"
-        
-        # Определяем локализацию дефектов РПЭ (текстовую)
-        rpe_defects_location, gap_contours_updated, defect_coord_updated = detect_rpe_defects(
-            self.mask, self.fovea_mask, smooth_upper, spline
-        )
-        # Обновляем gap_contours и defect_coord если функция вернула новые
-        if gap_contours_updated:
-            gap_contours = gap_contours_updated
-        if defect_coord_updated:
-            defect_coord = defect_coord_updated
         
         # Добавляем одну строку для состояния РПЭ
         rows.append({
@@ -979,33 +925,28 @@ class MaskAnalyser:
         
         # --- 5в. Состояние эллипсоидной зоны (Ellipsoid Zone - класс 12) ---
         ellipsoid_mask = (self.mask == 12).astype(np.uint8)
-        
+
         # Находим контуры эллипсоидной зоны
         ellipsoid_contours, _ = cv2.findContours(ellipsoid_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        # Определяем состояние
-        if ellipsoid_mask.sum() == 0 or ellipsoid_mask.sum() < 50:
+
+        # Состояние определяем по значимым фрагментам и разрывам (с порогом),
+        # чтобы мелкие куски/шум сегментации не давали ложную фрагментацию.
+        ez_sig_contours, ez_gaps = self._zone_fragments(12)
+        if ellipsoid_mask.sum() < 50 or len(ez_sig_contours) == 0:
             ellipsoid_state = "Не определяется"
             ellipsoid_defects_location = None
+        elif ez_gaps == 0:
+            # Нет значимых разрывов
+            ellipsoid_state = "Сохранена"
+            ellipsoid_defects_location = None
+        elif ez_gaps == 1:
+            # Зона разорвана в одном месте
+            ellipsoid_state = "Не определяется локально"
+            ellipsoid_defects_location = self._get_zone_defects_location(ez_sig_contours)
         else:
-            num_contours = len(ellipsoid_contours)
-            
-            if num_contours == 1:
-                # Одна непрерывная зона
-                ellipsoid_state = "Сохранена"
-                ellipsoid_defects_location = None
-            elif num_contours == 2:
-                # Зона разорвана в одном месте
-                ellipsoid_state = "Не определяется локально"
-                # Определяем локализацию разрыва
-                ellipsoid_defects_location = self._get_zone_defects_location(ellipsoid_contours)
-            elif num_contours > 2:
-                # Зона разорвана во многих местах
-                ellipsoid_state = "Неравномерная (фрагментация)"
-                ellipsoid_defects_location = self._get_zone_defects_location(ellipsoid_contours)
-            else:
-                ellipsoid_state = "Не определено"
-                ellipsoid_defects_location = None
+            # Зона разорвана во многих местах
+            ellipsoid_state = "Неравномерная (фрагментация)"
+            ellipsoid_defects_location = self._get_zone_defects_location(ez_sig_contours)
         
         # Добавляем состояние эллипсоидной зоны
         rows.append({
@@ -1025,28 +966,23 @@ class MaskAnalyser:
         
         # --- 5г. Состояние миоидной зоны (Myoid Zone - класс 13) ---
         myoid_mask = (self.mask == 13).astype(np.uint8)
-        
+
         # Находим контуры миоидной зоны
         myoid_contours, _ = cv2.findContours(myoid_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        # Определяем состояние
-        if myoid_mask.sum() == 0 or myoid_mask.sum() < 50:
+
+        # Состояние — по значимым фрагментам и разрывам (с порогом).
+        mz_sig_contours, mz_gaps = self._zone_fragments(13)
+        if myoid_mask.sum() < 50 or len(mz_sig_contours) == 0:
             myoid_state = "Не определяется"
             myoid_defects_location = None
+        elif mz_gaps == 0:
+            # Одна непрерывная зона (без значимых разрывов)
+            myoid_state = "Сохранена"
+            myoid_defects_location = None
         else:
-            num_contours = len(myoid_contours)
-            
-            if num_contours == 1:
-                # Одна непрерывная зона
-                myoid_state = "Сохранена"
-                myoid_defects_location = None
-            elif num_contours > 1:
-                # Зона разорвана хотя бы в одном месте
-                myoid_state = "Неравномерная (фрагментация)"
-                myoid_defects_location = self._get_zone_defects_location(myoid_contours)
-            else:
-                myoid_state = "Не определено"
-                myoid_defects_location = None
+            # Зона разорвана хотя бы в одном месте
+            myoid_state = "Неравномерная (фрагментация)"
+            myoid_defects_location = self._get_zone_defects_location(mz_sig_contours)
         
         # Добавляем состояние миоидной зоны
         rows.append({
@@ -1448,10 +1384,39 @@ class MaskAnalyser:
 
     def _find_objects_by_class(self, class_id: int) -> list:
         """Ищем объекты для определенного класса на маске"""
-        
+
         class_mask = (self.mask == class_id).astype(np.uint8)
         objects, _ = cv2.findContours(class_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         return objects
+
+    def _zone_fragments(self, class_id: int, min_size: int = 18, min_gap: int = 18):
+        """Значимые фрагменты зоны (EZ/MZ) и число разрывов между ними.
+
+        Учитываются только фрагменты шириной >= min_size, а разрывом считается
+        горизонтальный промежуток между соседними фрагментами >= min_gap.
+        Так мелкие куски/шум сегментации не дают ложную «фрагментацию».
+        Порог для зон — 18px (для дефектов РПЭ используется 32px).
+
+        Returns: (список значимых контуров слева-направо, число разрывов).
+        """
+        class_mask = (self.mask == class_id).astype(np.uint8)
+        contours, _ = cv2.findContours(class_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        boxes = []
+        for c in contours:
+            x, _, w, _ = cv2.boundingRect(c)
+            if w >= min_size:
+                boxes.append((x, w, c))
+        boxes.sort(key=lambda b: b[0])
+
+        num_gaps = 0
+        for i in range(len(boxes) - 1):
+            x1, w1, _ = boxes[i]
+            x2, _, _ = boxes[i + 1]
+            if x2 - (x1 + w1) >= min_gap:
+                num_gaps += 1
+
+        return [b[2] for b in boxes], num_gaps
 
 def find_L_in_image(image: np.ndarray) -> np.ndarray | None:
     """
