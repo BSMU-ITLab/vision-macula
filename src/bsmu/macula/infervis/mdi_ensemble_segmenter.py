@@ -114,6 +114,7 @@ class EnsembleMdiSegmenter(MdiSegmenter):
         from bsmu.vision.core.image import FlatImage
         mask_layer = layered_image.layer_by_name(mask_layer_name)
         # Temp fix to redraw the entire mask even for MaskDrawMode.OVERLAY_FOREGROUND mode
+        mask = mask.astype(np.uint8)
         if mask_draw_mode == MaskDrawMode.REDRAW_ALL or mask_layer is None or not mask_layer.is_image_pixels_valid or MaskDrawMode.OVERLAY_FOREGROUND:
             layered_image.add_layer_or_modify_pixels(
                 mask_layer_name,
