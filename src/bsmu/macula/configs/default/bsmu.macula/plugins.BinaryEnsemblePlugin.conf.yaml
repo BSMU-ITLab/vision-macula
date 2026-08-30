@@ -6,11 +6,13 @@ binary_ensemble_models:
   boundary_model: "Class_bnd.onnx"
   ped_model: "Class_4PED.onnx"
   three_and_six_model: "Class_3and6.onnx"
+  tr_model: "Class_tr.onnx"
+  catboost_model: "catboost_model.onnx"
   output_object_name: 'Tissue'
   output_object_short_name: 'T'
   preload: false
   batch_size: 4
-  input_size: [1, 256, 512]
+  input_size: [1, 512, 512]
   channels_axis: 0
   channels_order: 'rgb'
   normalize: false

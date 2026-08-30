@@ -10,6 +10,8 @@ class EnsembleImageModelParams(ImageModelParams):
     boundary_model: str = ""
     ped_model: str = ""
     three_and_six_model: str = ""
+    tr_model: str = ""
+    catboost_model: str = ""
 
     @classmethod
     def from_config(cls, config_data: dict, model_dir: Path) -> "EnsembleImageModelParams":
@@ -17,12 +19,17 @@ class EnsembleImageModelParams(ImageModelParams):
         boundary = config_data.get("boundary_model", "")
         ped = config_data.get("ped_model", "")
         three_and_six = config_data.get("three_and_six_model", "")
+        tr = config_data.get("tr_model", "")
+        catboost = config_data.get("catboost_model", "")
 
         if not isinstance(class_models_raw, dict):
             raise ValueError("'class_models' in config should be a dict mapping class ids to model names.")
 
         field_names = {f.name for f in fields(cls)}
-        special_fields = {"class_models", "boundary_model", "ped_model", "three_and_six_model"}
+        special_fields = {
+            "class_models", "boundary_model", "ped_model", "three_and_six_model",
+            "tr_model", "catboost_model",
+        }
         SENTINEL = object()
         field_name_to_config_value = {
             field_name: config_value
@@ -37,6 +44,8 @@ class EnsembleImageModelParams(ImageModelParams):
             boundary_model=boundary,
             ped_model=ped,
             three_and_six_model=three_and_six,
+            tr_model=tr,
+            catboost_model=catboost,
             **field_name_to_config_value,
         )
 

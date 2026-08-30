@@ -14,10 +14,30 @@ from bsmu.vision.core.palette import Palette
 from bsmu.macula.inference.utility import (
     RoiTiler, sigmoid_2d, preprocess_for_model, reverse_preprocess,
 )
+from bsmu.macula.inference.postprocess import postprocess_mask
 
 if TYPE_CHECKING:
     from bsmu.vision.core.image import Image
     from bsmu.vision.plugins.storages.task import TaskStorage
+
+
+def _load_catboost_model(model_path):
+    import onnxruntime as ort
+
+    session = ort.InferenceSession(str(model_path), providers=['CPUExecutionProvider'])
+    return _OnnxClassifier(session)
+
+
+class _OnnxClassifier:
+    """Thin wrapper exposing a CatBoost-like ``predict`` interface over ONNX."""
+
+    def __init__(self, session):
+        self._session = session
+        self._input_name = session.get_inputs()[0].name
+        self._output_name = session.get_outputs()[0].name
+
+    def predict(self, features: np.ndarray) -> np.ndarray:
+        return self._session.run([self._output_name], {self._input_name: features})[0]
 
 
 class CurrentSOTA:
@@ -41,11 +61,15 @@ class CurrentSOTA:
         boundary_model: DnnSegmenter,
         ped_model: DnnSegmenter | None,
         three_and_six_model: DnnSegmenter | None,
+        tr_model: DnnSegmenter | None = None,
+        catboost_model=None,
     ):
         self.class_models = class_models
         self.boundary_model = boundary_model
         self.ped_model = ped_model
         self.three_and_six_model = three_and_six_model
+        self.tr_model = tr_model
+        self.catboost_model = catboost_model
         self.max_cls = max(class_models.keys()) + 1 if class_models else 1
 
     @staticmethod
@@ -137,15 +161,18 @@ class CurrentSOTA:
         # 2: ROI preprocessing
         pp_image, bnd_content_shape = preprocess_for_model(roi_image)
 
-        # 3: Boundary model -> unpad -> resize to roi_image dimensions
+        # 3: Boundary model -> resize probs back to roi_image dimensions, then threshold
         bnd_pred = self._run_model(self.boundary_model, pp_image)
-        bnd_mask_processed = bnd_pred > 0.5
-        content_h, content_w = bnd_content_shape
-        bnd_mask = cv2.resize(
-            bnd_mask_processed[:content_h, :content_w].astype(np.uint8),
-            roi_image.shape[::-1],
-            interpolation=cv2.INTER_NEAREST,
-        ).astype(bool)
+        bnd_probs = reverse_preprocess(bnd_pred, bnd_content_shape, roi_image.shape)
+        bnd_mask = bnd_probs > 0.5
+
+        # 3a: TR (to-refine) model -> regions requiring CatBoost refinement,
+        # mapped back to roi_image coordinates and masked by the boundary
+        tr_roi = np.zeros(roi_image.shape, dtype=bool)
+        if self.tr_model is not None:
+            tr_pred = self._run_model(self.tr_model, pp_image)
+            tr_probs = reverse_preprocess(tr_pred, bnd_content_shape, roi_image.shape)
+            tr_roi = (tr_probs > 0.5) & bnd_mask
 
         # 4: Extract retinal ROI from roi_image
         y_min, y_max, x_min, x_max = self._extract_roi_bbox(bnd_mask)
@@ -169,7 +196,18 @@ class CurrentSOTA:
 
         # 7: Assemble back into original image
         roi_tiler.update(full_roi_mask)
-        return roi_tiler.assemble()
+        p_gt = roi_tiler.assemble()
+
+        # 8: CatBoost postprocessing (refine sub-RPE classes)
+        if self.tr_model is not None and self.catboost_model is not None:
+            tr_full = np.zeros(image.shape, dtype=bool)
+            x, y, w, h = roi_tiler._coords
+            tr_full[y:y + h, x:x + w] = tr_roi
+
+            refined_mask = postprocess_mask(self.catboost_model, image, tr_full, p_gt)
+            p_gt = p_gt * (refined_mask == 0) + refined_mask
+
+        return p_gt
 
 
 class EnsembleSegmenter(QObject):
@@ -209,9 +247,31 @@ class EnsembleSegmenter(QObject):
             if ensemble_model_params.three_and_six_model
             else None
         )
+        tr_model = None
+        if ensemble_model_params.tr_model:
+            tr_model_path = model_dir / ensemble_model_params.tr_model
+            if tr_model_path.is_file():
+                tr_model = _create_segmenter(ensemble_model_params.tr_model)
+            else:
+                logging.warning(
+                    f'TR model file not found: {tr_model_path}. '
+                    'CatBoost postprocessing will be skipped.'
+                )
+
+        catboost_model = None
+        if ensemble_model_params.catboost_model:
+            catboost_model_path = model_dir / ensemble_model_params.catboost_model
+            if catboost_model_path.is_file():
+                catboost_model = _load_catboost_model(catboost_model_path)
+            else:
+                logging.warning(
+                    f'CatBoost model file not found: {catboost_model_path}. '
+                    'Postprocessing will be skipped.'
+                )
 
         self._sota_inference = CurrentSOTA(
             class_models, boundary_model, ped_model, three_and_six_model,
+            tr_model=tr_model, catboost_model=catboost_model,
         )
 
     @property
