@@ -34,6 +34,69 @@ def get_resize_value(length, kernel_size, stride_size):
     excess = length - (kernel_size + (i - 1) * stride_size)
     return (kernel_size + i * stride_size) if excess > kernel_size // 2 else length - excess
 
+def longest_max_size(image: np.ndarray, target_size: tuple[int, int] = (512, 256)) -> np.ndarray:
+    """Resize image to fit within target_size, preserving aspect ratio."""
+    h, w = image.shape
+    target_w, target_h = target_size
+    scale = min(target_w / w, target_h / h)
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+    return cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+
+def pad_if_needed(image: np.ndarray, target_size: tuple[int, int] = (512, 256),
+                  pad_value: float = 0) -> np.ndarray:
+    """Pad image to target_size, adding padding to bottom and right."""
+    h, w = image.shape
+    target_w, target_h = target_size
+    if h > target_h or w > target_w:
+        raise ValueError(f"Image size ({h}, {w}) larger than target ({target_h}, {target_w})")
+    return cv2.copyMakeBorder(image, 0, target_h - h, 0, target_w - w,
+                              cv2.BORDER_CONSTANT, value=pad_value)
+
+
+def preprocess_for_model(image: np.ndarray) -> tuple[np.ndarray, tuple[int, int]]:
+    """Apply ROI/mask preprocessing transforms.
+
+    Pipeline: LongestMaxSize(512,256) -> PadIfNeeded(512,256, zeros)
+              -> Normalize(mean=0.5, std=0.5, max_value=255)
+    Maps pixel values from [0, 255] to [-1, 1].
+
+    Returns:
+        Preprocessed image (always 256x512) and the (h, w) shape
+        before padding — needed to correctly reverse the transform.
+    """
+    image = longest_max_size(image, (512, 256))
+    content_shape = image.shape  # (h, w) before padding
+    image = pad_if_needed(image, (512, 256), pad_value=0)
+    image = image.astype(np.float32)
+    image /= 255.0
+    image = (image - 0.5) / 0.5
+    return image, content_shape
+
+
+def reverse_preprocess(
+    pred: np.ndarray,
+    content_shape: tuple[int, int],
+    target_shape: tuple[int, int],
+) -> np.ndarray:
+    """Reverse the preprocess_for_model transform on a model prediction.
+
+    Crops out the zero-padded region (content_shape), then resizes to
+    target_shape (the original image dimensions before any preprocessing).
+
+    Args:
+        pred: Model output at 256x512.
+        content_shape: (h, w) of valid content within the 256x512, as returned
+                       by preprocess_for_model.
+        target_shape: (h, w) to resize the unpadded content to.
+    """
+    content_h, content_w = content_shape
+    unpadded = pred[:content_h, :content_w]
+    target_h, target_w = target_shape
+    return cv2.resize(unpadded, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
+
+
 class BaseTiler:
     def __init__(self):
         self.original_shape = None

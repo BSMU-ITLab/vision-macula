@@ -21,7 +21,7 @@ plugins:
   - bsmu.vision.plugins.tools.viewer.image.hand_tool.HandImageViewerToolPlugin
   - bsmu.vision.plugins.tools.viewer.image.wsi_smart_brush.WsiSmartBrushImageViewerToolPlugin
 
-#  - bsmu.vision.plugins.walkers.file.MdiImageLayerFileWalkerPlugin
+  - bsmu.vision.plugins.walkers.file.MdiImageLayerFileWalkerPlugin
 
   - bsmu.vision.plugins.layer_controller.MdiImageViewerLayerControllerPlugin
   - bsmu.vision.plugins.layers_view.LayersTableViewPlugin

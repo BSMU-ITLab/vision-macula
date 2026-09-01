@@ -6,51 +6,47 @@ import numpy as np
 
 @dataclass
 class EnsembleImageModelParams(ImageModelParams):
-    tiler_name: Dict[int, str] = field(default_factory=dict)
-    fullseg_name: Dict[int, str] = field(default_factory=dict)
+    class_models: Dict[int, str] = field(default_factory=dict)
     boundary_model: str = ""
+    ped_model: str = ""
+    three_and_six_model: str = ""
 
     @classmethod
-    def from_config(cls, config_data: dict, model_dir: Path) -> "SOTAImageModelParams":
-        tiler = config_data.get("tiler_name", {})
-        fullseg = config_data.get("fullseg_name", {})
+    def from_config(cls, config_data: dict, model_dir: Path) -> "EnsembleImageModelParams":
+        class_models_raw = config_data.get("class_models", {})
         boundary = config_data.get("boundary_model", "")
+        ped = config_data.get("ped_model", "")
+        three_and_six = config_data.get("three_and_six_model", "")
 
-        if not isinstance(tiler, dict) or not isinstance(fullseg, dict):
-            raise ValueError("'tiler_name' and 'fullseg_name' in config should be dicts mapping class ids to model names.")
+        if not isinstance(class_models_raw, dict):
+            raise ValueError("'class_models' in config should be a dict mapping class ids to model names.")
 
         field_names = {f.name for f in fields(cls)}
+        special_fields = {"class_models", "boundary_model", "ped_model", "three_and_six_model"}
         SENTINEL = object()
         field_name_to_config_value = {
             field_name: config_value
             for field_name in field_names
-            if field_name not in ("tiler_name", "fullseg_name", "boundary_model")
+            if field_name not in special_fields
                and (config_value := config_data.get(field_name, SENTINEL)) != SENTINEL
         }
 
         return cls(
             path=model_dir,
-            tiler_name={int(k): v for k, v in tiler.items()},
-            fullseg_name={int(k): v for k, v in fullseg.items()},
+            class_models={int(k): v for k, v in class_models_raw.items()},
             boundary_model=boundary,
+            ped_model=ped,
+            three_and_six_model=three_and_six,
             **field_name_to_config_value,
         )
 
-    def preprocessed_input(self, image: np.ndarray, skip_preprocessing=True) -> np.ndarray:
-        if self.normalize:
-            image = image.astype(np.float32)
-            image /= 255.0
-            image -= self.IMAGENET_MEAN.mean()
-            image /= self.IMAGENET_STD.mean()
+    def preprocessed_input(self, image: np.ndarray, skip_preprocessing: bool = True) -> np.ndarray:
+        """Minimal preprocessing: just add the channel/batch axis.
+
+        All resize/pad/normalize transforms happen externally in the
+        inference pipeline (CurrentSOTA), not here.
+        """
         return image[np.newaxis, :, :]
-
-    # def preprocessed_input(self, image: np.ndarray, skip_preprocessing=True) -> np.ndarray:
-    #     if self.normalize:
-    #         image = image.astype(np.float32)
-    #         image /= 255.0
-    #         image = (image - 0.5) / 0.5
-    #     return image[np.newaxis, :, :]
-
 
     def preprocessed_input_batch(self, src_batch: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
         return super().preprocessed_input_batch(src_batch)

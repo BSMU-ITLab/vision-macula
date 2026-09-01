@@ -80,34 +80,33 @@ def get_foveola_center(fovea_mask):
     return int(np.mean(xs)), int(np.mean(ys))
 
 
-def get_zone_center(fovea_mask, zone_id):
-    """
-    Находит центр заданной зоны в маске фовеа.
-    
-    Args:
-        fovea_mask: маска с зонами (0=фон, 1=фовеола, 2=фовеа, 3=макула)
-        zone_id: идентификатор зоны (1=фовеола, 2=фовеа, 3=макула)
-    
-    Returns:
-        Кортеж (x, y) центра зоны или None если зона не найдена
-    """
-    ys, xs = np.where(fovea_mask == zone_id)
-    if len(xs) == 0:
-        return None
-    return int(np.mean(xs)), int(np.mean(ys))
+# Классы, площадь которых вычитается из длины пути по документу:
+# отслойки (2, 10, 11, 16), друзы (1), СРГМ (4), ИРГМ (5), СРЖ (6), РПЭ (9).
+CTS_SUBTRACT_CLASSES = {1, 2, 4, 5, 6, 9, 10, 11, 16}
 
 
 def central_width_of_retina(smooth_upper, spline, foveola_center, mask,
                                   perp_len=200):
+    """Измеряет толщину сетчатки от точки foveola_center вниз по перпендикуляру
+    к сглаженной верхней границе хориоидеи.
 
-    cx, cy = foveola_center  
+    Алгоритм соответствует документу «Классы структур на ОКТ»:
+    «Находим длину до хориоидеи. Из неё вычитаем области отслоек; друз;
+    субретинального и интраретинального гиперрефлективного материала, СРЖ и РПЭ».
+
+    Returns:
+        Кортеж (cx, cy, dist_corrected_px, choroid_point, count_subtract_px)
+        либо None, если хориоидея не достигнута.
+        * dist_corrected_px — длина пути в пикселях за вычетом патологий.
+        * choroid_point — координата первого пикселя класса CHOROID_ID
+          (используется для отрисовки полного перпендикуляра).
+        * count_subtract_px — число пикселей патологических классов вдоль пути.
+    """
+    cx, cy = foveola_center
     h, w = mask.shape
 
     if cx < 0 or cx >= len(smooth_upper):
         return None
-
-    # верхняя граница (сглаженная)
-    y0 = float(smooth_upper[cx])
 
     slope = float(spline.derivative()(cx))
 
@@ -117,9 +116,9 @@ def central_width_of_retina(smooth_upper, spline, foveola_center, mask,
     L = np.sqrt(nx*nx + ny*ny)
     nx /= L
     ny /= L
-    cts_dist = 0
-    inside = False          # флаг "мы внутри хориоидеи"
-    best_point = None
+
+    choroid_point = None
+    count_subtract = 0
 
     for t in range(0, perp_len):
         xx = int(cx + nx * t)
@@ -128,60 +127,55 @@ def central_width_of_retina(smooth_upper, spline, foveola_center, mask,
         if xx < 0 or xx >= w or yy < 0 or yy >= h:
             break
 
-        if mask[yy, xx] == CHOROID_ID or mask[yy, xx] in RETINA_LAYERS:
-            best_point = (xx, yy)
-            cts_dist = int(np.sqrt((best_point[0] - cx) ** 2 + (best_point[1] - y0) ** 2))
+        cls = mask[yy, xx]
+        if cls == CHOROID_ID:
+            choroid_point = (xx, yy)
             break
 
-    if best_point is None:
+        if cls in CTS_SUBTRACT_CLASSES:
+            count_subtract += 1
+
+    if choroid_point is None:
         return None
 
-    # расстояние считаем по t
-    dist = int(np.sqrt((best_point[0] - cx)**2 + (best_point[1] - y0)**2))
+    dist_full_px = np.sqrt((choroid_point[0] - cx) ** 2 + (choroid_point[1] - cy) ** 2)
+    dist_corrected_px = max(0.0, dist_full_px - count_subtract)
 
-    return cx, cy, dist, best_point
+    return cx, cy, dist_corrected_px, choroid_point, count_subtract
 
 
 def central_width_near(img, smooth_upper, spline, fovea_mask, mask, ind):
     """
     Находит крайние левую и правую точки на границе зоны фовеа/фовеолы с фоном.
-    
+
     Args:
         ind: 1 для фовеолы, 2 для фовеа
-        
+
     Ищет точки, в окрестности которых есть и зона фовеа/фовеолы, и фон (класс 0).
     """
-    h, w = mask.shape
-    
-    # Ищем все точки, где в окрестности есть и зона фовеа, и фон
-    left_point = None
-    right_point = None
-    
-    for y in range(h):
-        for x in range(w):
-            # Проверяем соседей: должны быть и зона фовеа/фовеолы, и фон
-            has_zone = False
-            has_background = False
-            
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    ny, nx = y + dy, x + dx
-                    if 0 <= ny < h and 0 <= nx < w:
-                        if fovea_mask[ny, nx] == ind:
-                            has_zone = True
-                        if mask[ny, nx] == 0:
-                            has_background = True
-            
-            # Если в окрестности есть и зона, и фон - это граничная точка
-            if has_zone and has_background:
-                if left_point is None or x < left_point[0]:
-                    left_point = (x, y)
-                if right_point is None or x > right_point[0]:
-                    right_point = (x, y)
-    
-    if left_point is None or right_point is None:
+    # Векторизованная версия на numpy: dilate(zone) & dilate(background)
+    # даёт все пиксели, у которых в 3x3-окрестности есть и зона, и фон.
+    zone_mask = (fovea_mask == ind).astype(np.uint8)
+    bg_mask = (mask == 0).astype(np.uint8)
+
+    if zone_mask.sum() == 0 or bg_mask.sum() == 0:
         return None
-    
+
+    kernel = np.ones((3, 3), np.uint8)
+    zone_dilated = cv2.dilate(zone_mask, kernel, iterations=1)
+    bg_dilated = cv2.dilate(bg_mask, kernel, iterations=1)
+
+    boundary = (zone_dilated & bg_dilated).astype(bool)
+    ys, xs = np.where(boundary)
+
+    if len(xs) == 0:
+        return None
+
+    left_idx = int(np.argmin(xs))
+    right_idx = int(np.argmax(xs))
+    left_point = (int(xs[left_idx]), int(ys[left_idx]))
+    right_point = (int(xs[right_idx]), int(ys[right_idx]))
+
     return left_point, right_point
 
 
@@ -277,27 +271,28 @@ def measure_rpe_thickness(mask, fovea_mask, scale_x=None, scale_y=None, sample_i
         y_skel, x_skel = point
         
         # Вычисляем касательную к скелету через ближайшие точки
-        # Ищем соседние точки скелета в окрестности
+        # Ищем соседние точки скелета в окрестности (через numpy-срез вместо двойного цикла)
         window_size = 10
-        neighbors = []
-        
-        for dy in range(-window_size, window_size + 1):
-            for dx in range(-window_size, window_size + 1):
-                if dy == 0 and dx == 0:
-                    continue
-                yy = y_skel + dy
-                xx = x_skel + dx
-                if 0 <= yy < h and 0 <= xx < w and skeleton[yy, xx] > 0:
-                    neighbors.append((xx, yy))
-        
-        if len(neighbors) < 2:
+        y0 = max(0, y_skel - window_size)
+        y1 = min(h, y_skel + window_size + 1)
+        x0 = max(0, x_skel - window_size)
+        x1 = min(w, x_skel + window_size + 1)
+        patch = skeleton[y0:y1, x0:x1]
+        local_yx = np.argwhere(patch > 0)
+        # исключаем саму центральную точку
+        center_dy = y_skel - y0
+        center_dx = x_skel - x0
+        not_center = ~((local_yx[:, 0] == center_dy) & (local_yx[:, 1] == center_dx))
+        local_yx = local_yx[not_center]
+
+        if len(local_yx) < 2:
             # Недостаточно соседей, пропускаем эту точку
             continue
-        
+
         # Используем линейную регрессию для аппроксимации локального направления скелета
-        neighbors_x = np.array([n[0] for n in neighbors])
-        neighbors_y = np.array([n[1] for n in neighbors])
-        
+        neighbors_x = local_yx[:, 1] + x0
+        neighbors_y = local_yx[:, 0] + y0
+
         # Добавляем текущую точку
         neighbors_x = np.append(neighbors_x, x_skel)
         neighbors_y = np.append(neighbors_y, y_skel)
@@ -346,7 +341,13 @@ def measure_rpe_thickness(mask, fovea_mask, scale_x=None, scale_y=None, sample_i
         # Перпендикуляр к касательной: если касательная (tx, ty), то перпендикуляр (-ty, tx)
         perp_x = -tangent_y
         perp_y = tangent_x
-        
+
+        # РПЭ — почти горизонтальный слой, его толщина измеряется ПОПЕРЁК (вертикально).
+        # Если оценка касательной дала почти горизонтальный перпендикуляр — это артефакт
+        # (мерили бы вдоль РПЭ, получая огромную «толщину»), пропускаем такую точку.
+        if abs(perp_y) < abs(perp_x):
+            continue
+
         # Строим перпендикуляр в обе стороны от точки скелета
         max_len = 50  # Максимальная длина перпендикуляра
         
@@ -395,11 +396,23 @@ def measure_rpe_thickness(mask, fovea_mask, scale_x=None, scale_y=None, sample_i
     
     if len(thicknesses) == 0:
         return skeleton_points, [], None, None
-    
-    # Вычисляем статистику
-    mean_thickness = np.mean(thicknesses)
-    std_thickness = np.std(thicknesses)
-    
+
+    # Отбрасываем выбросы: при ошибке оценки касательной скелета перпендикуляр
+    # иногда меряет ВДОЛЬ РПЭ, давая огромные значения, которые раздувают std
+    # и приводят к ложному «неравномерный». Чистим по IQR (метод Тьюки).
+    arr = np.array(thicknesses, dtype=np.float64)
+    if len(arr) >= 4:
+        q1, q3 = np.percentile(arr, [25, 75])
+        hi = q3 + 1.5 * (q3 - q1)
+        keep = arr <= hi
+        if keep.any():
+            arr = arr[keep]
+            perpendiculars = [p for p, k in zip(perpendiculars, keep) if k]
+
+    # Вычисляем статистику по очищенным значениям
+    mean_thickness = float(np.mean(arr))
+    std_thickness = float(np.std(arr))
+
     return skeleton_points, perpendiculars, mean_thickness, std_thickness
 
 def analyze_rpe(mask, fovea_mask, smooth_upper, spline):
@@ -482,7 +495,7 @@ def analyze_rpe(mask, fovea_mask, smooth_upper, spline):
     else:
         return "Эпителий неравномерный"
 
-def detect_rpe_defects(mask, fovea_mask, smooth_upper, spline, min_gap_width=10):
+def detect_rpe_defects(mask, fovea_mask, smooth_upper, spline, min_gap_width=10, min_contour_width=5):
     """
     Определяет локализацию дефектов РПЭ.
     
@@ -519,8 +532,17 @@ def detect_rpe_defects(mask, fovea_mask, smooth_upper, spline, min_gap_width=10)
     # Фильтруем контуры: оставляем только значимые (не очень маленькие)
     # и определяем разрывы между ними
     significant_contours = []
-    gap_regions = []  # Список областей разрывов для визуализации
+    gap_contours: list[np.ndarray] = []  # OpenCV-контуры (N,1,2) окружностей разрывов
     defect_coordinate = None  # Координата первого дефекта
+
+    def _circle_contour(cx: int, cy: int, r: int, n: int = 32) -> np.ndarray:
+        """Аппроксимирует окружность правильным n-угольником в виде
+        OpenCV-контура формы (N, 1, 2) int32."""
+        r = max(1, int(r))
+        thetas = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
+        xs_ = (cx + r * np.cos(thetas)).round().astype(np.int32)
+        ys_ = (cy + r * np.sin(thetas)).round().astype(np.int32)
+        return np.stack([xs_, ys_], axis=1).reshape(-1, 1, 2)
     
     # Сортируем контуры по X-координате их центра
     contours_with_centers = []
@@ -531,7 +553,7 @@ def detect_rpe_defects(mask, fovea_mask, smooth_upper, spline, min_gap_width=10)
             cy = int(M["m01"] / M["m00"])
             # Получаем bounding box для определения размера
             x, y, w_box, h_box = cv2.boundingRect(contour)
-            if w_box >= min_gap_width:  # Контур достаточно широкий
+            if w_box >= min_contour_width:  # Контур не шумовая точка
                 contours_with_centers.append((cx, cy, contour, x, y, w_box, h_box))
     
     if len(contours_with_centers) <= 1:
@@ -540,43 +562,47 @@ def detect_rpe_defects(mask, fovea_mask, smooth_upper, spline, min_gap_width=10)
     # Сортируем по X
     contours_with_centers.sort(key=lambda item: item[0])
     
+    # Для построения контуров разрывов сохраняем параметры окружностей,
+    # — нужны и для генерации контуров, и для определения локализации
+    # (центр + радиус).
+    gap_circles: list[tuple[int, int, int]] = []
+
     # Определяем значимые разрывы между контурами
     for i in range(len(contours_with_centers) - 1):
         cx1, cy1, cnt1, x1, y1, w1, h1 = contours_with_centers[i]
         cx2, cy2, cnt2, x2, y2, w2, h2 = contours_with_centers[i + 1]
-        
-        # Ширина разрыва = расстояние между правым краем левого контура и левым краем правого
+
+        # Счёт по числу фрагментов: КАЖДЫЙ промежуток между двумя значимыми
+        # фрагментами РПЭ считается разрывом (разрывы = число фрагментов − 1).
         gap_width = x2 - (x1 + w1)
-        
-        if gap_width >= min_gap_width:
-            # Центр разрыва для визуализации
-            gap_x_center = (x1 + w1 + x2) // 2
-            gap_y_center = (y1 + y2 + h1 + h2) // 4
-            
-            # Сохраняем координату первого дефекта
-            if defect_coordinate is None:
-                defect_coordinate = (gap_x_center, gap_y_center)
-            
-            # Сохраняем координаты центра и радиус для визуализации окружности
-            gap_radius = max(gap_width, max(h1, h2)) // 2
-            gap_regions.append((gap_x_center, gap_y_center, gap_radius))
-            
-            significant_contours.append(cnt1)
-    
+
+        gap_x_center = (x1 + w1 + x2) // 2
+        gap_y_center = (y1 + y2 + h1 + h2) // 4
+
+        # Сохраняем координату первого дефекта
+        if defect_coordinate is None:
+            defect_coordinate = (gap_x_center, gap_y_center)
+
+        gap_radius = max(abs(gap_width), max(h1, h2)) // 2
+        gap_circles.append((gap_x_center, gap_y_center, gap_radius))
+        gap_contours.append(_circle_contour(gap_x_center, gap_y_center, gap_radius))
+
+        significant_contours.append(cnt1)
+
     # Добавляем последний контур
     if contours_with_centers:
         significant_contours.append(contours_with_centers[-1][2])
-    
+
     # Если нет значимых разрывов
-    if len(gap_regions) == 0:
+    if len(gap_contours) == 0:
         return "0 – Дефекты отсутствуют", [], None
-    
+
     # Анализируем локализацию разрывов
     defects_in_foveola = False
     defects_in_fovea = False
     defects_in_macula = False
-    
-    for gap_x_center, gap_y_center, gap_radius in gap_regions:
+
+    for gap_x_center, gap_y_center, gap_radius in gap_circles:
         if 0 <= gap_y_center < h and 0 <= gap_x_center < w:
             # Проверяем к какой зоне относится
             zone = fovea_mask[gap_y_center, gap_x_center]
@@ -601,7 +627,7 @@ def detect_rpe_defects(mask, fovea_mask, smooth_upper, spline, min_gap_width=10)
     else:
         result = "3 – Макула (без фовеа и фовеолы)"
     
-    return result, gap_regions, defect_coordinate
+    return result, gap_contours, defect_coordinate
 
 def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fovea_mask=None, scale_x=None, scale_y=None, perp_len=400):
     """
@@ -640,28 +666,33 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
     left_x = int(np.min(xs))
     right_x = int(np.max(xs))
     
-    # 1. ШИРИНА: Длина сглаженной верхней линии хориоидеи от left_x до right_x
+    # 1. ШИРИНА: длина сглаженной верхней линии хориоидеи, считаемая только
+    # под пикселями отслойки. Если по пути встречаются x-колонки без пикселей
+    # целевого класса (раздельные очаги или просто пропуски), они не
+    # включаются в подсчёт ширины и обозначаются разрывом (None) в
+    # choroid_segment — это позволяет визуализатору не соединять разрозненные
+    # очаги одной линией.
+    has_class_in_col = (target_mask.sum(axis=0) > 0)
     choroid_segment = []
-    width_um = 0.0
-    
+    width_um = 0.0 if (scale_x is not None and scale_y is not None) else None
+    prev_pt = None
     for x in range(left_x, right_x + 1):
-        y = smooth_upper[x]
-        choroid_segment.append((x, int(y)))
-        if x > left_x:
-            # Расстояние до предыдущей точки в пикселях
-            dx_px = 1
-            dy_px = smooth_upper[x] - smooth_upper[x - 1]
-            
-            # Переводим компоненты в микрометры и вычисляем длину отрезка кривой
-            if scale_x is not None and scale_y is not None:
-                dx_um = dx_px * scale_x
-                dy_um = dy_px * scale_y
-                dist_um = np.sqrt(dx_um**2 + dy_um**2)
-                width_um += dist_um
-    
-    # Если масштабы не заданы, результат None
-    if scale_x is None or scale_y is None:
-        width_um = None
+        if not has_class_in_col[x]:
+            if choroid_segment and choroid_segment[-1] is not None:
+                choroid_segment.append(None)
+            prev_pt = None
+            continue
+        y = float(smooth_upper[x])
+        pt = (x, int(y))
+        if prev_pt is not None and width_um is not None:
+            dx_um = (x - prev_pt[0]) * scale_x
+            dy_um = (smooth_upper[x] - smooth_upper[prev_pt[0]]) * scale_y
+            width_um += np.sqrt(dx_um * dx_um + dy_um * dy_um)
+        choroid_segment.append(pt)
+        prev_pt = pt
+    # Убираем висячий None в конце, если он есть
+    while choroid_segment and choroid_segment[-1] is None:
+        choroid_segment.pop()
     
     # 2. ВЫСОТА: Наибольший перпендикуляр к smooth_upper, проходящий через отслойку
     max_height_px = 0
@@ -686,12 +717,13 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
         
         # ОТЛАДКА: выводим информацию для первой точки
         if not debug_printed:
-            print(f"\n=== ОТЛАДКА ПЕРПЕНДИКУЛЯРА (отслойка) ===")
-            print(f"Точка на хориоидее: x={x}, y_base={y_base}")
-            print(f"Наклон касательной (slope): {slope:.4f}")
-            print(f"Перпендикуляр ДО нормализации: nx={-slope:.4f}, ny={-1.0:.4f}")
-            print(f"Перпендикуляр ПОСЛЕ нормализации: nx={nx:.4f}, ny={ny:.4f}")
-            print(f"Длина вектора L: {L:.4f}")
+            pass
+            # print(f"\n=== ОТЛАДКА ПЕРПЕНДИКУЛЯРА (отслойка) ===")
+            # print(f"Точка на хориоидее: x={x}, y_base={y_base}")
+            # print(f"Наклон касательной (slope): {slope:.4f}")
+            # print(f"Перпендикуляр ДО нормализации: nx={-slope:.4f}, ny={-1.0:.4f}")
+            # print(f"Перпендикуляр ПОСЛЕ нормализации: nx={nx:.4f}, ny={ny:.4f}")
+            # print(f"Длина вектора L: {L:.4f}")
         
         # Идем по перпендикуляру в ОБЕ СТОРОНЫ от точки (x, y_base) на хориоидее
         points_in_detachment = []
@@ -708,7 +740,8 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             py = int(round(fy_new))
             
             if not debug_printed and t < 5:
-                print(f"  ВВЕРХ t={t}: fx_new={fx_new:.2f}, fy_new={fy_new:.2f}, px={px}, py={py}, delta_x={px-x}, delta_y={py-y_base}")
+                pass
+                # print(f"  ВВЕРХ t={t}: fx_new={fx_new:.2f}, fy_new={fy_new:.2f}, px={px}, py={py}, delta_x={px-x}, delta_y={py-y_base}")
             
             if px < 0 or px >= w or py < 0 or py >= h:
                 break
@@ -716,7 +749,8 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             if target_mask[py, px] == 1:
                 points_in_detachment.append((fx_new, fy_new))
                 if not debug_printed:
-                    print(f"  >>> Нашли точку в отслойке (вверх): ({fx_new:.2f}, {fy_new:.2f}) -> px={px}, py={py}")
+                    pass
+                    # print(f"  >>> Нашли точку в отслойке (вверх): ({fx_new:.2f}, {fy_new:.2f}) -> px={px}, py={py}")
         
         # Направление 2: ВНИЗ (противоположное направление)
         for t in range(1, perp_len):  # начинаем с 1, чтобы не дублировать t=0
@@ -727,7 +761,8 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             py = int(round(fy_new))
             
             if not debug_printed and t < 5:
-                print(f"  ВНИЗ t={t}: fx_new={fx_new:.2f}, fy_new={fy_new:.2f}, px={px}, py={py}, delta_x={px-x}, delta_y={py-y_base}")
+                pass
+                # print(f"  ВНИЗ t={t}: fx_new={fx_new:.2f}, fy_new={fy_new:.2f}, px={px}, py={py}, delta_x={px-x}, delta_y={py-y_base}")
             
             if px < 0 or px >= w or py < 0 or py >= h:
                 break
@@ -735,12 +770,13 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             if target_mask[py, px] == 1:
                 points_in_detachment.append((fx_new, fy_new))
                 if not debug_printed:
-                    print(f"  >>> Нашли точку в отслойке (вниз): ({fx_new:.2f}, {fy_new:.2f}) -> px={px}, py={py}")
+                    pass
+                    # print(f"  >>> Нашли точку в отслойке (вниз): ({fx_new:.2f}, {fy_new:.2f}) -> px={px}, py={py}")
         
         if not debug_printed:
             debug_printed = True
-            print(f"Всего точек в отслойке: {len(points_in_detachment)}")
-            print("==========================================\n")
+            # print(f"Всего точек в отслойке: {len(points_in_detachment)}")
+            # print("==========================================\n")
         
         # Если нашли точки в отслойке, вычисляем длину перпендикуляра
         if len(points_in_detachment) >= 2:
@@ -781,50 +817,61 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
         # ОТЛАДКА: выводим финальные координаты
         if max_perp_point is not None:
             x_base, y_base_final, x_top, y_top_final = max_perp_point
-            print(f"\n=== ФИНАЛЬНЫЙ РАСЧЕТ ВЫСОТЫ (отслойка) ===")
-            print(f"max_height_px = {max_height_px:.2f} пикселей")
+            # print(f"\n=== ФИНАЛЬНЫЙ РАСЧЕТ ВЫСОТЫ (отслойка) ===")
+            # print(f"max_height_px = {max_height_px:.2f} пикселей")
             # print(f"max_height_um = {max_height_um:.2f} мкм")
-            print(f"Начальная точка (на хориоидее): ({x_base}, {y_base_final})")
-            print(f"Конечная точка (в отслойке): ({x_top:.2f}, {y_top_final:.2f})")
-            print(f"Расстояние: sqrt(({x_top:.2f}-{x_base})^2 + ({y_top_final:.2f}-{y_base_final})^2) = {max_height_px:.2f}")
-            print("==========================================\n")
+            # print(f"Начальная точка (на хориоидее): ({x_base}, {y_base_final})")
+            # print(f"Конечная точка (в отслойке): ({x_top:.2f}, {y_top_final:.2f})")
+            # print(f"Расстояние: sqrt(({x_top:.2f}-{x_base})^2 + ({y_top_final:.2f}-{y_base_final})^2) = {max_height_px:.2f}")
+            # print("==========================================\n")
     else:
         max_height_um = None
     
-    # Определяем локализацию (0-3, проверяем по линии хориоидеи)
+    # Определяем локализацию: проверяем совпадение X-координат объекта с зонами фовеа
+    # Если у объекта и фовеолы/фовеа есть хотя бы одна общая X-координата - объект в этой зоне
     location = None
     if fovea_mask is not None:
         in_foveola = False
         in_fovea = False
         in_macula = False
         
-        # Проверяем зоны фовеа на линии хориоидеи (от left_x до right_x)
-        for x in range(left_x, right_x + 1):
-            if x < 0 or x >= len(smooth_upper):
-                continue
-            y = int(smooth_upper[x])
-            if y < 0 or y >= h:
-                continue
+        # Получаем уникальные X координаты отслойки
+        ys, xs = np.where(target_mask == 1)
+        if len(xs) > 0:
+            unique_xs_detachment = set(xs)
             
-            zone = fovea_mask[y, x]
-            if zone == 1:
-                in_foveola = True
-            elif zone == 2:
-                in_fovea = True
-            else:
-                in_macula = True
+            # Получаем X координаты для каждой зоны фовеа
+            h, w = fovea_mask.shape
+            for x in unique_xs_detachment:
+                if x >= w:
+                    continue
+                # Проверяем все Y в этом X в маске фовеа
+                column = fovea_mask[:, x]
+                if 1 in column:  # Фовеола
+                    in_foveola = True
+                if 2 in column:  # Фовеа
+                    in_fovea = True
+                if 0 in column or 3 in column:  # Макула
+                    in_macula = True
+                
+                # Если уже нашли фовеолу, можем выйти
+                if in_foveola:
+                    break
         
-        # Алгоритм 0-3 (как для друз)
+        # Логика определения локализации по приоритету
+        # 2 – Фовеола + фовеа + макула (хотя бы одна общая X с фовеолой)
         if in_foveola:
-            location = "0 – Фовеола"
+            location = "2 – Фовеола + фовеа + макула"
+        # 1 – Фовеа + макула (без фовеолы, но хотя бы одна общая X с фовеа)
         elif in_fovea:
-            location = "1 – Фовеа (без фовеолы)"
+            location = "1 – Фовеа + макула (без фовеолы)"
+        # 3 – Макула (без фовеа и фовеолы)
         elif in_macula:
-            location = "2 – Макула (без фовеолы и фовеа)"
+            location = "3 – Макула (без фовеа и фовеолы)"
         else:
-            location = "3 – Вне макулы"
+            location = "0 – отсутствует"
     
-    print(f"Detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
+    # print(f"Detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, choroid_segment
 
 
@@ -864,34 +911,31 @@ def measure_drusen(mask, smooth_upper, spline, contour, fovea_mask=None, scale_x
     
     left_x = int(np.min(xs))
     right_x = int(np.max(xs))
-    
-    # Находим самую левую и самую правую точки друзы
-    left_idx = np.argmin(xs)
-    right_idx = np.argmax(xs)
-    
-    left_point_x = xs[left_idx]
-    left_point_y = ys[left_idx]
-    right_point_x = xs[right_idx]
-    right_point_y = ys[right_idx]
-    
-    # 1. ШИРИНА: Расстояние между самой левой и самой правой точками друзы
-    # с учетом обоих масштабов
-    if scale_x is not None and scale_y is not None:
-        dx_px = right_point_x - left_point_x
-        dy_px = right_point_y - left_point_y
-        
-        dx_um = dx_px * scale_x
-        dy_um = dy_px * scale_y
-        
-        width_um = np.sqrt(dx_um**2 + dy_um**2)
-    else:
-        width_um = None
-    
-    # Сохраняем сегмент линии хориоидеи для визуализации
+
+    # 1. ШИРИНА: длина сглаженной верхней линии хориоидеи под друзой.
+    # Учитываем только x-колонки, в которых реально есть пиксели данной друзы:
+    # для разрозненных или вогнутых форм это исключает «пустые» участки
+    # из подсчёта ширины и помечает их разрывом (None) в choroid_segment.
+    has_class_in_col = (target_mask.sum(axis=0) > 0)
     choroid_segment = []
+    width_um = 0.0 if (scale_x is not None and scale_y is not None) else None
+    prev_pt = None
     for x in range(left_x, right_x + 1):
-        y = smooth_upper[x]
-        choroid_segment.append((x, int(y)))
+        if not has_class_in_col[x]:
+            if choroid_segment and choroid_segment[-1] is not None:
+                choroid_segment.append(None)
+            prev_pt = None
+            continue
+        y = float(smooth_upper[x])
+        pt = (x, int(y))
+        if prev_pt is not None and width_um is not None:
+            dx_um = (x - prev_pt[0]) * scale_x
+            dy_um = (smooth_upper[x] - smooth_upper[prev_pt[0]]) * scale_y
+            width_um += np.sqrt(dx_um * dx_um + dy_um * dy_um)
+        choroid_segment.append(pt)
+        prev_pt = pt
+    while choroid_segment and choroid_segment[-1] is None:
+        choroid_segment.pop()
     
     # 2. ВЫСОТА: Наибольший перпендикуляр к smooth_upper, проходящий через друзу
     max_height_px = 0
@@ -985,51 +1029,77 @@ def measure_drusen(mask, smooth_upper, spline, contour, fovea_mask=None, scale_x
         max_height_um = None
     
     # Определяем локализацию для этой конкретной друзы
+    # Проверяем совпадение X-координат друзы с зонами фовеа
     location = None
     if fovea_mask is not None:
         in_foveola = False
         in_fovea = False
         in_macula = False
         
-        # Проверяем только точки этой друзы (контур уже нарисован в target_mask)
+        # Получаем уникальные X координаты друзы
         ys, xs = np.where(target_mask == 1)
-        for y, x in zip(ys, xs):
-            zone = fovea_mask[y, x]
-            if zone == 1:
-                in_foveola = True
-            elif zone == 2:
-                in_fovea = True
-            else:
-                in_macula = True
+        if len(xs) > 0:
+            unique_xs_drusen = set(xs)
+            
+            # Получаем X координаты для каждой зоны фовеа
+            h, w = fovea_mask.shape
+            for x in unique_xs_drusen:
+                if x >= w:
+                    continue
+                # Проверяем все Y в этом X в маске фовеа
+                column = fovea_mask[:, x]
+                if 1 in column:  # Фовеола
+                    in_foveola = True
+                if 2 in column:  # Фовеа
+                    in_fovea = True
+                if 0 in column or 3 in column:  # Макула
+                    in_macula = True
+                
+                # Если уже нашли фовеолу, можем выйти
+                if in_foveola:
+                    break
         
-        # Алгоритм как для дефектов РПЭ (0-3)
+        # Логика определения локализации по приоритету
         if in_foveola:
-            location = "0 – Фовеола"
+            location = "2 – Фовеола + фовеа + макула"
         elif in_fovea:
-            location = "1 – Фовеа (без фовеолы)"
+            location = "1 – Фовеа + макула (без фовеолы)"
         elif in_macula:
-            location = "2 – Макула (без фовеолы и фовеа)"
+            location = "3 – Макула (без фовеа и фовеолы)"
         else:
-            location = "3 – Вне макулы"
+            location = "0 – отсутствует"
     
-    print(f"Drusen: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
+    # print(f"Drusen: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, choroid_segment
 
 
-def measure_neuroepithelial_detachment(mask, smooth_upper_choroid, spline_choroid, target_class, fovea_mask=None, scale_x=None, scale_y=None, perp_len=400):
+def measure_neuroepithelial_detachment(mask, smooth_upper_choroid, spline_choroid, target_class, fovea_mask=None, scale_x=None, scale_y=None, perp_len=400, min_component_area=100):
     """
     Измеряет отслойку нейроэпителия (класс 6 - СРЖ).
-    
+
     - Ширина = длина кривой сглаженной ВЕРХНЕЙ границы самой отслойки (не хориоидеи!)
     - Высота = максимальный перпендикуляр к линии хориоидеи (как для других отслоек)
-    
+
+    Мелкие компоненты (< min_component_area px) отбрасываются — это убирает
+    посторонние кляксы на разметке (компас, шкала и т.п.), которые иначе
+    завышают высоту/ширину/площадь и локализацию.
+
     Возвращает: (width, height, area, left_x, right_x, max_perp_point, location, upper_boundary_segment)
     """
     h, w = mask.shape
-    
+
     # Извлекаем маску отслойки
     detachment_mask = (mask == target_class).astype(np.uint8)
-    
+
+    # Отбрасываем мелкие посторонние компоненты (артефакты разметки).
+    n_cc, labels_cc, stats_cc, _ = cv2.connectedComponentsWithStats(detachment_mask, 8)
+    if n_cc > 1:
+        cleaned = np.zeros_like(detachment_mask)
+        for i in range(1, n_cc):
+            if stats_cc[i, cv2.CC_STAT_AREA] >= min_component_area:
+                cleaned[labels_cc == i] = 1
+        detachment_mask = cleaned
+
     # Вычисляем площадь
     area_px = np.sum(detachment_mask)
     if area_px == 0:
@@ -1074,29 +1144,23 @@ def measure_neuroepithelial_detachment(mask, smooth_upper_choroid, spline_choroi
     except:
         return None, None, None, None, None, None, None, None
     
-    # 1. ШИРИНА: Длина кривой сглаженной верхней границы отслойки
-    width_um = 0
+    # 1. ШИРИНА: СУММА длин кривых верхней границы по КАЖДОМУ отдельному очагу.
+    # Разделённые очаги класса 6 НЕ соединяем: при большом горизонтальном
+    # разрыве ширину через пустоту не считаем, а в сегмент вставляем разрыв (None).
+    BRIDGE_GAP = 10  # px: больший разрыв по X => считаем очаги раздельными
+    width_um = 0.0 if (scale_x is not None and scale_y is not None) else None
     upper_boundary_segment = []
-    
-    for i, x in enumerate(range(left_x, right_x + 1)):
-        y = smooth_upper_detachment[i]
-        upper_boundary_segment.append((x, int(y)))
-    
-    # Вычисляем длину кривой
-    if scale_x is not None and scale_y is not None:
-        for i in range(len(upper_boundary_segment) - 1):
-            x1, y1 = upper_boundary_segment[i]
-            x2, y2 = upper_boundary_segment[i + 1]
-            
-            dx_px = x2 - x1
-            dy_px = y2 - y1
-            
-            dx_um = dx_px * scale_x
-            dy_um = dy_px * scale_y
-            
-            width_um += np.sqrt(dx_um**2 + dy_um**2)
-    else:
-        width_um = None
+    prev_x = prev_y = None
+    for x in valid_xs:
+        y = float(spline_upper(x))
+        if prev_x is not None and (x - prev_x) > BRIDGE_GAP:
+            upper_boundary_segment.append(None)  # разрыв между очагами
+        elif prev_x is not None and width_um is not None:
+            dx_um = (x - prev_x) * scale_x
+            dy_um = (y - prev_y) * scale_y
+            width_um += np.sqrt(dx_um ** 2 + dy_um ** 2)
+        upper_boundary_segment.append((int(x), int(y)))
+        prev_x, prev_y = x, y
     
     # 2. ВЫСОТА: Максимальный перпендикуляр к хориоидее (как для других отслоек)
     max_height_px = 0
@@ -1190,40 +1254,55 @@ def measure_neuroepithelial_detachment(mask, smooth_upper_choroid, spline_choroi
     else:
         max_height_um = None
     
-    # Определяем локализацию (0-3, проверяем по верхней границе отслойки)
+    # Определяем локализацию: проверяем совпадение X-координат отслойки с зонами фовеа
     location = None
     if fovea_mask is not None:
         in_foveola = False
         in_fovea = False
         in_macula = False
         
-        # Проверяем зоны фовеа по верхней границе отслойки (от left_x до right_x)
-        for i, x in enumerate(range(left_x, right_x + 1)):
-            if i >= len(smooth_upper_detachment):
-                continue
-            y = int(smooth_upper_detachment[i])
-            if y < 0 or y >= h or x < 0 or x >= w:
-                continue
+        # Получаем уникальные X координаты отслойки
+        ys_det, xs_det = np.where(detachment_mask == 1)
+        if len(xs_det) > 0:
+            unique_xs_detachment = set(xs_det)
             
-            zone = fovea_mask[y, x]
-            if zone == 1:
-                in_foveola = True
-            elif zone == 2:
-                in_fovea = True
-            else:
-                in_macula = True
+            # Получаем X координаты для каждой зоны фовеа
+            h, w = fovea_mask.shape
+            for x in unique_xs_detachment:
+                if x >= w:
+                    continue
+                # Проверяем все Y в этом X в маске фовеа
+                column = fovea_mask[:, x]
+                if 1 in column:  # Фовеола
+                    in_foveola = True
+                if 2 in column:  # Фовеа
+                    in_fovea = True
+                if 0 in column or 3 in column:  # Макула
+                    in_macula = True
+                
+                # Если уже нашли фовеолу, можем выйти
+                if in_foveola:
+                    break
         
-        # Алгоритм 0-3
+        # Логика определения локализации по приоритету
+        if in_foveola:
+            location = "2 – Фовеола + фовеа + макула"
+        elif in_fovea:
+            location = "1 – Фовеа + макула (без фовеолы)"
+        elif in_macula:
+            location = "3 – Макула (без фовеа и фовеолы)"
+        else:
+            location = "0 – отсутствует"
         if in_foveola:
             location = "0 – Фовеола"
         elif in_fovea:
-            location = "1 – Фовеа (без фовеолы)"
+            location = "1 – Фовеа (без фovеолы)"
         elif in_macula:
             location = "2 – Макула (без фовеолы и фовеа)"
         else:
             location = "3 – Вне макулы"
     
-    print(f"Neuroepithelial detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
+    # print(f"Neuroepithelial detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, upper_boundary_segment
 
 
@@ -1300,7 +1379,7 @@ def visualize(img, mask, fovea_mask, smooth_upper, spline, out_path):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
     for width in [width, wl, wr, wl1, wr1]:
         if width is not None:
-            x0, y0, dist, pt= width
+            x0, y0, dist, pt, _ = width
 
             # Линия перпендикуляра
             cv2.line(vis, (x0, y0), pt, (255, 0, 0), 2, cv2.LINE_AA)
@@ -1322,10 +1401,10 @@ def visualize(img, mask, fovea_mask, smooth_upper, spline, out_path):
 
     for target_class, color in zip([2, 16, 10, 11], [(0, 255, 255), (0, 0, 255), (255, 0, 0), (255, 255, 0)]):
         width, height, left_x, right_x, max_point = detect_and_measure_detachments(mask, smooth_upper, spline, target_class)
-        print(width, height, left_x, right_x, max_point)
+        # print(width, height, left_x, right_x, max_point)
 
         if width is not None and height is not None:
-            print(f"Отслойка класса {target_class}: ширина = {width}, высота = {height}")
+            # print(f"Отслойка класса {target_class}: ширина = {width}, высота = {height}")
             
             # Отображаем прямоугольник, ограничивающий отслойку
             cv2.rectangle(vis, (left_x, max_point[1] - height), (right_x, max_point[1]), color, 2)
@@ -1350,7 +1429,7 @@ def process_all():
         fovea_path = os.path.join(fovea_dir, fname)
 
         if not os.path.exists(img_path) or not os.path.exists(fovea_path):
-            print(f"[skip] {fname}")
+            # print(f"[skip] {fname}")
             continue
 
         img = cv2.imread(img_path)
@@ -1363,7 +1442,7 @@ def process_all():
         out_path = os.path.join(out_dir, fname.replace(".png", "_foveola_thickness.png"))
         visualize(img, mask, fovea_mask, smooth_upper, spline, out_path)
 
-        print("→", out_path)
+        # print("→", out_path)
 
 
 # ============================================================
@@ -1541,11 +1620,11 @@ def create_measurements_visualization(
         # Центральная толщина в фовеоле (синяя линия)
         width = central_width_of_retina(smooth_upper, spline, center, mask)
         if width is not None:
-            x0, y0, dist, pt = width
+            x0, y0, dist, pt, _ = width
             cv2.line(vis, (x0, y0), pt, (255, 0, 0), 2, cv2.LINE_AA)
-            cv2.putText(vis, f"{dist}px", (x0 + 5, y0 - 10),
+            cv2.putText(vis, f"{dist:.0f}px", (x0 + 5, y0 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-    
+
     # Толщина рядом с фовеолой и фовеей
     for ind, color, label in [(1, (255, 255, 0), "F"), (2, (0, 165, 255), "FA")]:
         pts = central_width_near(
@@ -1554,23 +1633,23 @@ def create_measurements_visualization(
         )
         if pts is not None:
             left_pt, right_pt = pts
-            
+
             # Левая точка
             cv2.circle(vis, left_pt, 5, color, -1)
             wl = central_width_of_retina(smooth_upper, spline, left_pt, mask)
             if wl is not None:
-                x0, y0, dist, pt = wl
+                x0, y0, dist, pt, _ = wl
                 cv2.line(vis, (x0, y0), pt, color, 1, cv2.LINE_AA)
-                cv2.putText(vis, f"{dist}px", (x0 + 5, y0 - 10),
+                cv2.putText(vis, f"{dist:.0f}px", (x0 + 5, y0 - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
-            
+
             # Правая точка
             cv2.circle(vis, right_pt, 5, color, -1)
             wr = central_width_of_retina(smooth_upper, spline, right_pt, mask)
             if wr is not None:
-                x0, y0, dist, pt = wr
+                x0, y0, dist, pt, _ = wr
                 cv2.line(vis, (x0, y0), pt, color, 1, cv2.LINE_AA)
-                cv2.putText(vis, f"{dist}px", (x0 + 5, y0 - 10),
+                cv2.putText(vis, f"{dist:.0f}px", (x0 + 5, y0 - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
     
     # Отслойки
