@@ -783,7 +783,7 @@ def detect_and_measure_detachments(mask, smooth_upper, spline, target_class, fov
             x_base, y_base_final, x_top, y_top_final = max_perp_point
             print(f"\n=== ФИНАЛЬНЫЙ РАСЧЕТ ВЫСОТЫ (отслойка) ===")
             print(f"max_height_px = {max_height_px:.2f} пикселей")
-            print(f"max_height_um = {max_height_um:.2f} мкм")
+            # print(f"max_height_um = {max_height_um:.2f} мкм")
             print(f"Начальная точка (на хориоидее): ({x_base}, {y_base_final})")
             print(f"Конечная точка (в отслойке): ({x_top:.2f}, {y_top_final:.2f})")
             print(f"Расстояние: sqrt(({x_top:.2f}-{x_base})^2 + ({y_top_final:.2f}-{y_base_final})^2) = {max_height_px:.2f}")

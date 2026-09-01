@@ -4,12 +4,12 @@ main_palette:
     background:    [   0,   0,   0,   0,   0 ]
 
     # Drusen
-    foreground:    [   1, 0, 255, 255, 255 ]  # Aqua
-#    foreground:    [   1, 154, 205,  50, 255 ]  # YellowGreen
+#    foreground:    [   1, 0, 255, 255, 255 ]  # Aqua
+    foreground:    [   1, 154, 205,  50, 255 ]  # YellowGreen
 
     # Serous Pigment Epithelial Detachment (SPED)
-    sped:          [   2, 255, 255,   0, 255 ]  # Yellow
-#    sped:          [   2, 148,   0, 211, 255 ]  # DarkViolet
+#    sped:          [   2, 255, 255,   0, 255 ]  # Yellow
+    sped:          [   2, 148,   0, 211, 255 ]  # DarkViolet
 
     # Intraretinal Fluid (IRF)
     irf:           [   3,   0,   0, 255, 255 ]  # Blue
@@ -24,12 +24,12 @@ main_palette:
     srf:           [   6, 255,   0, 255, 255 ]  # Fuchsia
 
     # Sub-Bruch’s Fluid (SBF)
-#    sbf:           [   7, 238, 130, 238, 255 ]  # Violet
-    sbf:           [   7,  0, 255, 255, 255 ]  # Aqua
+    sbf:           [   7, 238, 130, 238, 255 ]  # Violet
+#    sbf:           [   7,  0, 255, 255, 255 ]  # Aqua
 
     # Retinal Angiomatous Proliferation (RAP)
-#    rap:           [   8, 255,   0,   0, 255 ]  # Red
-    rap:           [   8,  0, 255, 255, 255 ]  # Aqua
+    rap:           [   8, 255,   0,   0, 255 ]  # Red
+#    rap:           [   8,  0, 255, 255, 255 ]  # Aqua
 
     # Retinal Pigment Epithelium (RPE)
     rpe:           [   9,   0, 255,   0, 255 ]  # Lime
