@@ -112,9 +112,27 @@ class MaskAnalyserPlugin(Plugin):
         # Белый цвет для всех измерений (BGR для OpenCV)
         HIGHLIGHT_COLOR = (255, 255, 255)  # белый
         
+        # Оверлеи строятся в размере анализа (_ANALYSIS_SIZE = 1024x512), но слой
+        # должен ложиться на снимок в его РОДНОМ размере. Прокси ниже ресайзит
+        # любой добавляемый оверлей обратно к исходному размеру снимка, чтобы
+        # линии/контуры визуализаций совпадали с изображением.
+        _real_layered = layered_image
+        _orig_size = (_src_w, _src_h)  # (width, height) исходного снимка
+
+        class _OverlayResizeLayered:
+            def __getattr__(self, _n):
+                return getattr(_real_layered, _n)
+
+            def add_layer_or_modify_pixels(self, _name, _pixels, *_a, **_kw):
+                _pix = _pixels
+                if _orig_size != _ANALYSIS_SIZE:
+                    _pix = cv2.resize(_pix, _orig_size, interpolation=cv2.INTER_NEAREST)
+                return _real_layered.add_layer_or_modify_pixels(_name, _pix, *_a, **_kw)
+
         # Hover callback для подсвечивания объектов и измерений
         def _hover_callback(row_data):
             highlight_name = 'hover-highlight'
+            layered_image = _OverlayResizeLayered()
             try:
                 # remove existing highlight
                 existing = layered_image.layer_by_name(highlight_name)
