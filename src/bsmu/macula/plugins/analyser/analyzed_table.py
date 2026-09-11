@@ -43,7 +43,6 @@ class ObjectsTableModel(QAbstractTableModel):
     HEADERS = [
         "Параметр",
         "Значение",
-        "Единица",
     ]
     
     # Параметры которые должны быть редактируемыми
