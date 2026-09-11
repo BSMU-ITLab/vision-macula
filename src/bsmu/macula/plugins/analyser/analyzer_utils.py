@@ -577,7 +577,9 @@ def detect_rpe_defects(mask, fovea_mask, smooth_upper, spline, min_gap_width=10,
         gap_width = x2 - (x1 + w1)
 
         gap_x_center = (x1 + w1 + x2) // 2
-        gap_y_center = (y1 + y2 + h1 + h2) // 4
+        # Средний Y между центрами двух соседних фрагментов РПЭ:
+        # centerN_y = yN + hN/2, gap_y_center = (center1_y + center2_y) / 2.
+        gap_y_center = (y1 + h1 // 2 + y2 + h2 // 2) // 2
 
         # Сохраняем координату первого дефекта
         if defect_coordinate is None:
