@@ -55,20 +55,25 @@ def pad_if_needed(image: np.ndarray, target_size: tuple[int, int] = (512, 512),
                               cv2.BORDER_CONSTANT, value=pad_value)
 
 
-def preprocess_for_model(image: np.ndarray) -> tuple[np.ndarray, tuple[int, int]]:
+def preprocess_for_model(
+    image: np.ndarray,
+    target_size: tuple[int, int] = (512, 256),
+) -> tuple[np.ndarray, tuple[int, int]]:
     """Apply ROI/mask preprocessing transforms.
 
-    Pipeline: LongestMaxSize(512,512) -> PadIfNeeded(512,512, zeros)
+    Pipeline: LongestMaxSize(target_size) -> PadIfNeeded(target_size, zeros)
               -> Normalize(mean=0.5, std=0.5, max_value=255)
     Maps pixel values from [0, 255] to [-1, 1].
 
+    target_size is given as (width, height).
+
     Returns:
-        Preprocessed image (always 512x512) and the (h, w) shape
+        Preprocessed image (always target_size) and the (h, w) shape
         before padding — needed to correctly reverse the transform.
     """
-    image = longest_max_size(image, (512, 512))
+    image = longest_max_size(image, target_size)
     content_shape = image.shape  # (h, w) before padding
-    image = pad_if_needed(image, (512, 512), pad_value=0)
+    image = pad_if_needed(image, target_size, pad_value=0)
     image = image.astype(np.float32)
     image /= 255.0
     image = (image - 0.5) / 0.5
@@ -86,9 +91,9 @@ def reverse_preprocess(
     target_shape (the original image dimensions before any preprocessing).
 
     Args:
-        pred: Model output at 512x512.
-        content_shape: (h, w) of valid content within the 512x512, as returned
-                       by preprocess_for_model.
+        pred: Model output at the preprocessed size (target_size).
+        content_shape: (h, w) of valid content within the padded image, as
+                       returned by preprocess_for_model.
         target_shape: (h, w) to resize the unpadded content to.
     """
     content_h, content_w = content_shape

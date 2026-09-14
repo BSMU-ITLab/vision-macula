@@ -154,12 +154,15 @@ class CurrentSOTA:
 
     def __call__(self, image: np.ndarray) -> np.ndarray:
         """Run the full ensemble segmentation pipeline."""
+        model_input_size = self.boundary_model.model_params.input_image_size  # (height, width)
+        target_size = (model_input_size[1], model_input_size[0])  # (width, height)
+
         # 1: Initial ROI via RoiTiler (cropping apps info)
         roi_tiler = RoiTiler()
         roi_image = next(roi_tiler.split(image))
 
         # 2: ROI preprocessing
-        pp_image, bnd_content_shape = preprocess_for_model(roi_image)
+        pp_image, bnd_content_shape = preprocess_for_model(roi_image, target_size)
 
         # 3: Boundary model -> resize probs back to roi_image dimensions, then threshold
         bnd_pred = self._run_model(self.boundary_model, pp_image)
@@ -179,7 +182,7 @@ class CurrentSOTA:
         tight_roi = roi_image[y_min:y_max, x_min:x_max]
 
         # 5: Mask preprocessing
-        pp_roi, content_shape = preprocess_for_model(tight_roi)
+        pp_roi, content_shape = preprocess_for_model(tight_roi, target_size)
 
         # 6: Class model inference with combination rules
         mask_stack = self._predict_direct_classes(pp_roi, content_shape, tight_roi.shape)

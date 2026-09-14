@@ -12,7 +12,7 @@ binary_ensemble_models:
   output_object_short_name: 'T'
   preload: false
   batch_size: 4
-  input_size: [1, 512, 512]
+  input_size: [1, 256, 512]
   channels_axis: 0
   channels_order: 'rgb'
   normalize: false
