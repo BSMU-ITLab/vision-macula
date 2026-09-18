@@ -1,0 +1,12 @@
+<!--
+To generate a *.py file, run the following command in the terminal from the directory where this file is located:
+pyside6-rcc dbicons.qrc -o dbicons_rc.py
+-->
+
+<!DOCTYPE RCC>
+<RCC version="1.0">
+<qresource>
+    <file>dbicons/edit.png</file>
+    <file>dbicons/show.png</file>
+</qresource>
+</RCC>
