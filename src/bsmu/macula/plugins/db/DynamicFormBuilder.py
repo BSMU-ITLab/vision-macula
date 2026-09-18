@@ -1,7 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QFont
 from PySide6.QtSql import QSqlQuery
-import pandas as pd
+# import pandas as pd
 from PySide6.QtWidgets import QLineEdit, QComboBox, QPushButton, QGroupBox, QFormLayout, QWidget, QVBoxLayout, \
     QTableView, QLabel
 
