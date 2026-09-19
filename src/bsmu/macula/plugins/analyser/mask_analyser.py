@@ -9,7 +9,7 @@ from bsmu.macula.records.eye_info_data import PatientExamData, Measurement, Zone
 from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindowPlugin, MainWindow
 from bsmu.macula.plugins.db.SQLiteTableViewer import TableWidgetExample
 from bsmu.vision.widgets.viewers.image.layered import LayeredImageViewerHolder
-from bsmu.macula.plugins.analyser.analyzed_table import TableWindow
+from bsmu.macula.plugins.analyser.analyzed_table import TableWindow, MeasurementsSubWindow
 from PySide6.QtWidgets import QTableView
 from bsmu.macula.plugins.analyser.analyzed_table import ObjectsTableModel
 from bsmu.vision.core.visibility import Visibility
@@ -53,6 +53,8 @@ class MaskAnalyserPlugin(Plugin):
         self._main_window: MainWindow | None = None
         self._mdi_plugin = mdi_plugin
         self._mdi: Mdi | None = None
+        self._table_window: TableWindow | None = None
+        self._table_sub_window: MeasurementsSubWindow | None = None
 
     @property
     def main_window(self) -> MainWindow | None:
@@ -586,10 +588,24 @@ class MaskAnalyserPlugin(Plugin):
                 import traceback
                 traceback.print_exc()
 
+        # Показываем результаты как MDI-подокно внутри QMdiArea, а не отдельным
+        # top-level окном: иначе оно перекрывается главным окном программы при
+        # его активации, и нельзя видеть снимок и измерения одновременно.
         self._table_window = TableWindow(objects, patient_exam_data, highlight_callback=_hover_callback)
-        self._table_window.show()
-        self._table_window.raise_()
-        self._table_window.activateWindow()
+
+        # Если подокно с результатами уже открыто — закрываем старое,
+        # чтобы не плодить копии при повторном запуске анализа.
+        if self._table_sub_window is not None:
+            try:
+                self._table_sub_window.close()
+            except RuntimeError:
+                pass  # окно уже уничтожено Qt
+            self._table_sub_window = None
+
+        sub_window = MeasurementsSubWindow(self._table_window)
+        self._mdi.add_sub_window(sub_window)
+        sub_window.show()
+        self._table_sub_window = sub_window
 
 
         
