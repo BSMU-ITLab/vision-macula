@@ -152,8 +152,9 @@ class EnsembleMdiSegmenter(MdiSegmenter):
         """Загружает маску фовеа из файла и добавляет её в layered image"""
         try:
             # Если пользователь не выбрал файл, используем hardcoded путь
+            # Mb we should add mock mask to the git and replace hardcoded path to system-aware
             mask_path = self._fovea_mask_path or "C:/Users/Elena_Himbitskaya/Desktop/2026/images-masks-v7/set01-v7/masks-fovea/01-001-0_0.png"
-            
+
             mask_fovea_pixels = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
             
             if mask_fovea_pixels is None:
