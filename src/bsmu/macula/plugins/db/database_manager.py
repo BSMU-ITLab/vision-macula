@@ -373,7 +373,8 @@ class DatabaseManager(Plugin):
         self.db = QSqlDatabase.addDatabase("QSQLITE")
         self.db_name_path = self.data_path(self._SQL_DIR_NAME) / db_name
         print(self.db_name_path)
-        self.db.setDatabaseName(db_name)
+        self.db_name_path.parent.mkdir(parents=True, exist_ok=True)
+        self.db.setDatabaseName(str(self.db_name_path))
         self.connection = sqlite3.connect(self.db_name_path)
         self.cursor = self.connection.cursor()
         self.execute_query(self.CREATE_PATIENTS)
