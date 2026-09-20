@@ -1,0 +1,70 @@
+classes:
+  - id: 1
+    name: "Drusen"
+    attributes:
+      - name: "Width"
+        description: "The width of the drusen object"
+      - name: "Height"
+        description: "The height of the drusen object"
+      - name: "Area"
+        description: "The area of the drusen object"
+
+  - id: 2
+    name: "Serous PED"
+    attributes:
+      - name: "Width"
+        description: "The width of the serous PED object"
+      - name: "Height"
+        description: "The height of the serous PED object"
+      - name: "Area"
+        description: "The area of the serous PED object"
+
+  - id: 4
+    name: "Hyperreflective Subretinal Fluid"
+    attributes:
+      - name: "Width"
+        description: "The width of the subretinal fluid object"
+      - name: "Height"
+        description: "The height of the subretinal fluid object"
+      - name: "Area"
+        description: "The area of the subretinal fluid object"
+
+  - id: 5
+    name: "Hyperreflective Intraretinal Fluid"
+    attributes:
+      - name: "Width"
+        description: "The width of the intraretinal fluid object"
+      - name: "Height"
+        description: "The height of the intraretinal fluid object"
+      - name: "Area"
+        description: "The area of the intraretinal fluid object"
+
+  - id: 10
+    name: "Fibrovascular PED"
+    attributes:
+      - name: "Width"
+        description: "The width of the fibrovascular PED object"
+      - name: "Height"
+        description: "The height of the fibrovascular PED object"
+      - name: "Area"
+        description: "The area of the fibrovascular PED object"
+
+  - id: 11
+    name: "Drusenoid PED"
+    attributes:
+      - name: "Width"
+        description: "The width of the drusenoid PED object"
+      - name: "Height"
+        description: "The height of the drusenoid PED object"
+      - name: "Area"
+        description: "The area of the drusenoid PED object"
+
+  - id: 16
+    name: "Hemorrhagic PED"
+    attributes:
+      - name: "Width"
+        description: "The width of the hemorrhagic PED object"
+      - name: "Height"
+        description: "The height of the hemorrhagic PED object"
+      - name: "Area"
+        description: "The area of the hemorrhagic PED object"
