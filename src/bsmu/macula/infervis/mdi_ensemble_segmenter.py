@@ -89,9 +89,7 @@ class EnsembleMdiSegmenter(MdiSegmenter):
     def _on_segmentation_finished(
             self,
             mask: np.ndarray,
-            prepared_image: np.ndarray,
-            cords: tuple,
-            class_areas: Optional[Dict[int, int]] = None,  # <-- второй позиционный, опционален
+            class_areas: Optional[Dict[int, int]] = None,
             *,
             layered_image: 'LayeredImage',
             mask_layer_name: str,
