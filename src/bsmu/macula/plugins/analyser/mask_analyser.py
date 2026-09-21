@@ -10,7 +10,7 @@ from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindowPlugin, M
 from bsmu.macula.plugins.db.SQLiteTableViewer import TableWidgetExample
 from bsmu.vision.widgets.viewers.image.layered import LayeredImageViewerHolder
 from bsmu.macula.plugins.analyser.analyzed_table import TableWindow, MeasurementsSubWindow
-from PySide6.QtWidgets import QTableView
+from PySide6.QtWidgets import QTableView, QMessageBox
 from bsmu.macula.plugins.analyser.analyzed_table import ObjectsTableModel
 from bsmu.vision.core.visibility import Visibility
 
@@ -45,6 +45,10 @@ class MaskAnalyserPlugin(Plugin):
         'mdi_plugin': 'bsmu.vision.plugins.doc_interfaces.mdi.MdiPlugin'
     }
 
+    _IMAGE_LAYER_NAME = 'images'
+    _MASK_LAYER_NAME = 'masks'
+    _MASK_FOVEA_LAYER_NAME = 'mask-fovea'
+
     def __init__(self, main_window_plugin: MainWindowPlugin, mdi_plugin: MdiPlugin):
         super().__init__()
         self._main_window_plugin = main_window_plugin
@@ -77,17 +81,22 @@ class MaskAnalyserPlugin(Plugin):
 
         layered_image_viewer = layered_image_viewer_sub_window.layered_image_viewer
         layered_image = layered_image_viewer.data
-        mask_layer = layered_image_viewer.layer_by_name('masks')
-        mask_pixels = mask_layer.image_pixels
-        
-        # Получаем маску fovea из layered image
-        mask_fovea_layer = layered_image_viewer.layer_by_name('mask-fovea')
-        if mask_fovea_layer is None:
-            # print("Ошибка: слой 'mask-fovea' не найден")
-            return
-        mask_fovea_pixels = mask_fovea_layer.image_pixels
-        
-        image_pixels = layered_image_viewer.layer_by_name('images').image_pixels
+
+        layer_by_required_name = {}
+        for layer_name in (self._IMAGE_LAYER_NAME, self._MASK_LAYER_NAME, self._MASK_FOVEA_LAYER_NAME):
+            layer = layered_image_viewer.layer_by_name(layer_name)
+            if layer is None or layer.image_pixels is None:
+                QMessageBox.warning(
+                    self._main_window,
+                    self.tr('Process Mask'),
+                    self.tr('No layer with name "{}".\nAnalysis cannot be started.').format(layer_name),
+                )
+                return
+            layer_by_required_name[layer_name] = layer
+
+        image_pixels = layer_by_required_name[self._IMAGE_LAYER_NAME].image_pixels
+        mask_pixels = layer_by_required_name[self._MASK_LAYER_NAME].image_pixels
+        mask_fovea_pixels = layer_by_required_name[self._MASK_FOVEA_LAYER_NAME].image_pixels
 
         classes = self.config_value("classes", [])
 
