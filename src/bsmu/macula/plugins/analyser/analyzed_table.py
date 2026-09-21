@@ -1,412 +1,398 @@
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QTableView,
-    QVBoxLayout, QHBoxLayout, QAbstractItemView, QComboBox, QLabel, QGroupBox, QPushButton, QMessageBox
-)
+"""Окно результатов измерений: основная таблица и таблицы деталей.
+
+Модуль отвечает только за представление данных. Сборка объекта
+``PatientExamData`` вынесена в
+:class:`bsmu.macula.plugins.analyser.data_converter.PatientExamDataBuilder`,
+а описания отслоек и редактируемых полей — в
+:mod:`bsmu.macula.plugins.analyser.schema`.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Callable
+
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
-from typing import Callable, Optional
-from datetime import datetime
-import sys
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QComboBox,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QTableView,
+    QVBoxLayout,
+    QWidget,
+)
 
-from bsmu.macula.records.eye_info_data import PatientExamData, Measurement, ZoneStatus
+from bsmu.macula.plugins.analyser.data_converter import PatientExamDataBuilder
+from bsmu.macula.plugins.analyser.schema import (
+    EDITABLE_PARAMETERS,
+    ALL_DETACHMENTS,
+    DetachmentSpec,
+    RowKey,
+    drusen_number,
+    is_drusen_parameter,
+)
+
+#: Заголовки колонок таблиц.
+TABLE_HEADERS = ["Параметр", "Значение"]
+#: Суффиксы измерений отслойки, отбрасываемые в заголовках деталей.
+_DETACHMENT_SECTION_RE = re.compile(
+    r"^(" + "|".join(re.escape(spec.section) for spec in ALL_DETACHMENTS) + r") \("
+)
+_DRUSEN_PREFIX_RE = re.compile(r"^(.*?)\s*#\d+\s*\(")
 
 
-# ====== HELPERS ======
 def group_measurements_data(data: list[dict]) -> list[dict]:
-    """Фильтрует данные, исключая друзы и отслойки (они отображаются в отдельных таблицах)"""
-    result = []
-    
-    # Список measurement_id для отслоек
-    detachment_ids = [
-        "serous_ped_", "hemorrhagic_ped_", "fibrovascular_ped_", 
-        "drusenoid_ped_", "neuroepithelial_detachment_"
+    """Оставляет строки основной таблицы.
+
+    Друзы и отслойки показываются в отдельных таблицах справа, поэтому из
+    основной таблицы они исключаются.
+    """
+    return [
+        item
+        for item in data
+        if "#" not in item.get(RowKey.PARAMETER, "")
+        and not is_detachment_measurement_id(item.get(RowKey.MEASUREMENT_ID, ""))
     ]
-    
+
+
+def is_detachment_measurement_id(measurement_id: str) -> bool:
+    return any(measurement_id.startswith(spec.measurement_id + "_") for spec in ALL_DETACHMENTS)
+
+
+def group_drusen_measurements(data: list[dict]) -> dict[int, list[dict]]:
+    """Группирует строки измерений по номеру друзы."""
+    groups: dict[int, list[dict]] = {}
     for item in data:
-        param = item.get("parameter", "")
-        measurement_id = item.get("measurement_id", "")
-        
-        # Исключаем ВСЁ что содержит "#" в названии параметра
-        has_number_sign = "#" in param
-        
-        # Проверяем, является ли это отслойкой
-        is_detachment = any(measurement_id.startswith(det_id) for det_id in detachment_ids)
-        
-        # Пропускаем элементы с # и отслойки - они отображаются в отдельных таблицах справа
-        if not has_number_sign and not is_detachment:
-            result.append(item)
-    
-    return result
+        if item.get(RowKey.IS_GROUP):
+            continue
+        number = drusen_number(item.get(RowKey.PARAMETER, ""))
+        if number is not None and is_drusen_parameter(item.get(RowKey.PARAMETER, "")):
+            groups.setdefault(number, []).append(item)
+    return groups
 
 
-# ====== DATA MODEL ======
+def group_detachment_measurements(data: list[dict]) -> dict[str, list[dict]]:
+    """Группирует строки измерений по типу отслойки."""
+    groups: dict[str, list[dict]] = {}
+    for item in data:
+        measurement_id = item.get(RowKey.MEASUREMENT_ID, "")
+        for spec in ALL_DETACHMENTS:
+            if measurement_id.startswith(spec.measurement_id + "_"):
+                groups.setdefault(spec.measurement_id, []).append(item)
+                break
+    return groups
+
+
 class ObjectsTableModel(QAbstractTableModel):
-    HEADERS = [
-        "Параметр",
-        "Значение",
-    ]
-    
-    # Параметры которые должны быть редактируемыми
-    EDITABLE_PARAMETERS = {
-        "Дата визита",
-        "Длительность заболевания",
-        "Стадия по AREDS",
-        "Тип неоваскуляризации",
-        "Рефракция",
-        "МКОЗ",
-        "Объем сетчатки",
-        "Препарат",
-        "Количество назначенных инъекций",
-        "Количество выполненных инъекций",
-        "Локализация кистозного макулярного отека",
-    }
+    """Модель основной таблицы с раскрываемыми группами и ручными полями."""
 
-    def __init__(self, data: list[dict], patient_exam_data: PatientExamData = None):
+    HEADERS = TABLE_HEADERS
+    EDITABLE_PARAMETERS = EDITABLE_PARAMETERS
+
+    def __init__(self, data: list[dict], patient_exam_data=None):
         super().__init__()
         self._data = group_measurements_data(data)
-        self._patient_exam_data = patient_exam_data or PatientExamData()
+        self._patient_exam_data = patient_exam_data
         self._visible_rows = self._build_visible_rows()
 
-    def _build_visible_rows(self):
-        """Строит список видимых строк на основе раскрытости групп"""
-        visible = []
+    def _build_visible_rows(self) -> list[dict]:
+        """Список видимых строк с учётом раскрытости групп."""
+        visible: list[dict] = []
         for item in self._data:
             visible.append(item)
-            if item.get("is_group") and item.get("expanded"):
-                for child in item.get("children", []):
-                    visible.append(child)
+            if item.get(RowKey.IS_GROUP) and item.get(RowKey.EXPANDED):
+                visible.extend(item.get(RowKey.CHILDREN, []))
         return visible
 
-    def rowCount(self, parent=QModelIndex()):
+    def rowCount(self, parent=QModelIndex()) -> int:
         return len(self._visible_rows)
 
-    def columnCount(self, parent=QModelIndex()):
+    def columnCount(self, parent=QModelIndex()) -> int:
         return len(self.HEADERS)
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
+        if role not in (Qt.DisplayRole, Qt.EditRole):
+            return None
 
         row = self._visible_rows[index.row()]
+        parameter = row.get(RowKey.PARAMETER, "")
+        if role == Qt.DisplayRole and row.get(RowKey.IS_GROUP):
+            arrow = "▼" if row.get(RowKey.EXPANDED) else "▶"
+            parameter = f"{arrow} {parameter}"
 
-        if role == Qt.DisplayRole or role == Qt.EditRole:
-            param = row.get("parameter", "")
-            # Добавляем стрелку для групп
-            if role == Qt.DisplayRole and row.get("is_group"):
-                arrow = "▼" if row.get("expanded") else "▶"
-                param = f"{arrow} {param}"
-            
-            value = row.get("value", "")
-            unit = row.get("unit", "")
-            value_with_unit = f"{value} {unit}".strip()
-
-            return [
-                param,
-                value_with_unit,
-            ][index.column()]
-
-        return None
+        value = f"{row.get(RowKey.VALUE, '')} {row.get(RowKey.UNIT, '')}".strip()
+        return [parameter, value][index.column()]
 
     def flags(self, index):
-        """Определяет флаги для ячейки (редактируемость)"""
         if not index.isValid():
             return Qt.NoItemFlags
-        
+
         flags = super().flags(index)
-        row = self._visible_rows[index.row()]
-        
-        # Делаем редактируемыми только значения для определённых параметров
-        if index.column() == 1:  # Колонка "Значение"
-            param = row.get("parameter", "")
-            if param in self.EDITABLE_PARAMETERS:
+        if index.column() == 1:
+            row = self._visible_rows[index.row()]
+            if row.get(RowKey.PARAMETER) in self.EDITABLE_PARAMETERS:
                 return flags | Qt.ItemIsEditable
-        
         return flags
 
-    def setData(self, index, value, role=Qt.EditRole):
-        """Обновляет данные при редактировании и синхронизирует с PatientExamData"""
-        if role == Qt.EditRole and index.isValid():
-            row = self._visible_rows[index.row()]
-            if index.column() == 1:  # Колонка "Значение"
-                row["value"] = str(value)
-                
-                # Синхронизируем с PatientExamData
-                param = row.get("parameter", "")
-                if param == "Стадия по AREDS":
-                    self._patient_exam_data.areds_criteria = str(value) if value else None
-                elif param == "Тип неоваскуляризации":
-                    self._patient_exam_data.neovascularization_type = str(value) if value else None
-                elif param == "Рефракция":
-                    self._patient_exam_data.refraction = str(value) if value else None
-                elif param == "МКОЗ":
-                    self._patient_exam_data.bcva = str(value) if value else None
-                
-                self.dataChanged.emit(index, index)
-                return True
-        return False
+    def setData(self, index, value, role=Qt.EditRole) -> bool:
+        """Обновляет данные при редактировании и синхронизирует PatientExamData."""
+        if role != Qt.EditRole or not index.isValid() or index.column() != 1:
+            return False
+
+        row = self._visible_rows[index.row()]
+        row[RowKey.VALUE] = str(value)
+        self._sync_manual_field(row.get(RowKey.PARAMETER, ""), str(value))
+        self.dataChanged.emit(index, index)
+        return True
+
+    def _sync_manual_field(self, parameter: str, value: str) -> None:
+        """Переносит правку ручного поля в объект ``PatientExamData``."""
+        if self._patient_exam_data is None or not value:
+            return
+
+        field_by_parameter = {
+            "Стадия по AREDS": "areds_criteria",
+            "Тип неоваскуляризации": "neovascularization_type",
+            "Рефракция": "refraction",
+            "МКОЗ": "bcva",
+            "Длительность заболевания": "disease_duration",
+            "Локализация кистозного макулярного отека": "cmo_location",
+        }
+        attribute = field_by_parameter.get(parameter)
+        if attribute is not None:
+            setattr(self._patient_exam_data, attribute, value)
 
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
             return self.HEADERS[section]
 
-    def toggle_group(self, index):
-        """Переключает состояние раскрытости группы"""
+    def toggle_group(self, index) -> None:
+        """Переключает состояние раскрытости группы."""
         if not index.isValid():
             return
-        
+
         row = self._visible_rows[index.row()]
-        if row.get("is_group"):
-            row["expanded"] = not row.get("expanded", False)
+        if row.get(RowKey.IS_GROUP):
+            row[RowKey.EXPANDED] = not row.get(RowKey.EXPANDED, False)
             self._visible_rows = self._build_visible_rows()
             self.layoutChanged.emit()
-    
-    def get_row_data(self, index):
-        """Получает данные строки"""
+
+    def get_row_data(self, index) -> dict | None:
         if not index.isValid():
             return None
         return self._visible_rows[index.row()]
-    
-    def get_patient_exam_data(self) -> PatientExamData:
-        """Возвращает объект PatientExamData с актуальными данными"""
+
+    def get_patient_exam_data(self):
         return self._patient_exam_data
 
 
-# ====== GUI ======
+class DetachmentDetailModel(QAbstractTableModel):
+    """Модель таблицы деталей друзы или отслойки."""
+
+    HEADERS = TABLE_HEADERS
+
+    def __init__(self, measurements: list[dict]):
+        super().__init__()
+        self._data = measurements
+
+    def rowCount(self, parent=QModelIndex()) -> int:
+        return len(self._data)
+
+    def columnCount(self, parent=QModelIndex()) -> int:
+        return len(self.HEADERS)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid() or role != Qt.DisplayRole:
+            return None
+
+        row = self._data[index.row()]
+        parameter = short_parameter_name(row.get(RowKey.PARAMETER, ""))
+        value = f"{row.get(RowKey.VALUE, '')} {row.get(RowKey.UNIT, '')}".strip()
+        return [parameter, value][index.column()]
+
+    def headerData(self, section, orientation, role):
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            return self.HEADERS[section]
+
+
+def short_parameter_name(parameter: str) -> str:
+    """Убирает из названия номер друзы и заголовок отслойки для компактности."""
+    if _DRUSEN_PREFIX_RE.match(parameter):
+        parameter = _DRUSEN_PREFIX_RE.sub("", parameter)
+    parameter = _DETACHMENT_SECTION_RE.sub("", parameter)
+    return parameter.rstrip(") ").strip()
+
+
 class TableWindow(QWidget):
-    def __init__(self, measurements: list[dict], patient_exam_data: PatientExamData = None, highlight_callback: Optional[Callable] = None):
+    """Окно результатов: основная таблица слева, детали справа."""
+
+    def __init__(self, measurements: list[dict], patient_exam_data=None,
+                 highlight_callback: Callable | None = None):
         super().__init__()
 
         self.setWindowTitle("Результаты измерений")
         self.resize(1200, 700)
 
-        # Извлекаем все друзы из measurements
-        self._all_drusen = []
-        for item in measurements:
-            param = item.get("parameter", "")
-            if "Drusen #" in param or ("друз" in param.lower() and "#" in param):
-                # Проверяем, что это измерение друзы (не группа)
-                if not item.get("is_group"):
-                    self._all_drusen.append(item)
-        
-        # Группируем друзы по номеру
-        self._drusen_groups = {}
-        for drusen in self._all_drusen:
-            param = drusen.get("parameter", "")
-            # Извлекаем номер друзы (например, "Drusen #1 (ширина)" -> 1)
-            import re
-            match = re.search(r'#(\d+)', param)
-            if match:
-                drusen_num = int(match.group(1))
-                if drusen_num not in self._drusen_groups:
-                    self._drusen_groups[drusen_num] = []
-                self._drusen_groups[drusen_num].append(drusen)
-        
-        # Извлекаем все отслойки из measurements
-        self._detachment_types = {
-            "serous_ped": {"name": "Серозная ОПЭ", "items": []},
-            "hemorrhagic_ped": {"name": "Геморрагическая ОПЭ", "items": []},
-            "fibrovascular_ped": {"name": "Фиброваскулярная ОПЭ", "items": []},
-            "drusenoid_ped": {"name": "Друзеноидная ОПЭ", "items": []},
-            "neuroepithelial_detachment": {"name": "Отслойка нейроэпителия", "items": []},
-        }
-        
-        for item in measurements:
-            measurement_id = item.get("measurement_id", "")
-            for det_type, det_data in self._detachment_types.items():
-                if measurement_id.startswith(det_type + "_"):
-                    det_data["items"].append(item)
-        
-        # Основной layout - горизонтальный
-        main_layout = QHBoxLayout(self)
-        
-        # Левая часть - основная таблица
-        left_layout = QVBoxLayout()
-        
-        self.table = QTableView()
-        self.model = ObjectsTableModel(measurements, patient_exam_data)
-        self.table.setModel(self.model)
+        self._measurements = measurements
+        self._highlight_callback = highlight_callback
+        self._exam_data_builder = PatientExamDataBuilder()
+        self._drusen_groups = group_drusen_measurements(measurements)
+        self._detachment_groups = group_detachment_measurements(measurements)
 
+        main_layout = QHBoxLayout(self)
+        main_layout.addLayout(self._build_left_part(patient_exam_data), 2)
+        main_layout.addLayout(self._build_right_part(), 1)
+        self.setLayout(main_layout)
+
+        self._update_drusen_details(None)
+
+    # --- построение интерфейса ---
+
+    def _build_left_part(self, patient_exam_data) -> QVBoxLayout:
+        layout = QVBoxLayout()
+
+        self.table = QTableView()
+        self.model = ObjectsTableModel(self._measurements, patient_exam_data)
+        self.table.setModel(self.model)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.horizontalHeader().setStretchLastSection(True)
-        
-        # Подгоняем ширину колонок
         self.table.resizeColumnsToContents()
-
-        # Enable hover tracking and connect hover signals
-        self.table.setMouseTracking(True)
-        self._highlight_callback = highlight_callback
-        if highlight_callback is not None:
-            # emitted when cursor moves over an index
-            self.table.entered.connect(self._on_entered_index)
-            # emitted when cursor enters the viewport outside any index
-            try:
-                self.table.viewportEntered.connect(self._on_viewport_entered)
-            except Exception:
-                pass
-        
-        # Обработка клика для раскрытия групп
+        self._enable_hover(self.table, self._on_entered_index)
         self.table.clicked.connect(self._on_table_clicked)
-        
-        left_layout.addWidget(self.table)
-        
-        # Кнопка "Сохранить в БД"
+        layout.addWidget(self.table)
+
         save_button = QPushButton("Сохранить в БД")
         save_button.clicked.connect(self._save_to_database)
-        left_layout.addWidget(save_button)
-        
-        # Сохраняем ссылку на measurements для использования при сохранении
-        self._measurements = measurements
-        
-        # Правая часть - детали друз и отслоек
-        right_layout = QVBoxLayout()
-        
-        # --- Блок друз ---
-        drusen_group = QGroupBox("Детали друзы")
-        drusen_layout = QVBoxLayout()
-        
-        # Выпадающий список для выбора друзы
-        drusen_selector_layout = QHBoxLayout()
-        drusen_selector_layout.addWidget(QLabel("Выберите друзу:"))
+        layout.addWidget(save_button)
+        return layout
+
+    def _build_right_part(self) -> QVBoxLayout:
+        layout = QVBoxLayout()
+        layout.addWidget(self._build_drusen_group())
+        for spec in ALL_DETACHMENTS:
+            items = self._detachment_groups.get(spec.measurement_id)
+            if not items:
+                continue
+            layout.addWidget(self._build_detachment_group(spec, items))
+        return layout
+
+    def _build_drusen_group(self) -> QGroupBox:
+        group = QGroupBox("Детали друзы")
+        layout = QVBoxLayout()
+
+        selector = QHBoxLayout()
+        selector.addWidget(QLabel("Выберите друзу:"))
         self.drusen_combo = QComboBox()
         self.drusen_combo.addItem("(не выбрано)", None)
-        for drusen_num in sorted(self._drusen_groups.keys()):
-            self.drusen_combo.addItem(f"Друза #{drusen_num}", drusen_num)
+        for number in sorted(self._drusen_groups):
+            self.drusen_combo.addItem(f"Друза #{number}", number)
         self.drusen_combo.currentIndexChanged.connect(self._on_drusen_selected)
-        drusen_selector_layout.addWidget(self.drusen_combo)
-        drusen_selector_layout.addStretch()
-        drusen_layout.addLayout(drusen_selector_layout)
-        
-        # Таблица с деталями выбранной друзы
+        selector.addWidget(self.drusen_combo)
+        selector.addStretch()
+        layout.addLayout(selector)
+
         self.drusen_detail_table = QTableView()
         self.drusen_detail_model = DetachmentDetailModel([])
         self.drusen_detail_table.setModel(self.drusen_detail_model)
-        
-        # Подключаем визуализацию при наведении на таблицу друз
-        self.drusen_detail_table.setMouseTracking(True)
-        self.drusen_detail_table.entered.connect(self._on_drusen_table_hover)
-        try:
-            self.drusen_detail_table.viewportEntered.connect(self._on_viewport_entered)
-        except Exception:
-            pass
-        
-        drusen_layout.addWidget(self.drusen_detail_table)
-        drusen_group.setLayout(drusen_layout)
-        right_layout.addWidget(drusen_group)
-        
-        # --- Блоки отслоек ---
-        self.detachment_tables = {}
-        self.detachment_models = {}
-        
-        for det_type, det_data in self._detachment_types.items():
-            if len(det_data["items"]) == 0:
-                continue  # Пропускаем отслойки, которые не найдены
-            
-            det_group = QGroupBox(det_data["name"])
-            det_layout = QVBoxLayout()
-            
-            # Таблица с деталями отслойки (без выпадающего списка)
-            det_table = QTableView()
-            det_model = DetachmentDetailModel(det_data["items"])
-            det_table.setModel(det_model)
-            det_table.resizeColumnsToContents()
-            
-            # Подключаем визуализацию при наведении на строки таблицы
-            det_table.setMouseTracking(True)
-            det_table.entered.connect(lambda idx, items=det_data["items"]: self._on_detachment_table_hover(items, idx))
-            try:
-                det_table.viewportEntered.connect(self._on_viewport_entered)
-            except Exception:
-                pass
-            
-            det_layout.addWidget(det_table)
-            det_group.setLayout(det_layout)
-            right_layout.addWidget(det_group)
-            
-            # Сохраняем ссылки
-            self.detachment_tables[det_type] = det_table
-            self.detachment_models[det_type] = det_model
-        
-        # Добавляем левую и правую части в main_layout
-        main_layout.addLayout(left_layout, 2)  # 2/3 ширины
-        main_layout.addLayout(right_layout, 1)  # 1/3 ширины
-        
-        self.setLayout(main_layout)
-        
-        # Инициализируем модель деталей друз
-        self._update_drusen_details(None)
+        self._enable_hover(
+            self.drusen_detail_table,
+            self._on_drusen_table_hover,
+        )
+        layout.addWidget(self.drusen_detail_table)
 
-    def _on_drusen_selected(self, index):
-        """Обработчик выбора друзы из выпадающего списка"""
-        drusen_num = self.drusen_combo.itemData(index)
-        self._update_drusen_details(drusen_num)
-        
-        # Визуализируем выбранную друзу
-        if drusen_num is not None and drusen_num in self._drusen_groups and self._highlight_callback:
-            # Берём первое измерение друзы для визуализации (они все содержат одинаковый контур)
-            drusen_measurements = self._drusen_groups[drusen_num]
-            if drusen_measurements:
-                self._highlight_callback(drusen_measurements[0])
-        elif self._highlight_callback:
-            # Сбрасываем визуализацию, если ничего не выбрано
+        group.setLayout(layout)
+        return group
+
+    def _build_detachment_group(self, spec: DetachmentSpec, items: list[dict]) -> QGroupBox:
+        group = QGroupBox(spec.table_item)
+        layout = QVBoxLayout()
+
+        table = QTableView()
+        model = DetachmentDetailModel(items)
+        table.setModel(model)
+        table.resizeColumnsToContents()
+        self._enable_hover(table, lambda index, rows=items: self._on_detachment_table_hover(rows, index))
+        layout.addWidget(table)
+
+        group.setLayout(layout)
+        self.detachment_tables = getattr(self, "detachment_tables", {})
+        self.detachment_models = getattr(self, "detachment_models", {})
+        self.detachment_tables[spec.measurement_id] = table
+        self.detachment_models[spec.measurement_id] = model
+        return group
+
+    def _enable_hover(self, view: QTableView, handler: Callable) -> None:
+        """Включает подсветку объектов при наведении курсора на строку."""
+        view.setMouseTracking(True)
+        if self._highlight_callback is None:
+            return
+        view.entered.connect(handler)
+        try:
+            view.viewportEntered.connect(self._on_viewport_entered)
+        except Exception:  # noqa: BLE001 — сигнала может не быть в некоторых сборках Qt
+            pass
+
+    # --- обработчики ---
+
+    def _on_drusen_selected(self, index: int) -> None:
+        number = self.drusen_combo.itemData(index)
+        self._update_drusen_details(number)
+
+        if self._highlight_callback is None:
+            return
+        if number is None or number not in self._drusen_groups:
             self._highlight_callback(None)
-    
-    def _on_detachment_table_hover(self, items, index):
-        """Обработчик наведения на строку таблицы отслойки"""
-        if not index.isValid() or not items or not self._highlight_callback:
             return
-        # Визуализируем отслойку при наведении
+        # Все измерения друзы содержат один и тот же контур.
+        self._highlight_callback(self._drusen_groups[number][0])
+
+    def _on_detachment_table_hover(self, items: list[dict], index) -> None:
+        if not index.isValid() or not items or self._highlight_callback is None:
+            return
         self._highlight_callback(items[0])
-    
-    def _on_drusen_table_hover(self, index):
-        """Обработчик наведения на строку таблицы деталей друзы"""
-        if not index.isValid() or not self._highlight_callback:
+
+    def _on_drusen_table_hover(self, index) -> None:
+        if not index.isValid() or self._highlight_callback is None:
             return
-        
-        # Получаем текущую выбранную друзу
-        drusen_num = self.drusen_combo.currentData()
-        if drusen_num is not None and drusen_num in self._drusen_groups:
-            drusen_measurements = self._drusen_groups[drusen_num]
-            if drusen_measurements:
-                self._highlight_callback(drusen_measurements[0])
-    
-    def _update_drusen_details(self, drusen_num):
-        """Обновляет таблицу деталей выбранной друзы"""
-        if drusen_num is None or drusen_num not in self._drusen_groups:
-            # Пустая таблица
-            self.drusen_detail_model = DetachmentDetailModel([])
-        else:
-            # Получаем все измерения для выбранной друзы
-            drusen_measurements = self._drusen_groups[drusen_num]
-            self.drusen_detail_model = DetachmentDetailModel(drusen_measurements)
-        
+        number = self.drusen_combo.currentData()
+        if number is not None and number in self._drusen_groups:
+            self._highlight_callback(self._drusen_groups[number][0])
+
+    def _update_drusen_details(self, number) -> None:
+        items = self._drusen_groups.get(number, []) if number is not None else []
+        self.drusen_detail_model = DetachmentDetailModel(items)
         self.drusen_detail_table.setModel(self.drusen_detail_model)
         self.drusen_detail_table.resizeColumnsToContents()
 
-    def _on_table_clicked(self, index):
-        """Обработчик клика на таблицу"""
+    def _on_table_clicked(self, index) -> None:
         row_data = self.model.get_row_data(index)
-        if row_data and row_data.get("is_group"):
+        if row_data and row_data.get(RowKey.IS_GROUP):
             self.model.toggle_group(index)
 
-    def _on_entered_index(self, index):
-        if not index.isValid():
+    def _on_entered_index(self, index) -> None:
+        if not index.isValid() or self._highlight_callback is None:
             return
         row_data = self.model.get_row_data(index)
-        if row_data and self._highlight_callback:
+        if row_data:
             self._highlight_callback(row_data)
 
-    def _on_viewport_entered(self):
-        if self._highlight_callback:
+    def _on_viewport_entered(self) -> None:
+        if self._highlight_callback is not None:
             self._highlight_callback(None)
 
-    def _save_to_database(self):
-        """Сохранить данные в объект PatientExamData и показать результат"""
+    # --- сохранение ---
+
+    def _save_to_database(self) -> None:
+        """Собирает ``PatientExamData`` и показывает результат пользователю."""
         try:
-            # Получаем данные из таблицы
-            patient_exam_data = self._fill_patient_exam_data()
-            
-            # TODO: Здесь должна быть логика сохранения в базу данных
-            # Пока просто показываем сообщение с данными
+            patient_exam_data = self._exam_data_builder.build(self._measurements)
             QMessageBox.information(
                 self,
                 "Данные подготовлены",
@@ -419,247 +405,13 @@ class TableWindow(QWidget):
                 f"ЦТС фовеола: {patient_exam_data.cts_near_foveolla}\n"
                 f"ЦТС фовеа: {patient_exam_data.cts_near_fovea}\n"
                 f"\nДрузы (средние): width={patient_exam_data.drusen.width}, "
-                f"height={patient_exam_data.drusen.height}, area={patient_exam_data.drusen.area}"
+                f"height={patient_exam_data.drusen.height}, area={patient_exam_data.drusen.area}",
             )
-        except Exception as e:
+        except Exception as exc:  # noqa: BLE001 — показываем пользователю любую ошибку
             QMessageBox.critical(
-                self,
-                "Ошибка",
-                f"Ошибка при заполнении PatientExamData:\n{str(e)}"
+                self, "Ошибка", f"Ошибка при заполнении PatientExamData:\n{exc}"
             )
 
-    def _fill_patient_exam_data(self) -> PatientExamData:
-        """Заполняет объект PatientExamData из данных таблицы"""
-        exam_data = PatientExamData()
-        
-        # Получаем значения из ручных полей
-        manual_values = {}
-        for item in self._measurements:
-            param = item.get("parameter", "")
-            value = item.get("value", "")
-            if param in self.model.EDITABLE_PARAMETERS and value:
-                manual_values[param] = value
-        
-        # Заполняем ручные поля
-        if "Дата визита" in manual_values:
-            try:
-                # Пробуем разные форматы даты
-                date_str = manual_values["Дата визита"]
-                for fmt in ["%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y"]:
-                    try:
-                        exam_data.visit_date = datetime.strptime(date_str, fmt).date()
-                        break
-                    except ValueError:
-                        continue
-            except Exception:
-                pass
-        
-        exam_data.disease_duration = manual_values.get("Длительность заболевания")
-        exam_data.refraction = manual_values.get("Рефракция")
-        exam_data.neovascularization_type = manual_values.get("Тип неоваскуляризации")
-        exam_data.bcva = manual_values.get("МКОЗ")
-        exam_data.cmo_location = manual_values.get("Локализация кистозного макулярного отека")
-        
-        if "Объем сетчатки" in manual_values:
-            try:
-                exam_data.total_retinal_volume = float(manual_values["Объем сетчатки"])
-            except ValueError:
-                pass
-        
-        # Заполняем измеренные значения
-        for item in self._measurements:
-            measurement_id = item.get("measurement_id", "")
-            value_str = item.get("value", "")
-            
-            try:
-                value = float(value_str) if value_str else None
-            except ValueError:
-                value = None
-            
-            # Толщина хориоидеи в центре
-            if measurement_id == "choroid_thickness_center" and value:
-                exam_data.choroidal_center_thickness = value
-            
-            # Центральная толщина сетчатки (фовеола)
-            elif measurement_id == "cts_foveola" and value:
-                exam_data.foveal_retinal_thickness = value
-            
-            # ЦТС возле фовеолы
-            elif measurement_id == "cts_near_foveola" and value:
-                exam_data.cts_near_foveolla = value
-            
-            # ЦТС возле фовеа
-            elif measurement_id == "cts_near_fovea" and value:
-                exam_data.cts_near_fovea = value
-            
-            # Состояние РПЭ
-            elif item.get("parameter") == "Состояние РПЭ":
-                exam_data.rpe_status.condition = value_str
-                # Сохраняем координату дефекта если есть
-                defect_coord = item.get("defect_coord")
-                if defect_coord is not None:
-                    exam_data.rpe_status.defect_location = f"{defect_coord[0]},{defect_coord[1]}"
-            
-            # Локализация дефектов РПЭ (текстовая) - сохраняем координату из defect_coord
-            elif item.get("parameter") == "Локализация дефектов РПЭ":
-                defect_coord = item.get("defect_coord")
-                if defect_coord is not None:
-                    # Сохраняем координату в формате "x,y"
-                    exam_data.rpe_status.defect_location = f"{defect_coord[0]},{defect_coord[1]}"
-            
-            # Серозная ОПЭ
-            elif measurement_id.startswith("serous_ped_"):
-                if measurement_id.endswith("_width") and value:
-                    exam_data.serous_ped.width = value
-                elif measurement_id.endswith("_height") and value:
-                    exam_data.serous_ped.height = value
-                elif measurement_id.endswith("_area") and value:
-                    exam_data.serous_ped.area = value
-                elif measurement_id.endswith("_location"):
-                    exam_data.serous_ped.location = value_str
-            
-            # Геморрагическая ОПЭ
-            elif measurement_id.startswith("hemorrhagic_ped_"):
-                if measurement_id.endswith("_width") and value:
-                    exam_data.hemorrhagic_ped.width = value
-                elif measurement_id.endswith("_height") and value:
-                    exam_data.hemorrhagic_ped.height = value
-                elif measurement_id.endswith("_area") and value:
-                    exam_data.hemorrhagic_ped.area = value
-                elif measurement_id.endswith("_location"):
-                    exam_data.hemorrhagic_ped.location = value_str
-            
-            # Фиброваскулярная ОПЭ
-            elif measurement_id.startswith("fibrovascular_ped_"):
-                if measurement_id.endswith("_width") and value:
-                    exam_data.fibrovascular_ped.width = value
-                elif measurement_id.endswith("_height") and value:
-                    exam_data.fibrovascular_ped.height = value
-                elif measurement_id.endswith("_area") and value:
-                    exam_data.fibrovascular_ped.area = value
-                elif measurement_id.endswith("_location"):
-                    exam_data.fibrovascular_ped.location = value_str
-            
-            # Друзеноидная ОПЭ
-            elif measurement_id.startswith("drusenoid_ped_"):
-                if measurement_id.endswith("_width") and value:
-                    exam_data.drusenoid_ped.width = value
-                elif measurement_id.endswith("_height") and value:
-                    exam_data.drusenoid_ped.height = value
-                elif measurement_id.endswith("_area") and value:
-                    exam_data.drusenoid_ped.area = value
-                elif measurement_id.endswith("_location"):
-                    exam_data.drusenoid_ped.location = value_str
-            
-            # Отслойка нейроэпителия
-            elif measurement_id.startswith("neuroepithelial_detachment_"):
-                if measurement_id.endswith("_width") and value:
-                    exam_data.nsr_detachment.width = value
-                elif measurement_id.endswith("_height") and value:
-                    exam_data.nsr_detachment.height = value
-                elif measurement_id.endswith("_area") and value:
-                    exam_data.nsr_detachment.area = value
-                elif measurement_id.endswith("_location"):
-                    exam_data.nsr_detachment.location = value_str
-            
-            # Жидкость под РПЭ
-            elif measurement_id == "sbf_area" and value:
-                exam_data.sub_rpe_fluid.area = value
-            elif measurement_id == "sbf_location":
-                exam_data.sub_rpe_fluid.location = value_str
-            
-            # Гиперрефлективный материал
-            elif "hyperreflective_" in measurement_id:
-                if "area" in measurement_id and value:
-                    exam_data.hyperreflective_material.area = value
-                elif "location" in measurement_id:
-                    exam_data.hyperreflective_material.location = value_str
-        
-        # Обрабатываем друзы - вычисляем средние значения
-        drusen_widths = []
-        drusen_heights = []
-        drusen_areas = []
-        drusen_locations = []
-        
-        for item in self._measurements:
-            param = item.get("parameter", "")
-            if "Drusen #" in param or ("друз" in param.lower() and "#" in param):
-                value_str = item.get("value", "")
-                try:
-                    value = float(value_str) if value_str else None
-                except ValueError:
-                    value = None
-                
-                if "ширина" in param.lower() or "width" in param.lower():
-                    if value is not None:
-                        drusen_widths.append(value)
-                elif "высота" in param.lower() or "height" in param.lower():
-                    if value is not None:
-                        drusen_heights.append(value)
-                elif "площадь" in param.lower() or "area" in param.lower():
-                    if value is not None:
-                        drusen_areas.append(value)
-                elif "локализация" in param.lower() or "location" in param.lower():
-                    if value_str:
-                        drusen_locations.append(value_str)
-        
-        # Заполняем средние значения для друз
-        exam_data.drusen = Measurement()
-        if drusen_widths:
-            exam_data.drusen.width = sum(drusen_widths) / len(drusen_widths)
-        if drusen_heights:
-            exam_data.drusen.height = sum(drusen_heights) / len(drusen_heights)
-        if drusen_areas:
-            exam_data.drusen.area = sum(drusen_areas) / len(drusen_areas)
-        if drusen_locations:
-            # Для локализации берём наиболее частую
-            from collections import Counter
-            location_counts = Counter(drusen_locations)
-            exam_data.drusen.location = location_counts.most_common(1)[0][0]
-        
-        return exam_data
-
-
-# ====== Модель для деталей друзы/отслойки ======
-class DetachmentDetailModel(QAbstractTableModel):
-    HEADERS = ["Параметр", "Значение"]
-    
-    def __init__(self, measurements: list[dict]):
-        super().__init__()
-        self._data = measurements
-    
-    def rowCount(self, parent=QModelIndex()):
-        return len(self._data)
-    
-    def columnCount(self, parent=QModelIndex()):
-        return len(self.HEADERS)
-    
-    def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid():
-            return None
-        
-        if role == Qt.DisplayRole:
-            row = self._data[index.row()]
-            param = row.get("parameter", "")
-            # Убираем номер друзы/префикс отслойки из названия параметра для компактности
-            import re
-            param = re.sub(r'Drusen #\d+ \(|\) #\d+|#\d+ ', '', param)
-            param = re.sub(r'друз[а-я]* #\d+ \(|\)', '', param, flags=re.IGNORECASE)
-            # Убираем префиксы отслоек
-            param = re.sub(r'^(Серозная отслойка ПЭ \(СОПЭ\)|Геморрагическая отслойка ПЭ \(ГОПЭ\)|Фиброваскулярная отслойка ПЭ \(ФВОПЭ\)|Друзеноидная отслойка ПЭ|Отслойка нейроэпителия) \(', '', param)
-            param = re.sub(r'\)$', '', param)
-            
-            value = row.get("value", "")
-            unit = row.get("unit", "")
-            value_with_unit = f"{value} {unit}".strip()
-
-            return [
-                param.strip(),
-                value_with_unit,
-            ][index.column()]
-        
-        return None
-    
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return self.HEADERS[section]
+    def _fill_patient_exam_data(self):
+        """Совместимый метод: собрать ``PatientExamData`` из строк таблицы."""
+        return self._exam_data_builder.build(self._measurements)

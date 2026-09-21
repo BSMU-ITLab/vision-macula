@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject
 from bsmu.vision.core.image import MaskDrawMode
@@ -17,11 +17,6 @@ class MdiInferencer(QObject):
         super().__init__()
 
         self._mdi = mdi
-
-    def _active_layered_image(self) -> LayeredImage | None:
-        viewer = self._active_layered_image_viewer()
-        if viewer is not None:
-            return viewer.data
 
     def _active_layered_image_viewer(self) -> LayeredImageViewer | None:
         layered_image_viewer_sub_window = self._mdi.active_sub_window_with_type(LayeredImageViewerHolder)

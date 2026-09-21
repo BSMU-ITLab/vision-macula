@@ -107,7 +107,7 @@ class BaseTiler:
         self.original_shape = None
         self.buffer = None
 
-class BoundaryTiler(BaseTiler):
+class BoundaryTiler(BaseTiler):  # noqa: D101  (используется через tiled_inference)
     def __init__(self, kernel: tuple[int, int], stride: tuple[int, int], cls_num: int):
         super().__init__()
         self.kernel = kernel
@@ -151,8 +151,10 @@ class RoiTiler(BaseTiler):
         _, binary = cv2.threshold(sample, 200, 255, cv2.THRESH_BINARY_INV)
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
+            # Изображение без выраженных объектов: отдаём его целиком.
             self._coords = (0, 0, W, H)
             yield sample
+            return
 
         largest = max(contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest)

@@ -1,3 +1,13 @@
+#: Отслойки, отображаемые отдельными таблицами.
+#: Держать в соответствии с schema.ALL_DETACHMENTS из analyser-плагина.
+DETACHMENT_MEASUREMENT_PREFIXES = (
+    "serous_ped",
+    "hemorrhagic_ped",
+    "fibrovascular_ped",
+    "drusenoid_ped",
+    "neuroepithelial_detachment",
+)
+
 DROPDOWN_DB_VALUES = {
     "areds": ["", "1", "2", "3", "4", "4a", "4b", "4c", "4d"],
     "refraction": ["", "1", "2", "3", "4", "5"],
@@ -245,7 +255,7 @@ BLOCKS = [
         ("Площадь", 35)
     ]),
     ("Жидкость под РПЭ", [
-        ("Пощадь", 36),
+        ("Площадь", 36),
         ("Локализация", 37)
     ]),
     ("Эллипсоидная зона", [

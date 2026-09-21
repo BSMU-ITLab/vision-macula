@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
 from bsmu.macula.infervis.mdi import MdiSegmenter
 from bsmu.vision.core.visibility import Visibility
 from bsmu.macula.inference.enseble import EnsembleSegmenter
-from bsmu.macula.records.eye_info_data import Measurement
-from bsmu.vision.core.image import MaskDrawMode
+from bsmu.vision.core.image import FlatImage, MaskDrawMode
 
 if TYPE_CHECKING:
     from bsmu.vision.core.image.layered import LayeredImage
-    from bsmu.vision.core.image import FlatImage
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi
 import cv2
 
@@ -53,7 +51,6 @@ class EnsembleMdiSegmenter(MdiSegmenter):
             # Создаём пустой слой маски fovea
             empty_fovea_mask = np.zeros(image_size, dtype=np.uint8)
             
-            from bsmu.vision.core.image import FlatImage
             layered_image.add_layer_or_modify_pixels(
                 'mask-fovea',
                 empty_fovea_mask,
@@ -89,9 +86,9 @@ class EnsembleMdiSegmenter(MdiSegmenter):
     def _on_segmentation_finished(
             self,
             mask: np.ndarray,
-            prepared_image: np.ndarray,
-            cords: tuple,
-            class_areas: Optional[Dict[int, int]] = None,  # <-- второй позиционный, опционален
+            _prepared_image: np.ndarray,
+            _cords: tuple,
+            _class_areas: Optional[dict] = None,
             *,
             layered_image: 'LayeredImage',
             mask_layer_name: str,
@@ -111,10 +108,12 @@ class EnsembleMdiSegmenter(MdiSegmenter):
             mask_layer_name: str,
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
     ):
-        from bsmu.vision.core.image import FlatImage
         mask_layer = layered_image.layer_by_name(mask_layer_name)
         # Temp fix to redraw the entire mask even for MaskDrawMode.OVERLAY_FOREGROUND mode
         mask = mask.astype(np.uint8)
+        # ВНИМАНИЕ: условие сохранено как было (`or MaskDrawMode.OVERLAY_FOREGROUND`
+        # всегда истинно). Похоже на опечатку: вероятно, имелось в виду
+        # `mask_draw_mode == MaskDrawMode.OVERLAY_FOREGROUND`.
         if mask_draw_mode == MaskDrawMode.REDRAW_ALL or mask_layer is None or not mask_layer.is_image_pixels_valid or MaskDrawMode.OVERLAY_FOREGROUND:
             layered_image.add_layer_or_modify_pixels(
                 mask_layer_name,

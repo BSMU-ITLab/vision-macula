@@ -1,5 +1,5 @@
 from PySide6.QtCore import QObject, QEvent
-from PySide6.QtGui import QWheelEvent
+
 from PySide6.QtWidgets import QComboBox
 
 

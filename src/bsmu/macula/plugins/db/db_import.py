@@ -851,7 +851,6 @@ def main():
     for _, row in df.iterrows():
         # 🧑 Insert into pacients
         id = str(row.get("id_пациента", "")).strip()
-        name = str(row.get("фио_пациента", "")).strip()
         sex = str(row.get("пол", "")).strip()[:1].upper()
         birth_date = parse_date(row.get("возраст_в_годах"))
         year_of_birth = birth_date.year if birth_date else 1970

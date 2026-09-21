@@ -2,6 +2,34 @@
 /todo.txt
 
 
+# ==================== Базы данных ====================
+# Любые файлы SQLite/SQLite3, включая рабочие базы пациентов.
+*.db
+*.sqlite
+*.sqlite3
+*.db3
+*.sqlite3-journal
+*.db-journal
+*.db-wal
+*.db-shm
+# Файлы Microsoft Access.
+*.mdb
+*.accdb
+
+
+# ==================== Таблицы Excel ====================
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+*.xlt
+*.xltx
+*.xltm
+*.ods
+# Временные файлы Office (~$book.xlsx).
+~$*.xls*
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

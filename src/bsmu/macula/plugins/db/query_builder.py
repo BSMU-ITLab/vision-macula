@@ -1,6 +1,6 @@
 from PySide6.QtSql import QSqlQuery
 
-from bsmu.macula.plugins.db.database_manager_v2 import DatabaseManager
+from bsmu.macula.plugins.db.database_manager import DatabaseManager
 
 
 class QueryBuilder:

@@ -49,7 +49,7 @@ class EnsembleImageModelParams(ImageModelParams):
             **field_name_to_config_value,
         )
 
-    def preprocessed_input(self, image: np.ndarray, skip_preprocessing: bool = True) -> np.ndarray:
+    def preprocessed_input(self, image: np.ndarray, _skip_preprocessing: bool = True) -> np.ndarray:
         """Minimal preprocessing: just add the channel/batch axis.
 
         All resize/pad/normalize transforms happen externally in the

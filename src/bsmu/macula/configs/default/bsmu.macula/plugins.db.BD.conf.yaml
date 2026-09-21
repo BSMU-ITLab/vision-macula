@@ -1,0 +1,5 @@
+# Config file name expected by bsmu.vision is <package>.<ClassName>.conf.yaml,
+# so this file is plugins.db.BD.conf.yaml. Keep configs ASCII-only: ruamel.yaml
+# reads them as UTF-8 but writes them back with the OS locale encoding.
+db_name: 'database.db'
+edit_picture: ':/dbicons/edit.png'

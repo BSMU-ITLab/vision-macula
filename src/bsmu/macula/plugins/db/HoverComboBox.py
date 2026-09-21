@@ -1,8 +1,7 @@
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QComboBox, QLabel, QVBoxLayout, QListView
+    QComboBox, QLabel, QListView
 )
 from PySide6.QtCore import Qt, QPoint, QEvent, QObject
-import sys
 
 class HoverEventFilter(QObject):
     def __init__(self, combo, label):
