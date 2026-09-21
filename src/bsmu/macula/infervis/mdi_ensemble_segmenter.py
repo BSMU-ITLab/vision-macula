@@ -100,9 +100,6 @@ class EnsembleMdiSegmenter(MdiSegmenter):
 
         # Обновляем маску с найденным L
         self.update_mask_layer(mask, layered_image, mask_layer_name, mask_draw_mode)
-        
-        # Загружаем и добавляем маску fovea
-        self._load_and_add_fovea_mask_layer(layered_image)
 
     def update_mask_layer(
             self,
