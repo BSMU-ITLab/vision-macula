@@ -9,7 +9,7 @@ from bsmu.macula.records.eye_info_data import PatientExamData, Measurement, Zone
 from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindowPlugin, MainWindow
 from bsmu.macula.plugins.db.SQLiteTableViewer import TableWidgetExample
 from bsmu.vision.widgets.viewers.image.layered import LayeredImageViewerHolder
-from bsmu.macula.plugins.analyser.analyzed_table import TableWindow
+from bsmu.macula.plugins.analyser.analyzed_table import TableWindow, MeasurementsSubWindow
 from PySide6.QtWidgets import QTableView
 from bsmu.macula.plugins.analyser.analyzed_table import ObjectsTableModel
 from bsmu.vision.core.visibility import Visibility
@@ -53,6 +53,8 @@ class MaskAnalyserPlugin(Plugin):
         self._main_window: MainWindow | None = None
         self._mdi_plugin = mdi_plugin
         self._mdi: Mdi | None = None
+        self._table_window: TableWindow | None = None
+        self._table_sub_window: MeasurementsSubWindow | None = None
 
     @property
     def main_window(self) -> MainWindow | None:
@@ -164,11 +166,16 @@ class MaskAnalyserPlugin(Plugin):
                     if detachment_data and len(detachment_data) == 4:
                         left_x, right_x, max_perp_point, choroid_segment = detachment_data
                         
-                        # Визуализируем линию хориоидеи под друзой (зеленым цветом)
+                        # Визуализируем линию хориоидеи под друзой (зеленым цветом).
+                        # None в сегменте = разрыв между отдельными очагами:
+                        # такие пары пропускаем, иначе OpenCV принимает None за (0, 0)
+                        # и рисует линию из левого верхнего угла кадра.
                         if choroid_segment:
                             for i in range(len(choroid_segment) - 1):
                                 pt1 = choroid_segment[i]
                                 pt2 = choroid_segment[i + 1]
+                                if pt1 is None or pt2 is None:
+                                    continue
                                 cv2.line(temp_mask, pt1, pt2, color=(0, 255, 0), thickness=2)
                         
                         # Визуализируем максимальный перпендикуляр (красным цветом)
@@ -211,11 +218,16 @@ class MaskAnalyserPlugin(Plugin):
                     if len(detachment_data) == 4:
                         left_x, right_x, max_perp_point, choroid_segment = detachment_data
                         
-                        # Визуализируем линию хориоидеи под отслойкой (зеленым цветом)
+                        # Визуализируем линию хориоидеи под отслойкой (зеленым цветом).
+                        # None в сегменте = разрыв между отдельными очагами:
+                        # такие пары пропускаем, иначе OpenCV принимает None за (0, 0)
+                        # и рисует линию из левого верхнего угла кадра.
                         if choroid_segment:
                             for i in range(len(choroid_segment) - 1):
                                 pt1 = choroid_segment[i]
                                 pt2 = choroid_segment[i + 1]
+                                if pt1 is None or pt2 is None:
+                                    continue
                                 cv2.line(temp_mask, pt1, pt2, color=(0, 255, 0), thickness=2)
                         
                         # Визуализируем максимальный перпендикуляр (красным цветом)
@@ -576,10 +588,24 @@ class MaskAnalyserPlugin(Plugin):
                 import traceback
                 traceback.print_exc()
 
+        # Показываем результаты как MDI-подокно внутри QMdiArea, а не отдельным
+        # top-level окном: иначе оно перекрывается главным окном программы при
+        # его активации, и нельзя видеть снимок и измерения одновременно.
         self._table_window = TableWindow(objects, patient_exam_data, highlight_callback=_hover_callback)
-        self._table_window.show()
-        self._table_window.raise_()
-        self._table_window.activateWindow()
+
+        # Если подокно с результатами уже открыто — закрываем старое,
+        # чтобы не плодить копии при повторном запуске анализа.
+        if self._table_sub_window is not None:
+            try:
+                self._table_sub_window.close()
+            except RuntimeError:
+                pass  # окно уже уничтожено Qt
+            self._table_sub_window = None
+
+        sub_window = MeasurementsSubWindow(self._table_window)
+        self._mdi.add_sub_window(sub_window)
+        sub_window.show()
+        self._table_sub_window = sub_window
 
 
         

@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QApplication, QWidget, QTableView,
-    QVBoxLayout, QHBoxLayout, QAbstractItemView, QComboBox, QLabel, QGroupBox, QPushButton, QMessageBox
+    QVBoxLayout, QHBoxLayout, QAbstractItemView, QComboBox, QLabel, QGroupBox, QPushButton, QMessageBox,
+    QSplitter, QScrollArea, QMdiSubWindow, QHeaderView, QSizePolicy
 )
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 from typing import Callable, Optional
@@ -176,7 +177,8 @@ class TableWindow(QWidget):
         super().__init__()
 
         self.setWindowTitle("Результаты измерений")
-        self.resize(1200, 700)
+        # Жёсткий размер не задаём: виджет живёт внутри QMdiSubWindow и должен
+        # уметь ужиматься, чтобы помещаться рядом со снимком даже на ноутбуке.
 
         # Извлекаем все друзы из measurements
         self._all_drusen = []
@@ -215,12 +217,19 @@ class TableWindow(QWidget):
                 if measurement_id.startswith(det_type + "_"):
                     det_data["items"].append(item)
         
-        # Основной layout - горизонтальный
+        # Основной layout - горизонтальный, с разделителем:
+        # пользователь может перетащить границу или вовсе схлопнуть правую панель.
         main_layout = QHBoxLayout(self)
-        
+        main_layout.setContentsMargins(4, 4, 4, 4)
+        main_layout.setSpacing(4)
+        splitter = QSplitter(Qt.Horizontal)
+
         # Левая часть - основная таблица
-        left_layout = QVBoxLayout()
-        
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(4)
+
         self.table = QTableView()
         self.model = ObjectsTableModel(measurements, patient_exam_data)
         self.table.setModel(self.model)
@@ -257,9 +266,14 @@ class TableWindow(QWidget):
         # Сохраняем ссылку на measurements для использования при сохранении
         self._measurements = measurements
         
-        # Правая часть - детали друз и отслоек
-        right_layout = QVBoxLayout()
-        
+        # Правая часть - детали друз и отслоек.
+        # Кладём её в QScrollArea: блоки отслоек больше не растягивают окно
+        # по высоте, а прокручиваются внутри своей панели.
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(4)
+
         # --- Блок друз ---
         drusen_group = QGroupBox("Детали друзы")
         drusen_layout = QVBoxLayout()
@@ -326,10 +340,23 @@ class TableWindow(QWidget):
             self.detachment_tables[det_type] = det_table
             self.detachment_models[det_type] = det_model
         
-        # Добавляем левую и правую части в main_layout
-        main_layout.addLayout(left_layout, 2)  # 2/3 ширины
-        main_layout.addLayout(right_layout, 1)  # 1/3 ширины
-        
+        # Прижимаем блоки к верху, чтобы они не растягивались на всю высоту
+        right_layout.addStretch()
+
+        right_scroll = QScrollArea()
+        right_scroll.setWidget(right_widget)
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QScrollArea.NoFrame)
+
+        # Собираем разделитель: слева таблица, справа детали
+        splitter.addWidget(left_widget)
+        splitter.addWidget(right_scroll)
+        splitter.setStretchFactor(0, 2)  # 2/3 ширины
+        splitter.setStretchFactor(1, 1)  # 1/3 ширины
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, True)  # правую панель можно схлопнуть совсем
+
+        main_layout.addWidget(splitter)
         self.setLayout(main_layout)
         
         # Инициализируем модель деталей друз
@@ -663,3 +690,19 @@ class DetachmentDetailModel(QAbstractTableModel):
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
             return self.HEADERS[section]
+
+
+class MeasurementsSubWindow(QMdiSubWindow):
+    """Окно результатов измерений внутри QMdiArea.
+
+    Раньше TableWindow показывался как отдельное top-level окно и перекрывался
+    главным окном программы при его активации. Теперь это обычное MDI-подокно:
+    его можно тайлить рядом со снимком и видеть картинку и измерения сразу.
+    """
+
+    def __init__(self, table_window: TableWindow):
+        super().__init__()
+
+        self.setWidget(table_window)
+        self.setWindowTitle(table_window.windowTitle())
+        self.setAttribute(Qt.WA_DeleteOnClose)
