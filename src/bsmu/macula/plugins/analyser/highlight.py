@@ -150,6 +150,9 @@ class HighlightRenderer:
 
         _, _, max_perp_point, choroid_segment = bounds
         if choroid_segment:
+            # None в сегменте = разрыв между отдельными очагами: такие пары
+            # пропускаем, иначе OpenCV принимает None за (0, 0) и рисует линию
+            # из левого верхнего угла кадра.
             for i in range(len(choroid_segment) - 1):
                 if choroid_segment[i] is not None and choroid_segment[i + 1] is not None:
                     cv2.line(canvas, choroid_segment[i], choroid_segment[i + 1], CHOROID_COLOR, 2)

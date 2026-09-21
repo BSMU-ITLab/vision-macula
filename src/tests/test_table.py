@@ -11,11 +11,12 @@ import unittest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMdiArea, QScrollArea, QSplitter
 
 from bsmu.macula.plugins.analyser.analyzer import MaskAnalyser
 from bsmu.macula.plugins.analyser.analyzed_table import (
     DetachmentDetailModel,
+    MeasurementsSubWindow,
     ObjectsTableModel,
     TableWindow,
     group_detachment_measurements,
@@ -179,6 +180,88 @@ class TableWindowTestCase(unittest.TestCase):
             model.data(model.index(row, 0)) for row in range(model.rowCount())
         }
         self.assertEqual(names, {"ширина", "высота", "площадь", "локализация"})
+
+
+class MeasurementsSubWindowTestCase(unittest.TestCase):
+    """Результаты анализа показываются MDI-подокном (правка из ветки merge)."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self) -> None:
+        analyser = MaskAnalyser(
+            build_image(), build_mask(), build_fovea_mask(), build_class_configs()
+        )
+        self.rows = analyser.analyze()
+
+    def test_table_window_has_splitter_and_scrollable_details(self) -> None:
+        window = TableWindow(self.rows, None, highlight_callback=lambda data: None)
+        try:
+            splitter = window.findChild(QSplitter)
+            self.assertIsNotNone(splitter, "нет разделителя между таблицей и деталями")
+            self.assertEqual(splitter.count(), 2)
+            self.assertTrue(splitter.isCollapsible(1), "правую панель нельзя схлопнуть")
+            self.assertTrue(window.findChildren(QScrollArea), "детали не прокручиваются")
+        finally:
+            window.deleteLater()
+
+    def test_measurements_are_shown_as_mdi_sub_window(self) -> None:
+        window = TableWindow(self.rows, None)
+        mdi_area = QMdiArea()
+        sub_window = MeasurementsSubWindow(window)
+        try:
+            mdi_area.addSubWindow(sub_window)
+            sub_window.show()
+
+            self.assertIn(sub_window, mdi_area.subWindowList())
+            self.assertIs(sub_window.widget(), window)
+            self.assertEqual(sub_window.windowTitle(), "Результаты измерений")
+        finally:
+            sub_window.close()
+            mdi_area.deleteLater()
+
+
+class FoveaMaskLoaderPluginTestCase(unittest.TestCase):
+    """Плагин загрузки маски фовеа (перенесён из ветки merge)."""
+
+    def test_plugin_is_a_real_plugin(self) -> None:
+        from bsmu.macula.plugins.fovea_mask_loader import (
+            MASK_FOVEA_LAYER_NAME,
+            FoveaMaskLoaderPlugin,
+        )
+
+        self.assertEqual(MASK_FOVEA_LAYER_NAME, "mask-fovea")
+        self.assertTrue(
+            hasattr(FoveaMaskLoaderPlugin, "default_dependency_plugin_full_name_by_key")
+        )
+        dependencies = FoveaMaskLoaderPlugin._DEFAULT_DEPENDENCY_PLUGIN_FULL_NAME_BY_KEY
+        self.assertIn("palette_pack_settings_plugin", dependencies)
+
+    def test_plugin_name_is_in_app_config(self) -> None:
+        from pathlib import Path
+
+        config = (
+            Path(__file__).resolve().parent.parent
+            / "bsmu/macula/configs/default/bsmu.macula/app.MaculaApp.conf.yaml"
+        )
+        text = config.read_text(encoding="utf-8", errors="replace")
+        self.assertIn("bsmu.macula.plugins.fovea_mask_loader.FoveaMaskLoaderPlugin", text)
+
+    def test_fovea_loading_is_not_in_segmenter_anymore(self) -> None:
+        """Код загрузки маски фовеа должен жить только в новом плагине."""
+        import inspect
+
+        from bsmu.macula.infervis.mdi_ensemble_segmenter import EnsembleMdiSegmenter
+
+        source = inspect.getsource(EnsembleMdiSegmenter)
+        for removed in (
+            "set_fovea_mask_path",
+            "init_fovea_mask_layer",
+            "_load_and_add_fovea_mask_layer",
+            "load_and_add_fovea_mask_layer_from_active_image",
+        ):
+            self.assertNotIn(removed, source, f"{removed} остался в сегментере")
 
 
 if __name__ == "__main__":

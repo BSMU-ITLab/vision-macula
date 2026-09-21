@@ -30,6 +30,7 @@ plugins:
 
   - bsmu.macula.plugins.db.BD.BD
   - bsmu.macula.plugins.gui.ensemble_segmenter_gui.EnsembleSegmenterGuiPlugin
+  - bsmu.macula.plugins.fovea_mask_loader.FoveaMaskLoaderPlugin
   # database_manager is not a plugin: the DB connection is a singleton
   # opened by BD (see plugins/db/database_manager.py).
 

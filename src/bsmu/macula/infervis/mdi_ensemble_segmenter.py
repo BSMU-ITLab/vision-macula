@@ -1,77 +1,51 @@
+"""MDI-сегментация ансамблем моделей.
+
+Загрузка маски фовеа вынесена в отдельный плагин
+:class:`bsmu.macula.plugins.fovea_mask_loader.FoveaMaskLoaderPlugin`, поэтому
+здесь остаётся только сегментация и обновление слоя маски.
+"""
+
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from bsmu.macula.infervis.mdi import MdiSegmenter
-from bsmu.vision.core.visibility import Visibility
 from bsmu.macula.inference.enseble import EnsembleSegmenter
+from bsmu.macula.infervis.mdi import MdiSegmenter
 from bsmu.vision.core.image import FlatImage, MaskDrawMode
+from bsmu.vision.core.visibility import Visibility
 
 if TYPE_CHECKING:
     from bsmu.vision.core.image.layered import LayeredImage
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi
-import cv2
+
 
 class EnsembleMdiSegmenter(MdiSegmenter):
+    """Запускает сегментацию и кладёт результат в слой маски."""
+
     def __init__(self, segmenter: EnsembleSegmenter, mdi: Mdi):
         super().__init__(mdi)
         self._segmenter = segmenter
-        self._fovea_mask_path: str | None = None
-        self._current_layered_image: 'LayeredImage | None' = None
 
     @property
     def mask_foreground_class(self) -> int:
-        return self._segmenter.mask_palette.row_index_by_name('foreground')
+        return self._segmenter.mask_palette.row_index_by_name("foreground")
 
     @property
     def mask_background_class(self) -> int:
-        return self._segmenter.mask_palette.row_index_by_name('background')
-
-    def set_fovea_mask_path(self, path: str):
-        """Устанавливает путь к файлу маски fovea"""
-        self._fovea_mask_path = path
-
-    def init_fovea_mask_layer(self, layered_image: 'LayeredImage'):
-        """Инициализирует пустой слой mask-fovea при загрузке изображения"""
-        try:
-            # Сохраняем ссылку на текущее изображение
-            self._current_layered_image = layered_image
-            
-            # Получаем размер первого слоя (image)
-            if not layered_image.layers:
-                print("Ошибка: нет слоёв в layered_image")
-                return
-            
-            image_layer = layered_image.layers[0]
-            image_size = image_layer.image.pixels.shape[:2]  # (height, width)
-            
-            # Создаём пустой слой маски fovea
-            empty_fovea_mask = np.zeros(image_size, dtype=np.uint8)
-            
-            layered_image.add_layer_or_modify_pixels(
-                'mask-fovea',
-                empty_fovea_mask,
-                FlatImage,
-                palette=self._segmenter.mask_palette,
-                visibility=Visibility(True, 0.5),
-            )
-            print(f"Пустой слой mask-fovea создан с размером {image_size}")
-        except Exception as e:
-            print(f"Ошибка при инициализации слоя mask-fovea: {e}")
+        return self._segmenter.mask_palette.row_index_by_name("background")
 
     def segment_async(
             self,
             mask_layer_name: str,
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
-    ):
+    ) -> None:
         layered_image, image = self._check_duplicate_mask_and_get_active_layered_image(
             mask_layer_name,
             mask_draw_mode=mask_draw_mode,
         )
-
         if image is None:
             return
 
@@ -86,35 +60,31 @@ class EnsembleMdiSegmenter(MdiSegmenter):
     def _on_segmentation_finished(
             self,
             mask: np.ndarray,
-            _prepared_image: np.ndarray,
-            _cords: tuple,
-            _class_areas: Optional[dict] = None,
             *,
-            layered_image: 'LayeredImage',
+            layered_image: LayeredImage,
             mask_layer_name: str,
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
-    ):
-
-        # Обновляем маску с найденным L
+    ) -> None:
+        """Инференс отдаёт один массив, поэтому принимаем только ``mask``."""
         self.update_mask_layer(mask, layered_image, mask_layer_name, mask_draw_mode)
-        
-        # Загружаем и добавляем маску fovea
-        self._load_and_add_fovea_mask_layer(layered_image)
 
     def update_mask_layer(
             self,
             mask: np.ndarray,
-            layered_image: 'LayeredImage',
+            layered_image: LayeredImage,
             mask_layer_name: str,
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
-    ):
+    ) -> None:
         mask_layer = layered_image.layer_by_name(mask_layer_name)
-        # Temp fix to redraw the entire mask even for MaskDrawMode.OVERLAY_FOREGROUND mode
+        # Временное решение: маска перерисовывается целиком даже в режиме
+        # OVERLAY_FOREGROUND. Условие сохранено как было: `or MaskDrawMode.
+        # OVERLAY_FOREGROUND` — это константа, поэтому ветка всегда истинна
+        # (похоже на опечатку, вероятно имелось в виду сравнение с режимом).
         mask = mask.astype(np.uint8)
-        # ВНИМАНИЕ: условие сохранено как было (`or MaskDrawMode.OVERLAY_FOREGROUND`
-        # всегда истинно). Похоже на опечатку: вероятно, имелось в виду
-        # `mask_draw_mode == MaskDrawMode.OVERLAY_FOREGROUND`.
-        if mask_draw_mode == MaskDrawMode.REDRAW_ALL or mask_layer is None or not mask_layer.is_image_pixels_valid or MaskDrawMode.OVERLAY_FOREGROUND:
+        if (mask_draw_mode == MaskDrawMode.REDRAW_ALL
+                or mask_layer is None
+                or not mask_layer.is_image_pixels_valid
+                or MaskDrawMode.OVERLAY_FOREGROUND):
             layered_image.add_layer_or_modify_pixels(
                 mask_layer_name,
                 mask,
@@ -127,54 +97,4 @@ class EnsembleMdiSegmenter(MdiSegmenter):
             mask_layer.image_pixels[is_modified] = mask[is_modified]
             mask_layer.image.emit_pixels_modified()
         else:
-            raise ValueError(f'Invalid MaskDrawMode: {mask_draw_mode}')
-
-    def add_fovea_mask_layer(
-            self,
-            mask_fovea: np.ndarray,
-            layered_image: 'LayeredImage',
-            mask_fovea_layer_name: str = 'mask-fovea',
-    ):
-        """Добавляет слой маски фовеа в layered image"""
-        from bsmu.vision.core.image import FlatImage
-        layered_image.add_layer_or_modify_pixels(
-            mask_fovea_layer_name,
-            mask_fovea,
-            FlatImage,
-            palette=self._segmenter.mask_palette,
-            visibility=Visibility(True, 0.5),
-        )
-
-    def _load_and_add_fovea_mask_layer(
-            self,
-            layered_image: 'LayeredImage',
-            mask_fovea_layer_name: str = 'mask-fovea',
-    ):
-        """Загружает маску фовеа из файла и добавляет её в layered image"""
-        try:
-            # Если пользователь не выбрал файл, используем hardcoded путь
-            mask_path = self._fovea_mask_path or "C:/Users/Elena_Himbitskaya/Desktop/2026/images-masks-v7/set01-v7/masks-fovea/01-001-0_0.png"
-            
-            mask_fovea_pixels = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
-            
-            if mask_fovea_pixels is None:
-                print(f"Ошибка: не удалось загрузить маску фовеа из {mask_path}")
-                return
-            
-            self.add_fovea_mask_layer(mask_fovea_pixels, layered_image, mask_fovea_layer_name)
-            print(f"Маска фовеа загружена из: {mask_path}")
-        except Exception as e:
-            print(f"Ошибка при загрузке маски фовеа: {e}")
-
-    def load_and_add_fovea_mask_layer_from_active_image(
-            self,
-            mask_fovea_layer_name: str = 'mask-fovea',
-    ):
-        """Загружает маску фовеа и добавляет её в активное изображение"""
-        # Используем сохранённую ссылку на layered_image
-        if self._current_layered_image is not None:
-            self._load_and_add_fovea_mask_layer(self._current_layered_image, mask_fovea_layer_name)
-            return
-        
-        # Если нет сохранённой ссылки, показываем ошибку
-        raise RuntimeError("No layered image initialized. Please open an image first.")
+            raise ValueError(f"Invalid MaskDrawMode: {mask_draw_mode}")

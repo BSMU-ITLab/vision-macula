@@ -45,6 +45,10 @@ class DatabaseManager:
         if not candidate.exists():
             raise ConnectionError(f"Файл базы данных не найден: {candidate}")
 
+        # Каталог может отсутствовать (например, база лежит в каталоге данных
+        # приложения) — QSqlDatabase иначе падает с "unable to open database file".
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+
         path_str = candidate.absolute().as_posix()
         if self.is_open() and self._path == path_str:
             return self.db

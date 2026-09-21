@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import cv2
+from PySide6.QtWidgets import QMessageBox
 
 from bsmu.vision.core.plugins import Plugin
 from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindow, MainWindowPlugin
 from bsmu.vision.widgets.viewers.image.layered import LayeredImageViewerHolder
 
-from bsmu.macula.plugins.analyser.analyzed_table import TableWindow
+from bsmu.macula.plugins.analyser.analyzed_table import MeasurementsSubWindow, TableWindow
 from bsmu.macula.plugins.analyser.analyzer import ANALYSIS_SIZE, MaskAnalyser
 from bsmu.macula.plugins.analyser.highlight import HighlightRenderer
 
@@ -18,9 +19,9 @@ if TYPE_CHECKING:
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi, MdiPlugin
 
 #: Имена слоёв, которые читает анализатор.
+IMAGE_LAYER_NAME = "images"
 MASK_LAYER_NAME = "masks"
 MASK_FOVEA_LAYER_NAME = "mask-fovea"
-IMAGE_LAYER_NAME = "images"
 
 
 class MaskAnalyserPlugin(Plugin):
@@ -38,6 +39,7 @@ class MaskAnalyserPlugin(Plugin):
         self._main_window: MainWindow | None = None
         self._mdi: Mdi | None = None
         self._table_window: TableWindow | None = None
+        self._table_sub_window: MeasurementsSubWindow | None = None
 
     @property
     def main_window(self) -> MainWindow | None:
@@ -76,6 +78,9 @@ class MaskAnalyserPlugin(Plugin):
     def _read_layers(self):
         """Читает слои снимка и приводит их к рабочему размеру анализа.
 
+        Если какого-то слоя нет или он без пикселей — говорим об этом
+        пользователю и анализ не начинаем.
+
         :return: ``(image, mask, fovea_mask, исходный_размер, layered_image)``
             либо ``None``.
         """
@@ -84,15 +89,23 @@ class MaskAnalyserPlugin(Plugin):
             return None
 
         viewer = sub_window.layered_image_viewer
-        mask_layer = viewer.layer_by_name(MASK_LAYER_NAME)
-        fovea_layer = viewer.layer_by_name(MASK_FOVEA_LAYER_NAME)
-        image_layer = viewer.layer_by_name(IMAGE_LAYER_NAME)
-        if mask_layer is None or fovea_layer is None or image_layer is None:
-            return None
+        layers = {}
+        for layer_name in (IMAGE_LAYER_NAME, MASK_LAYER_NAME, MASK_FOVEA_LAYER_NAME):
+            layer = viewer.layer_by_name(layer_name)
+            if layer is None or layer.image_pixels is None:
+                QMessageBox.warning(
+                    self._main_window,
+                    self.tr("Process Mask"),
+                    self.tr(
+                        'No layer with name "{}".\nAnalysis cannot be started.'
+                    ).format(layer_name),
+                )
+                return None
+            layers[layer_name] = layer
 
-        image_pixels = image_layer.image_pixels
-        mask_pixels = mask_layer.image_pixels
-        fovea_pixels = fovea_layer.image_pixels
+        image_pixels = layers[IMAGE_LAYER_NAME].image_pixels
+        mask_pixels = layers[MASK_LAYER_NAME].image_pixels
+        fovea_pixels = layers[MASK_FOVEA_LAYER_NAME].image_pixels
 
         source_height, source_width = mask_pixels.shape[:2]
         original_size = (source_width, source_height)
@@ -107,11 +120,25 @@ class MaskAnalyserPlugin(Plugin):
         return image_pixels, mask_pixels, fovea_pixels, original_size, viewer.data
 
     def _show_table(self, rows, patient_exam_data, renderer, analyser) -> None:
+        """Показывает результаты как MDI-подокно, а не отдельное окно.
+
+        Иначе окно результатов перекрывается главным окном программы при его
+        активации, и нельзя видеть снимок и измерения одновременно.
+        """
         self._table_window = TableWindow(
             rows,
             patient_exam_data,
             highlight_callback=lambda row_data: renderer.render(row_data, analyser),
         )
-        self._table_window.show()
-        self._table_window.raise_()
-        self._table_window.activateWindow()
+
+        # Повторный запуск анализа не должен плодить копии подокна.
+        if self._table_sub_window is not None:
+            try:
+                self._table_sub_window.close()
+            except RuntimeError:
+                pass  # окно уже уничтожено Qt
+            self._table_sub_window = None
+
+        self._table_sub_window = MeasurementsSubWindow(self._table_window)
+        self._mdi.add_sub_window(self._table_sub_window)
+        self._table_sub_window.show()
