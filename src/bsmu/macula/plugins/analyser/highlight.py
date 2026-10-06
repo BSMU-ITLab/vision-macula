@@ -36,6 +36,9 @@ PERPENDICULAR_COLOR = (0, 0, 255)
 #: Цвет контура L-объекта и его рамки.
 L_CONTOUR_COLOR = (0, 255, 255)
 L_BOX_COLOR = (255, 255, 0)
+#: Разрывы РПЭ полупрозрачны, чтобы под заливкой был виден снимок.
+GAP_ALPHA = 128
+GAP_VISIBILITY = 0.7
 
 
 class OverlayResizeLayeredImage:
@@ -88,25 +91,28 @@ class HighlightRenderer:
             return
 
         canvas = np.zeros((*self._mask_shape, 3), dtype=np.uint8)
+        drawn_key = None
         try:
-            self._draw_row(row_data, canvas, analyser)
+            drawn_key = self._draw_row(row_data, canvas, analyser)
         except Exception:  # noqa: BLE001 — подсветка не должна ломать окно результатов
             import traceback
 
             traceback.print_exc()
 
-        if canvas.any():
-            self._add_layer(canvas, visibility=1.0)
-        else:
+        if not canvas.any():
             self._remove_layer()
+        elif drawn_key == RowKey.GAP_CONTOURS:
+            self._add_layer(canvas, visibility=GAP_VISIBILITY, alpha=GAP_ALPHA)
+        else:
+            self._add_layer(canvas, visibility=1.0)
 
     # --- диспетчеризация ---
 
-    def _draw_row(self, row_data: dict, canvas: np.ndarray, analyser) -> None:
+    def _draw_row(self, row_data: dict, canvas: np.ndarray, analyser) -> str | None:
         for key, handler in self._handlers:
             if row_data.get(key) is not None:
                 handler(row_data, canvas, analyser)
-                return
+                return key
 
         measurement_id = row_data.get(RowKey.MEASUREMENT_ID, "")
         if "hyperreflective_" in measurement_id:
@@ -269,10 +275,10 @@ class HighlightRenderer:
 
     # --- слой ---
 
-    def _add_layer(self, canvas: np.ndarray, visibility: float) -> None:
+    def _add_layer(self, canvas: np.ndarray, visibility: float, alpha: int = 255) -> None:
         rgba = np.zeros((*canvas.shape[:2], 4), dtype=np.uint8)
         rgba[:, :, :3] = canvas
-        rgba[:, :, 3] = np.where(canvas.any(axis=2), 255, 0)
+        rgba[:, :, 3] = np.where(canvas.any(axis=2), alpha, 0)
         self._layered_image.add_layer_or_modify_pixels(
             HIGHLIGHT_LAYER_NAME,
             rgba,
