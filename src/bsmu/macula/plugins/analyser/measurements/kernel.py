@@ -78,7 +78,12 @@ def width_along_boundary(
             if bridge_gap is not None and (x - prev_point[0]) > bridge_gap:
                 segment.append(None)
             elif width_um is not None:
-                width_um += to_um(prev_point, point, scale_x, scale_y) or 0.0
+                width_um += to_um(
+                    (prev_point[0], float(boundary[prev_point[0]])),
+                    (x, float(boundary[x])),
+                    scale_x,
+                    scale_y,
+                ) or 0.0
         segment.append(point)
         prev_point = point
 
@@ -145,16 +150,19 @@ def max_perpendicular(
     left_x: int,
     right_x: int,
     perp_length: int = DEFAULT_PERP_LENGTH,
+    integer_base: bool = True,
 ) -> tuple[float, tuple[float, float, float, float] | None]:
     """Наибольший перпендикуляр к линии хориоидеи, проходящий через объект.
 
+    :param integer_base: брать основание перпендикуляра в целых пикселях
+        (отслойки ПЭ и друзы) или дробным (отслойка нейроэпителия).
     :return: ``(высота_в_пикселях, (x1, y1, x2, y2))``.
     """
     max_height_px = 0.0
     max_points: tuple[float, float, float, float] | None = None
 
     for x in range(left_x, right_x + 1):
-        y_base = float(boundary[x])
+        y_base = int(boundary[x]) if integer_base else float(boundary[x])
         nx, ny = upward_normal(spline, x)
         points = perpendicular_points(mask, (x, y_base), (nx, ny), perp_length)
 

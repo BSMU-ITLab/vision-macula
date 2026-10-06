@@ -72,22 +72,22 @@ def location_from_fovea_mask(fovea_mask: np.ndarray, object_mask: np.ndarray,
     return location_by_zone(in_foveola, in_fovea, in_macula)
 
 
-def location_by_x_columns(fovea_mask: np.ndarray, xs: np.ndarray) -> str | None:
-    """Локализация по набору X-координат объекта.
+def zones_by_x_columns(fovea_mask: np.ndarray, xs: np.ndarray) -> tuple[bool, bool, bool]:
+    """Какие зоны встречаются в X-колонках объекта.
 
     Объект считается лежащим в зоне, если хотя бы в одной из его X-колонок
     маска фовеа содержит пиксель этой зоны.
     """
     _, width = fovea_mask.shape[:2]
-    zone_values: list[np.ndarray] = []
-    for x in np.unique(xs):
-        if 0 <= x < width:
-            zone_values.append(fovea_mask[:, x])
-
+    zone_values = [fovea_mask[:, x] for x in np.unique(xs) if 0 <= x < width]
     if not zone_values:
-        return None
+        return False, False, False
+    return classify_zones(np.concatenate(zone_values))
 
-    in_foveola, in_fovea, in_macula = classify_zones(np.concatenate(zone_values))
+
+def location_by_x_columns(fovea_mask: np.ndarray, xs: np.ndarray) -> str | None:
+    """Локализация по набору X-координат объекта."""
+    in_foveola, in_fovea, in_macula = zones_by_x_columns(fovea_mask, xs)
     if not (in_foveola or in_fovea or in_macula):
         return None
     return location_by_zone(in_foveola, in_fovea, in_macula)

@@ -163,7 +163,8 @@ class MaskAnalyser:
         rows.extend(self._zone_rows(CLASS_ELLIPSOID_ZONE,
                                     Parameter.ELLIPSOID_CONDITION,
                                     Parameter.ELLIPSOID_DEFECTS_LOCATION,
-                                    RowKey.ELLIPSOID_CONTOURS))
+                                    RowKey.ELLIPSOID_CONTOURS,
+                                    single_gap_state="Не определяется локально"))
         rows.extend(self._zone_rows(CLASS_MYOID_ZONE,
                                     Parameter.MYOID_CONDITION,
                                     Parameter.MYOID_DEFECTS_LOCATION,
@@ -306,7 +307,8 @@ class MaskAnalyser:
         ]
 
     def _zone_rows(self, class_id: int, condition_parameter: str,
-                   defects_parameter: str, contours_key: str) -> list[dict]:
+                   defects_parameter: str, contours_key: str,
+                   single_gap_state: str | None = None) -> list[dict]:
         """Состояние эллипсоидной/миоидной зоны и локализация её дефектов."""
         zone = (self.mask == class_id).astype(np.uint8)
         contours, _ = cv2.findContours(zone, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -317,7 +319,10 @@ class MaskAnalyser:
         elif gaps == 0:
             state, defects_location = "Сохранена", None
         else:
-            state = "Неравномерная (фрагментация)"
+            if gaps == 1 and single_gap_state is not None:
+                state = single_gap_state
+            else:
+                state = "Неравномерная (фрагментация)"
             defects_location = self._get_zone_defects_location(significant)
 
         rows = [make_row(condition_parameter, state, "", **{contours_key: contours})]

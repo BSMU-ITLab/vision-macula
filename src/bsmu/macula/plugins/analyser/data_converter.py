@@ -65,6 +65,8 @@ DETACHMENT_FIELDS[NEUROEPITHELIAL_DETACHMENT.measurement_id] = "nsr_detachment"
 
 #: Поля локализации зон: «параметр строки -> (объект, атрибут)».
 ZONE_FIELDS = {
+    Parameter.RPE_CONDITION: ("rpe_status", "condition"),
+    Parameter.RPE_DEFECTS_LOCATION: ("rpe_status", "defect_location"),
     Parameter.ELLIPSOID_CONDITION: ("ellipsoid_zone", "condition"),
     Parameter.ELLIPSOID_DEFECTS_LOCATION: ("ellipsoid_zone", "defect_location"),
     Parameter.MYOID_CONDITION: ("myoid_zone", "condition"),
@@ -162,12 +164,7 @@ class PatientExamDataBuilder:
                 continue
 
             parameter = row.get(RowKey.PARAMETER, "")
-            if parameter == Parameter.RPE_CONDITION:
-                exam_data.rpe_status.condition = value_str
-                self._apply_defect_coordinate(exam_data, row)
-            elif parameter == Parameter.RPE_DEFECTS_LOCATION:
-                self._apply_defect_coordinate(exam_data, row)
-            elif parameter in ZONE_FIELDS:
+            if parameter in ZONE_FIELDS:
                 attribute, field_name = ZONE_FIELDS[parameter]
                 setattr(getattr(exam_data, attribute), field_name, value_str)
 
@@ -194,12 +191,6 @@ class PatientExamDataBuilder:
         elif suffix == "width":
             if value is not None:
                 measurement.width = value
-
-    @staticmethod
-    def _apply_defect_coordinate(exam_data: PatientExamData, row: dict) -> None:
-        coordinate = row.get(RowKey.DEFECT_COORD)
-        if coordinate is not None:
-            exam_data.rpe_status.defect_location = f"{coordinate[0]},{coordinate[1]}"
 
     # --- друзы ---
 

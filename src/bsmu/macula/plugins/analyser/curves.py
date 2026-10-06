@@ -19,7 +19,6 @@ from bsmu.macula.plugins.analyser.geometry import downward_normal
 from bsmu.macula.plugins.analyser.schema import (
     CLASS_CHOROID,
     CLASS_INTRARETINAL_HYPERREFLECTIVE,
-    CLASS_IRF,
     CLASS_NEUROEPITHELIAL_DETACHMENT,
     CLASS_RPE,
     CLASS_SUBRETINAL_HYPERREFLECTIVE,
@@ -31,7 +30,6 @@ SUBTRACTED_CLASSES = frozenset(
     {
         1,
         2,
-        CLASS_IRF,
         CLASS_SUBRETINAL_HYPERREFLECTIVE,
         CLASS_INTRARETINAL_HYPERREFLECTIVE,
         CLASS_NEUROEPITHELIAL_DETACHMENT,

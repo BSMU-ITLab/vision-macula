@@ -5,7 +5,11 @@ from __future__ import annotations
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 
-from bsmu.macula.plugins.analyser.location import location_by_x_columns, location_by_check_order
+from bsmu.macula.plugins.analyser.location import (
+    location_by_check_order,
+    location_by_x_columns,
+    zones_by_x_columns,
+)
 from bsmu.macula.plugins.analyser.measurements.kernel import (
     DEFAULT_PERP_LENGTH,
     area_um2,
@@ -148,15 +152,14 @@ def measure_neuroepithelial_detachment(
         spline_upper, detachment_mask, valid_xs, scale_x, scale_y
     )
     max_height_px, max_perp_point = max_perpendicular(
-        detachment_mask, smooth_upper_choroid, spline_choroid, left_x, right_x, perp_len
+        detachment_mask, smooth_upper_choroid, spline_choroid, left_x, right_x, perp_len,
+        integer_base=False,
     )
 
     location = None
     if fovea_mask is not None:
-        ys, xs = np.where(detachment_mask == 1)
-        in_foveola, in_fovea, in_macula = _zones_under(fovea_mask, ys, xs)
-        if in_foveola or in_fovea or in_macula:
-            location = location_by_check_order(in_foveola, in_fovea, in_macula)
+        _, xs = np.where(detachment_mask == 1)
+        location = location_by_check_order(*zones_by_x_columns(fovea_mask, xs))
 
     return (
         width_um,
@@ -194,12 +197,3 @@ def _detachment_upper_width(
         prev_x, prev_y = x, y
 
     return width_um, segment
-
-
-def _zones_under(fovea_mask: np.ndarray, ys: np.ndarray, xs: np.ndarray) -> tuple[bool, bool, bool]:
-    """Какие зоны фовеа присутствуют под пикселями объекта."""
-    from bsmu.macula.plugins.analyser.location import classify_zones
-
-    if len(xs) == 0:
-        return False, False, False
-    return classify_zones(fovea_mask[ys, xs])
