@@ -212,6 +212,21 @@ class CurrentSOTA:
 
         return p_gt
 
+    def predict_background_mask(self, image: np.ndarray) -> np.ndarray:
+        """Predict the retinal foreground mask using the boundary model."""
+        model_input_size = self.boundary_model.model_params.input_image_size  # (height, width)
+        target_size = (model_input_size[1], model_input_size[0])  # (width, height)
+
+        roi_tiler = RoiTiler()
+        roi_image = next(roi_tiler.split(image))
+        pp_image, content_shape = preprocess_for_model(roi_image, target_size)
+        boundary_probabilities = reverse_preprocess(
+            self._run_model(self.boundary_model, pp_image), content_shape, roi_image.shape)
+        boundary_mask = boundary_probabilities > 0.5
+
+        roi_tiler.update(boundary_mask.astype(np.float32))
+        return roi_tiler.assemble() > 0.5
+
 
 class EnsembleSegmenter(QObject):
     def __init__(
@@ -281,6 +296,12 @@ class EnsembleSegmenter(QObject):
     def mask_palette(self) -> Palette:
         return self._mask_palette
 
+    def predict_background_mask(self, image: np.ndarray) -> np.ndarray:
+        """Run the ensemble boundary model and return its retinal foreground mask."""
+        if len(image.shape) == 3:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        return self._sota_inference.predict_background_mask(image)
+
     def segment_async(self, image: Image, on_finished: Callable[[np.ndarray], None] | None = None):
         task_name = f"SOTA Segmentation [{image.path_name}]"
         segmentation_task = EnsembleSegmentationTask(image.pixels, self._sota_inference, task_name)
@@ -303,4 +324,3 @@ class EnsembleSegmentationTask(DnnTask):
         mask = self._sota_inference(self._image)
         logging.info("SOTA segmentation task completed.")
         return mask
-
