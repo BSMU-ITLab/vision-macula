@@ -394,6 +394,11 @@ class BatchInferencePlugin(Plugin):
         if self._dialog is None:
             self._dialog = BatchInferenceDialog(self._main_window)
             self._dialog.start_requested.connect(self._start_batch)
+            if self._keypoint_predictor_plugin.predictor is None:
+                self._dialog.kp_seg_checkbox.setEnabled(False)
+                self._dialog.kp_seg_checkbox.setToolTip(
+                    self.tr('Unavailable because the keypoint model file was not found.')
+                )
         self._dialog.show()
         self._dialog.raise_()
         self._dialog.activateWindow()
@@ -406,6 +411,13 @@ class BatchInferencePlugin(Plugin):
                 self._dialog,
                 self.tr('Batch Inference'),
                 self.tr('Select at least one mask type.'),
+            )
+            return
+        if options['include_kp_seg'] and self._keypoint_predictor_plugin.predictor is None:
+            QMessageBox.warning(
+                self._dialog,
+                self.tr('Batch Inference'),
+                self.tr('Keypoint inference is unavailable because its model was not found.'),
             )
             return
 

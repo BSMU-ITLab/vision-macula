@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from bsmu.vision.core.plugins import Plugin
@@ -51,6 +52,14 @@ class KeypointPredictorPlugin(Plugin):
         )
         model_path = self.data_path(self._DNN_MODELS_DIR_NAME) / config.get(
             'file_name', 'Keypoints.onnx')
+        if not model_path.is_file():
+            logging.warning(
+                f'Keypoint model file not found: {model_path}. '
+                'Keypoint prediction will be skipped.'
+            )
+            self._predictor = None
+            return
+
         self._predictor = KeypointPredictor(
             model_path,
             model_params,

@@ -39,8 +39,12 @@ class KeypointPredictorGuiPlugin(Plugin):
 
     def _enable_gui(self) -> None:
         self._main_window = self._main_window_plugin.main_window
+        predictor = self._keypoint_predictor_plugin.predictor
+        if predictor is None:
+            return
+
         self._mdi_predictor = MdiKeypointPredictor(
-            self._keypoint_predictor_plugin.predictor,
+            predictor,
             self._mdi_plugin.mdi,
         )
         self._main_window.add_menu_action(
