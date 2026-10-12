@@ -5,6 +5,8 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING
 
+from PySide6.QtWidgets import QMessageBox
+
 from bsmu.vision.core.image import MaskDrawMode
 from bsmu.vision.core.plugins import Plugin
 from bsmu.vision.plugins.windows.main import AlgorithmsMenu
@@ -48,25 +50,33 @@ class EnsembleSegmenterGuiPlugin(Plugin):
     def _enable_gui(self) -> None:
         self._main_window = self._main_window_plugin.main_window
         segmenter = self._ensemble_segmenter_plugin.binary_segmenter
-        if segmenter is None:
-            return
-
-        mdi = self._mdi_plugin.mdi
-
-        self._ensemble_segmenter_gui = EnsembleMdiSegmenter(
-            segmenter,
-            mdi,
-        )
-
-        # Загрузка маски фовеа — отдельный плагин FoveaMaskLoaderPlugin.
-        self._main_window.add_menu_action(
-            AlgorithmsMenu,
-            self.tr("Ensemble Segmentation"),
-            partial(
+        if segmenter is not None:
+            self._ensemble_segmenter_gui = EnsembleMdiSegmenter(
+                segmenter,
+                self._mdi_plugin.mdi,
+            )
+            callback = partial(
                 self._ensemble_segmenter_gui.segment_async,
                 mask_layer_name=MASK_LAYER_NAME,
                 mask_draw_mode=MaskDrawMode.OVERLAY_FOREGROUND,
-            ),
+            )
+        else:
+            callback = self._warn_segmentation_unavailable
+
+        self._main_window.add_menu_action(
+            AlgorithmsMenu,
+            self.tr("Ensemble Segmentation"),
+            callback,
+        )
+
+    def _warn_segmentation_unavailable(self) -> None:
+        reason = self._ensemble_segmenter_plugin.unavailable_reason or self.tr(
+            'Ensemble segmentation is unavailable because required model files are missing.'
+        )
+        QMessageBox.warning(
+            self._main_window,
+            self.tr('Ensemble Segmentation'),
+            reason,
         )
 
     def _disable(self) -> None:

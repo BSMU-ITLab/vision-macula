@@ -32,10 +32,15 @@ class BinaryEnsemblePlugin(Plugin):
         self._task_storage_plugin = task_storage_plugin
 
         self._binary_segmenter: EnsembleSegmenter | None = None
+        self._unavailable_reason: str | None = None
 
     @property
     def binary_segmenter(self) -> EnsembleSegmenter | None:
         return self._binary_segmenter
+
+    @property
+    def unavailable_reason(self) -> str | None:
+        return self._unavailable_reason
 
     def _enable(self):
         model_dir = self.data_path(self._DNN_MODELS_DIR_NAME)
@@ -47,7 +52,7 @@ class BinaryEnsemblePlugin(Plugin):
             missing_models.append('class_models (no class models configured)')
         else:
             missing_models.extend(
-                model_name
+                str(model_dir / model_name) if model_name else 'empty class model filename'
                 for model_name in ensemble_model_params.class_models.values()
                 if not model_name or not (model_dir / model_name).is_file()
             )
@@ -55,7 +60,7 @@ class BinaryEnsemblePlugin(Plugin):
         if not ensemble_model_params.boundary_model:
             missing_models.append('boundary_model (not configured)')
         elif not (model_dir / ensemble_model_params.boundary_model).is_file():
-            missing_models.append(ensemble_model_params.boundary_model)
+            missing_models.append(str(model_dir / ensemble_model_params.boundary_model))
 
         class_ids = set(ensemble_model_params.class_models)
         if {1, 4}.issubset(class_ids) and not ensemble_model_params.ped_model:
@@ -67,16 +72,18 @@ class BinaryEnsemblePlugin(Plugin):
                 ensemble_model_params.ped_model,
                 ensemble_model_params.three_and_six_model):
             if model_name and not (model_dir / model_name).is_file():
-                missing_models.append(model_name)
+                missing_models.append(str(model_dir / model_name))
 
         if missing_models:
-            logging.warning(
-                'Ensemble segmentation is unavailable; model files are missing: %s',
-                ', '.join(sorted(set(missing_models))),
+            self._unavailable_reason = (
+                'Ensemble segmentation is unavailable. Missing model files: '
+                + ', '.join(sorted(set(missing_models)))
             )
+            logging.warning(self._unavailable_reason)
             self._binary_segmenter = None
             return
 
+        self._unavailable_reason = None
         main_palette = self._palette_pack_settings_plugin.settings.main_palette
         task_storage = self._task_storage_plugin.task_storage
         self._binary_segmenter = EnsembleSegmenter(
@@ -84,3 +91,4 @@ class BinaryEnsemblePlugin(Plugin):
 
     def _disable(self):
         self._binary_segmenter = None
+        self._unavailable_reason = None

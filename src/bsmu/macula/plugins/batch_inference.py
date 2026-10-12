@@ -67,6 +67,9 @@ class BatchInferenceDialog(QDialog):
         self.kp_seg_checkbox = QCheckBox(self.tr('Include kp_seg'))
         self.overwrite_checkbox = QCheckBox(self.tr('Overwrite existing masks'))
         self.recursive_checkbox = QCheckBox(self.tr('Process folders recursively'))
+        self.availability_label = QLabel()
+        self.availability_label.setWordWrap(True)
+        self.availability_label.hide()
         self.status_label = QLabel()
 
         input_row = self._folder_row(self.input_folder_edit, self._browse_input_folder)
@@ -94,9 +97,14 @@ class BatchInferenceDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addLayout(form)
+        layout.addWidget(self.availability_label)
         layout.addLayout(options_layout)
         layout.addWidget(self.status_label)
         layout.addLayout(buttons)
+
+    def set_unavailable_messages(self, messages: list[str]) -> None:
+        self.availability_label.setText('\n'.join(messages))
+        self.availability_label.setVisible(bool(messages))
 
     @staticmethod
     def _folder_row(edit: QLineEdit, browse_callback) -> QWidget:
@@ -417,21 +425,31 @@ class BatchInferencePlugin(Plugin):
         if self._dialog is None:
             self._dialog = BatchInferenceDialog(self._main_window)
             self._dialog.start_requested.connect(self._start_batch)
-            if self._ensemble_segmenter_plugin.binary_segmenter is None:
+            messages = []
+            segmenter_unavailable = self._ensemble_segmenter_plugin.binary_segmenter is None
+            if segmenter_unavailable:
+                reason = self._ensemble_segmenter_plugin.unavailable_reason or self.tr(
+                    'Required ensemble model files are not available.'
+                )
                 self._dialog.layer_seg_checkbox.setEnabled(False)
-                self._dialog.layer_seg_checkbox.setToolTip(
-                    self.tr('Unavailable because required ensemble model files were not found.')
-                )
+                self._dialog.layer_seg_checkbox.setToolTip(reason)
+                messages.append(self.tr('layer_seg unavailable: {}').format(reason))
+
             if self._keypoint_predictor_plugin.predictor is None:
-                self._dialog.kp_seg_checkbox.setEnabled(False)
-                self._dialog.kp_seg_checkbox.setToolTip(
-                    self.tr('Unavailable because the keypoint model file was not found.')
+                reason = self._keypoint_predictor_plugin.unavailable_reason or self.tr(
+                    'The keypoint model file is not available.'
                 )
-            elif self._ensemble_segmenter_plugin.binary_segmenter is None:
                 self._dialog.kp_seg_checkbox.setEnabled(False)
-                self._dialog.kp_seg_checkbox.setToolTip(
-                    self.tr('Unavailable because the ensemble background model is missing.')
-                )
+                self._dialog.kp_seg_checkbox.setToolTip(reason)
+                messages.append(self.tr('kp_seg unavailable: {}').format(reason))
+            elif segmenter_unavailable:
+                reason = self.tr(
+                    'Keypoint batch inference requires the ensemble background model. {}'
+                ).format(self._ensemble_segmenter_plugin.unavailable_reason or '')
+                self._dialog.kp_seg_checkbox.setEnabled(False)
+                self._dialog.kp_seg_checkbox.setToolTip(reason)
+                messages.append(self.tr('kp_seg unavailable: {}').format(reason))
+            self._dialog.set_unavailable_messages(messages)
         self._dialog.show()
         self._dialog.raise_()
         self._dialog.activateWindow()
@@ -447,24 +465,35 @@ class BatchInferencePlugin(Plugin):
             )
             return
         if options['include_layer_seg'] and self._ensemble_segmenter_plugin.binary_segmenter is None:
+            reason = self._ensemble_segmenter_plugin.unavailable_reason or self.tr(
+                'Required model files are not available.'
+            )
             QMessageBox.warning(
                 self._dialog,
                 self.tr('Batch Inference'),
-                self.tr('Ensemble segmentation is unavailable because required model files are missing.'),
+                self.tr('Ensemble segmentation is unavailable: {}').format(reason),
             )
             return
         if options['include_kp_seg'] and self._keypoint_predictor_plugin.predictor is None:
+            reason = self._keypoint_predictor_plugin.unavailable_reason or self.tr(
+                'Keypoint model file is not available.'
+            )
             QMessageBox.warning(
                 self._dialog,
                 self.tr('Batch Inference'),
-                self.tr('Keypoint inference is unavailable because its model was not found.'),
+                self.tr('Keypoint inference is unavailable: {}').format(reason),
             )
             return
         if options['include_kp_seg'] and self._ensemble_segmenter_plugin.binary_segmenter is None:
+            reason = self._ensemble_segmenter_plugin.unavailable_reason or self.tr(
+                'The ensemble background model is not available.'
+            )
             QMessageBox.warning(
                 self._dialog,
                 self.tr('Batch Inference'),
-                self.tr('Keypoint inference requires the ensemble background model.'),
+                self.tr('Keypoint inference requires the ensemble background model: {}').format(
+                    reason
+                ),
             )
             return
 

@@ -34,12 +34,18 @@ class KeypointPredictorPlugin(Plugin):
         self._ensemble_segmenter_plugin = ensemble_segmenter_plugin
         self._task_storage_plugin = task_storage_plugin
         self._predictor: KeypointPredictor | None = None
+        self._unavailable_reason: str | None = None
 
     @property
     def predictor(self) -> KeypointPredictor | None:
         return self._predictor
 
+    @property
+    def unavailable_reason(self) -> str | None:
+        return self._unavailable_reason
+
     def _enable(self) -> None:
+        self._unavailable_reason = None
         config = self.config_value('keypoint_model')
         model_params = KeypointModelParams(
             input_height=config.get('input_height', 256),
@@ -53,10 +59,11 @@ class KeypointPredictorPlugin(Plugin):
         model_path = self.data_path(self._DNN_MODELS_DIR_NAME) / config.get(
             'file_name', 'Keypoints.onnx')
         if not model_path.is_file():
-            logging.warning(
+            self._unavailable_reason = (
                 f'Keypoint model file not found: {model_path}. '
                 'Keypoint prediction will be skipped.'
             )
+            logging.warning(self._unavailable_reason)
             self._predictor = None
             return
 
@@ -69,3 +76,4 @@ class KeypointPredictorPlugin(Plugin):
 
     def _disable(self) -> None:
         self._predictor = None
+        self._unavailable_reason = None
