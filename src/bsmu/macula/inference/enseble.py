@@ -21,6 +21,12 @@ if TYPE_CHECKING:
     from bsmu.vision.plugins.storages.task import TaskStorage
 
 
+def _grayscale_image(image: np.ndarray) -> np.ndarray:
+    if len(image.shape) == 3:
+        return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    return image
+
+
 def _load_catboost_model(model_path):
     import onnxruntime as ort
 
@@ -296,6 +302,10 @@ class EnsembleSegmenter(QObject):
     def mask_palette(self) -> Palette:
         return self._mask_palette
 
+    def predict(self, image: np.ndarray) -> np.ndarray:
+        """Run the ensemble synchronously and return its indexed mask."""
+        return self._sota_inference(_grayscale_image(image))
+
     def predict_background_mask(self, image: np.ndarray) -> np.ndarray:
         """Run the ensemble boundary model and return its retinal foreground mask."""
         if len(image.shape) == 3:
@@ -321,6 +331,6 @@ class EnsembleSegmentationTask(DnnTask):
 
     def _run(self) -> np.ndarray:
         logging.info("Starting SOTA segmentation task.")
-        mask = self._sota_inference(self._image)
+        mask = self._sota_inference(_grayscale_image(self._image))
         logging.info("SOTA segmentation task completed.")
         return mask

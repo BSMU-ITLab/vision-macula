@@ -37,3 +37,4 @@ plugins:
   # opened by BD (see plugins/db/database_manager.py).
 
   - bsmu.macula.plugins.analyser.plugin.MaskAnalyserPlugin
+  - bsmu.macula.plugins.batch_inference.BatchInferencePlugin
