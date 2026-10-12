@@ -47,10 +47,14 @@ class EnsembleSegmenterGuiPlugin(Plugin):
 
     def _enable_gui(self) -> None:
         self._main_window = self._main_window_plugin.main_window
+        segmenter = self._ensemble_segmenter_plugin.binary_segmenter
+        if segmenter is None:
+            return
+
         mdi = self._mdi_plugin.mdi
 
         self._ensemble_segmenter_gui = EnsembleMdiSegmenter(
-            self._ensemble_segmenter_plugin.binary_segmenter,
+            segmenter,
             mdi,
         )
 

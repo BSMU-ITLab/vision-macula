@@ -117,9 +117,13 @@ class BatchInferenceDialog(QDialog):
         self._browse_folder(self.output_folder_edit, self.tr('Select output folder'))
 
     def _browse_folder(self, edit: QLineEdit, title: str) -> None:
-        folder = QFileDialog.getExistingDirectory(self, title, edit.text())
-        if folder:
-            edit.setText(folder)
+        dialog = QFileDialog(self, title, edit.text() or str(Path.cwd()))
+        dialog.setFileMode(QFileDialog.FileMode.Directory)
+        dialog.setOption(QFileDialog.Option.ShowDirsOnly, False)
+        dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
+        dialog.setNameFilter(self.tr('Images (*.png *.PNG *.jpg *.JPG *.jpeg *.JPEG)'))
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.selectedFiles():
+            edit.setText(dialog.selectedFiles()[0])
 
     def _start(self) -> None:
         self.start_requested.emit({
@@ -177,6 +181,26 @@ class BatchInferenceTask(DnnTask):
 
     def _run(self) -> BatchInferenceSummary:
         summary = BatchInferenceSummary()
+        if self._include_layer_seg and self._segmenter is None:
+            summary.fatal_error = 'Ensemble segmentation is unavailable because model files are missing.'
+            return summary
+        if self._include_kp_seg and self._keypoint_predictor is None:
+            summary.fatal_error = 'Keypoint inference is unavailable because its model is missing.'
+            return summary
+        if self._include_kp_seg and self._segmenter is None:
+            summary.fatal_error = 'Keypoint batch inference requires an ensemble background model.'
+            return summary
+
+        try:
+            self._output_folder.mkdir(parents=True, exist_ok=True)
+            if self._include_layer_seg:
+                (self._output_folder / LAYER_SEG_DIR_NAME).mkdir(exist_ok=True)
+            if self._include_kp_seg:
+                (self._output_folder / KP_SEG_DIR_NAME).mkdir(exist_ok=True)
+        except OSError as error:
+            summary.fatal_error = f'Could not create output folders: {error}'
+            return summary
+
         try:
             images = self._discover_images()
         except Exception as error:
@@ -184,16 +208,15 @@ class BatchInferenceTask(DnnTask):
             return summary
 
         if not images:
-            summary.fatal_error = self.tr('No supported images were found.')
+            summary.fatal_error = 'No supported images were found.'
             return summary
 
         images, conflicts = self._remove_output_name_conflicts(images)
         for conflict in conflicts:
             summary.failed += len(conflict)
             summary.errors.append(
-                self.tr('Output filename conflict; skipped: {}').format(
-                    ', '.join(str(path) for path in conflict)
-                )
+                'Output filename conflict; skipped: '
+                + ', '.join(str(path) for path in conflict)
             )
 
         for image_path in images:
@@ -202,13 +225,13 @@ class BatchInferenceTask(DnnTask):
             except Exception as error:
                 summary.failed += 1
                 summary.errors.append(
-                    self.tr('Batch processing failed for {}: {}').format(image_path, error)
+                    f'Batch processing failed for {image_path}: {error}'
                 )
         return summary
 
     def _discover_images(self) -> list[Path]:
         if not self._input_folder.is_dir():
-            raise ValueError(self.tr('The input folder does not exist or is not a directory.'))
+            raise ValueError('The input folder does not exist or is not a directory.')
 
         output_resolved = self._output_folder.resolve()
         output_is_input = output_resolved == self._input_folder
@@ -279,7 +302,7 @@ class BatchInferenceTask(DnnTask):
         image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
         if image is None:
             summary.failed += 1
-            summary.errors.append(self.tr('Could not read image: {}').format(image_path))
+            summary.errors.append(f'Could not read image: {image_path}')
             return
 
         image_failed = False
@@ -295,7 +318,7 @@ class BatchInferenceTask(DnnTask):
             except Exception as error:
                 image_failed = True
                 summary.errors.append(
-                    self.tr('Ensemble segmentation failed for {}: {}').format(image_path, error)
+                    f'Ensemble segmentation failed for {image_path}: {error}'
                 )
         elif need_kp and layer_output is not None and layer_output.is_file():
             try:
@@ -315,7 +338,7 @@ class BatchInferenceTask(DnnTask):
             except Exception as error:
                 image_failed = True
                 summary.errors.append(
-                    self.tr('Keypoint segmentation failed for {}: {}').format(image_path, error)
+                    f'Keypoint segmentation failed for {image_path}: {error}'
                 )
 
         if image_failed:
@@ -394,10 +417,20 @@ class BatchInferencePlugin(Plugin):
         if self._dialog is None:
             self._dialog = BatchInferenceDialog(self._main_window)
             self._dialog.start_requested.connect(self._start_batch)
+            if self._ensemble_segmenter_plugin.binary_segmenter is None:
+                self._dialog.layer_seg_checkbox.setEnabled(False)
+                self._dialog.layer_seg_checkbox.setToolTip(
+                    self.tr('Unavailable because required ensemble model files were not found.')
+                )
             if self._keypoint_predictor_plugin.predictor is None:
                 self._dialog.kp_seg_checkbox.setEnabled(False)
                 self._dialog.kp_seg_checkbox.setToolTip(
                     self.tr('Unavailable because the keypoint model file was not found.')
+                )
+            elif self._ensemble_segmenter_plugin.binary_segmenter is None:
+                self._dialog.kp_seg_checkbox.setEnabled(False)
+                self._dialog.kp_seg_checkbox.setToolTip(
+                    self.tr('Unavailable because the ensemble background model is missing.')
                 )
         self._dialog.show()
         self._dialog.raise_()
@@ -413,11 +446,25 @@ class BatchInferencePlugin(Plugin):
                 self.tr('Select at least one mask type.'),
             )
             return
+        if options['include_layer_seg'] and self._ensemble_segmenter_plugin.binary_segmenter is None:
+            QMessageBox.warning(
+                self._dialog,
+                self.tr('Batch Inference'),
+                self.tr('Ensemble segmentation is unavailable because required model files are missing.'),
+            )
+            return
         if options['include_kp_seg'] and self._keypoint_predictor_plugin.predictor is None:
             QMessageBox.warning(
                 self._dialog,
                 self.tr('Batch Inference'),
                 self.tr('Keypoint inference is unavailable because its model was not found.'),
+            )
+            return
+        if options['include_kp_seg'] and self._ensemble_segmenter_plugin.binary_segmenter is None:
+            QMessageBox.warning(
+                self._dialog,
+                self.tr('Batch Inference'),
+                self.tr('Keypoint inference requires the ensemble background model.'),
             )
             return
 

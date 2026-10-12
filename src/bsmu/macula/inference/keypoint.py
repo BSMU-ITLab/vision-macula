@@ -78,10 +78,18 @@ class KeypointPredictor(QObject):
             image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
         if background_mask is None:
+            if self._segmenter is None:
+                raise RuntimeError(
+                    'Keypoint prediction requires a background mask when the ensemble is unavailable.'
+                )
             background_mask = self._segmenter.predict_background_mask(image)
         else:
             background_mask = self._retina_mask_from_segmentation(background_mask)
             if not np.any(background_mask):
+                if self._segmenter is None:
+                    raise RuntimeError(
+                        'Keypoint prediction requires a valid background mask when the ensemble is unavailable.'
+                    )
                 background_mask = self._segmenter.predict_background_mask(image)
 
         if background_mask.shape != image.shape[:2]:
