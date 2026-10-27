@@ -1,10 +1,3 @@
-"""MDI-сегментация ансамблем моделей.
-
-Загрузка маски фовеа вынесена в отдельный плагин
-:class:`bsmu.macula.plugins.fovea_mask_loader.FoveaMaskLoaderPlugin`, поэтому
-здесь остаётся только сегментация и обновление слоя маски.
-"""
-
 from __future__ import annotations
 
 from functools import partial
@@ -23,8 +16,6 @@ if TYPE_CHECKING:
 
 
 class EnsembleMdiSegmenter(MdiSegmenter):
-    """Запускает сегментацию и кладёт результат в слой маски."""
-
     def __init__(self, segmenter: EnsembleSegmenter, mdi: Mdi):
         super().__init__(mdi)
         self._segmenter = segmenter
@@ -65,7 +56,6 @@ class EnsembleMdiSegmenter(MdiSegmenter):
             mask_layer_name: str,
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
     ) -> None:
-        """Инференс отдаёт один массив, поэтому принимаем только ``mask``."""
         self.update_mask_layer(mask, layered_image, mask_layer_name, mask_draw_mode)
 
     def update_mask_layer(
@@ -76,15 +66,12 @@ class EnsembleMdiSegmenter(MdiSegmenter):
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
     ) -> None:
         mask_layer = layered_image.layer_by_name(mask_layer_name)
-        # Временное решение: маска перерисовывается целиком даже в режиме
-        # OVERLAY_FOREGROUND. Условие сохранено как было: `or MaskDrawMode.
-        # OVERLAY_FOREGROUND` — это константа, поэтому ветка всегда истинна
-        # (похоже на опечатку, вероятно имелось в виду сравнение с режимом).
         mask = mask.astype(np.uint8)
+        # Temp fix to redraw the entire mask even for MaskDrawMode.OVERLAY_FOREGROUND mode
         if (mask_draw_mode == MaskDrawMode.REDRAW_ALL
                 or mask_layer is None
                 or not mask_layer.is_image_pixels_valid
-                or MaskDrawMode.OVERLAY_FOREGROUND):
+                or mask_draw_mode == MaskDrawMode.OVERLAY_FOREGROUND):
             layered_image.add_layer_or_modify_pixels(
                 mask_layer_name,
                 mask,
