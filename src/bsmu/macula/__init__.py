@@ -1,4 +1,4 @@
-from .version import __version__  # noqa: F401  (публичный ре-экспорт версии)
+from .version import __version__
 
 
 __title__ = 'Macula'
