@@ -1,5 +1,3 @@
-"""Плагин GUI: пункт меню «Ensemble Segmentation» для ансамблевой сегментации."""
-
 from __future__ import annotations
 
 from functools import partial
@@ -18,7 +16,7 @@ if TYPE_CHECKING:
     from bsmu.vision.plugins.windows.main import MainWindow, MainWindowPlugin
     from bsmu.macula.plugins.ensemble_segmenter import BinaryEnsemblePlugin
 
-#: Имя слоя, в который пишется результат сегментации.
+
 MASK_LAYER_NAME = "masks"
 
 
