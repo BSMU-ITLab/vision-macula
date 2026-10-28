@@ -63,17 +63,17 @@ class EnsembleSegmenterGuiPlugin(Plugin):
 
         self._main_window.add_menu_action(
             AlgorithmsMenu,
-            self.tr("Ensemble Segmentation"),
+            self.tr("Segment Retinal Structures"),
             callback,
         )
 
     def _warn_segmentation_unavailable(self) -> None:
         reason = self._ensemble_segmenter_plugin.unavailable_reason or self.tr(
-            'Ensemble segmentation is unavailable because required model files are missing.'
+            'Segmentation is unavailable because required model files are missing.'
         )
         QMessageBox.warning(
             self._main_window,
-            self.tr('Ensemble Segmentation'),
+            self.tr('Retinal Structure Segmentation'),
             reason,
         )
 

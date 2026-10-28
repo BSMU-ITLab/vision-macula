@@ -41,7 +41,7 @@ class BD(Plugin):
     def _enable_gui(self) -> None:
         self._main_window = self._main_window_plugin.main_window
         self._main_window.add_menu_action(
-            AlgorithmsMenu, self.tr("Database"), self._open_database_window
+            AlgorithmsMenu, self.tr("Database..."), self._open_database_window
         )
 
     def _disable(self) -> None:

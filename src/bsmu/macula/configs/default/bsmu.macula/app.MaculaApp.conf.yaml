@@ -30,9 +30,10 @@ plugins:
 
   - bsmu.macula.plugins.gui.ensemble_segmenter_gui.EnsembleSegmenterGuiPlugin
   - bsmu.macula.plugins.gui.keypoint_predictor_gui.KeypointPredictorGuiPlugin
-  - bsmu.macula.plugins.batch_inference.BatchInferencePlugin
 
   - bsmu.macula.plugins.fovea_mask_loader.FoveaMaskLoaderPlugin
   - bsmu.macula.plugins.analyser.plugin.MaskAnalyserPlugin
+
+  - bsmu.macula.plugins.batch_inference.BatchInferencePlugin
 
   - bsmu.macula.plugins.db.BD.BD

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 #: Имя слоя с маской зон фовеа (1 — фовеола, 2 — фовеа, 3 — макула).
-MASK_FOVEA_LAYER_NAME = "mask-fovea"
+MASK_FOVEA_LAYER_NAME = "masks-fovea"
 
 
 class FoveaMaskLoaderPlugin(Plugin):

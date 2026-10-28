@@ -49,7 +49,7 @@ class KeypointPredictorGuiPlugin(Plugin):
         )
         self._main_window.add_menu_action(
             AlgorithmsMenu,
-            self.tr('Keypoint Prediction'),
+            self.tr('Detect Fovea/Foveola Points'),
             self._mdi_predictor.predict_async,
         )
 

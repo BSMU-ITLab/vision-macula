@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 MASK_LAYER_NAME = 'masks'
-KEYPOINT_LAYER_NAME = 'keypoints'
+KEYPOINT_LAYER_NAME = 'masks-fovea'
 KEYPOINT_PALETTE = Palette.from_row_by_name({
     'background': [0, 0, 0, 0, 0],
     'fovea': [1, 0, 0, 255, 255],

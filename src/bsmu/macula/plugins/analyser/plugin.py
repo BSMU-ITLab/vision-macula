@@ -1,5 +1,3 @@
-"""Плагин Vision Framework: пункт меню «Process Mask» и окно результатов."""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -18,15 +16,13 @@ from bsmu.macula.plugins.analyser.highlight import HighlightRenderer
 if TYPE_CHECKING:
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi, MdiPlugin
 
-#: Имена слоёв, которые читает анализатор.
+
 IMAGE_LAYER_NAME = "images"
 MASK_LAYER_NAME = "masks"
-MASK_FOVEA_LAYER_NAME = "mask-fovea"
+MASK_FOVEA_LAYER_NAME = "masks-fovea"
 
 
 class MaskAnalyserPlugin(Plugin):
-    """Добавляет в меню алгоритмов команду «Process Mask»."""
-
     _DEFAULT_DEPENDENCY_PLUGIN_FULL_NAME_BY_KEY = {
         "main_window_plugin": "bsmu.vision.plugins.windows.main.MainWindowPlugin",
         "mdi_plugin": "bsmu.vision.plugins.doc_interfaces.mdi.MdiPlugin",
@@ -49,13 +45,11 @@ class MaskAnalyserPlugin(Plugin):
         self._main_window = self._main_window_plugin.main_window
         self._mdi = self._mdi_plugin._mdi
         self._main_window.add_menu_action(
-            AlgorithmsMenu, self.tr("Process Mask"), self._process_mask
+            AlgorithmsMenu, self.tr("Analyze Retinal Parameters"), self._process_mask
         )
 
     def _disable(self) -> None:
         self._main_window = None
-
-    # --- основной сценарий ---
 
     def _process_mask(self) -> None:
         prepared = self._read_layers()
@@ -95,7 +89,7 @@ class MaskAnalyserPlugin(Plugin):
             if layer is None or layer.image_pixels is None:
                 QMessageBox.warning(
                     self._main_window,
-                    self.tr("Process Mask"),
+                    self.tr("Retinal Parameter Analysis"),
                     self.tr(
                         'No layer with name "{}".\nAnalysis cannot be started.'
                     ).format(layer_name),
