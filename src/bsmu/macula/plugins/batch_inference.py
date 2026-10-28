@@ -38,8 +38,8 @@ if TYPE_CHECKING:
 
 
 SUPPORTED_SUFFIXES = {'.jpg', '.jpeg', '.png'}
-LAYER_SEG_DIR_NAME = 'layer_seg'
-KP_SEG_DIR_NAME = 'kp_seg'
+LAYER_SEG_DIR_NAME = 'masks'
+KP_SEG_DIR_NAME = 'masks-fovea'
 
 
 @dataclass
@@ -58,15 +58,19 @@ class BatchInferenceDialog(QDialog):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setWindowTitle(self.tr('Batch Inference'))
+        self.setWindowTitle(self.tr('OCT Segmentation'))
         self.setMinimumWidth(520)
 
         self.input_folder_edit = QLineEdit()
         self.output_folder_edit = QLineEdit()
-        self.layer_seg_checkbox = QCheckBox(self.tr('Include layer_seg'))
-        self.kp_seg_checkbox = QCheckBox(self.tr('Include kp_seg'))
+        self.layer_seg_checkbox = QCheckBox(self.tr('Segment retinal structures'))
+        self.layer_seg_checkbox.setChecked(True)
+        self.kp_seg_checkbox = QCheckBox(self.tr('Detect fovea/foveola points'))
+        self.kp_seg_checkbox.setChecked(True)
+        self.recursive_checkbox = QCheckBox(self.tr('Include subfolders'))
+        self.recursive_checkbox.setChecked(True)
         self.overwrite_checkbox = QCheckBox(self.tr('Overwrite existing masks'))
-        self.recursive_checkbox = QCheckBox(self.tr('Process folders recursively'))
+        self.overwrite_checkbox.setToolTip(self.tr('Existing mask files with the same names will be replaced.'))
         self.availability_label = QLabel()
         self.availability_label.setWordWrap(True)
         self.availability_label.hide()
@@ -82,8 +86,8 @@ class BatchInferenceDialog(QDialog):
         options_layout = QVBoxLayout()
         options_layout.addWidget(self.layer_seg_checkbox)
         options_layout.addWidget(self.kp_seg_checkbox)
-        options_layout.addWidget(self.overwrite_checkbox)
         options_layout.addWidget(self.recursive_checkbox)
+        options_layout.addWidget(self.overwrite_checkbox)
 
         self.start_button = QPushButton(self.tr('Start'))
         self.close_button = QPushButton(self.tr('Close'))
@@ -112,7 +116,7 @@ class BatchInferenceDialog(QDialog):
         layout = QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(edit, 1)
-        browse_button = QPushButton('…')
+        browse_button = QPushButton('...')
         browse_button.setFixedWidth(36)
         browse_button.clicked.connect(browse_callback)
         layout.addWidget(browse_button)
@@ -125,13 +129,9 @@ class BatchInferenceDialog(QDialog):
         self._browse_folder(self.output_folder_edit, self.tr('Select output folder'))
 
     def _browse_folder(self, edit: QLineEdit, title: str) -> None:
-        dialog = QFileDialog(self, title, edit.text() or str(Path.cwd()))
-        dialog.setFileMode(QFileDialog.FileMode.Directory)
-        dialog.setOption(QFileDialog.Option.ShowDirsOnly, False)
-        dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
-        dialog.setNameFilter(self.tr('Images (*.png *.PNG *.jpg *.JPG *.jpeg *.JPEG)'))
-        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.selectedFiles():
-            edit.setText(dialog.selectedFiles()[0])
+        folder = QFileDialog.getExistingDirectory(self, title, edit.text() or str(Path.cwd()))
+        if folder:
+            edit.setText(folder)
 
     def _start(self) -> None:
         self.start_requested.emit({
@@ -154,7 +154,7 @@ class BatchInferenceDialog(QDialog):
             widget.setEnabled(not running)
         self.start_button.setEnabled(not running)
         self.close_button.setEnabled(not running)
-        self.status_label.setText(self.tr('Inference is running…') if running else '')
+        self.status_label.setText(self.tr('Segmentation is running...') if running else '')
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt virtual method
         if not self.close_button.isEnabled():
@@ -177,7 +177,7 @@ class BatchInferenceTask(DnnTask):
             segmenter,
             keypoint_predictor,
     ):
-        super().__init__('Batch Inference')
+        super().__init__(f'OCT Segmentation [{input_folder.name}]')
         self._input_folder = input_folder
         self._output_folder = output_folder
         self._recursive = recursive
@@ -411,7 +411,7 @@ class BatchInferencePlugin(Plugin):
     def _enable_gui(self) -> None:
         self._main_window = self._main_window_plugin.main_window
         self._main_window.add_menu_action(
-            AlgorithmsMenu, self.tr('Batch Inference'), self._show_dialog
+            AlgorithmsMenu, self.tr('Segment OCT Images in Folder...'), self._show_dialog
         )
 
     def _disable(self) -> None:
@@ -454,78 +454,47 @@ class BatchInferencePlugin(Plugin):
         self._dialog.raise_()
         self._dialog.activateWindow()
 
+    def _warn(self, message: str) -> None:
+        QMessageBox.warning(self._dialog, self.tr('OCT Segmentation'), message)
+
     def _start_batch(self, options: dict) -> None:
         if self._active_task is not None:
             return
         if not options['include_layer_seg'] and not options['include_kp_seg']:
-            QMessageBox.warning(
-                self._dialog,
-                self.tr('Batch Inference'),
-                self.tr('Select at least one mask type.'),
-            )
+            self._warn(self.tr('Select at least one segmentation type.'))
             return
         if options['include_layer_seg'] and self._ensemble_segmenter_plugin.binary_segmenter is None:
             reason = self._ensemble_segmenter_plugin.unavailable_reason or self.tr(
                 'Required model files are not available.'
             )
-            QMessageBox.warning(
-                self._dialog,
-                self.tr('Batch Inference'),
-                self.tr('Ensemble segmentation is unavailable: {}').format(reason),
-            )
+            self._warn(self.tr('Ensemble segmentation is unavailable: {}').format(reason))
             return
         if options['include_kp_seg'] and self._keypoint_predictor_plugin.predictor is None:
             reason = self._keypoint_predictor_plugin.unavailable_reason or self.tr(
                 'Keypoint model file is not available.'
             )
-            QMessageBox.warning(
-                self._dialog,
-                self.tr('Batch Inference'),
-                self.tr('Keypoint inference is unavailable: {}').format(reason),
-            )
+            self._warn(self.tr('Keypoint inference is unavailable: {}').format(reason))
             return
         if options['include_kp_seg'] and self._ensemble_segmenter_plugin.binary_segmenter is None:
             reason = self._ensemble_segmenter_plugin.unavailable_reason or self.tr(
                 'The ensemble background model is not available.'
             )
-            QMessageBox.warning(
-                self._dialog,
-                self.tr('Batch Inference'),
-                self.tr('Keypoint inference requires the ensemble background model: {}').format(
-                    reason
-                ),
-            )
+            self._warn(self.tr('Keypoint inference requires the ensemble background model: {}').format(reason))
             return
 
         if not options['input_folder']:
-            QMessageBox.warning(
-                self._dialog,
-                self.tr('Batch Inference'),
-                self.tr('Select an input folder.'),
-            )
+            self._warn(self.tr('Select an input folder.'))
             return
         input_folder = Path(options['input_folder']).expanduser()
         output_folder = Path(options['output_folder']).expanduser()
         if not input_folder.is_dir():
-            QMessageBox.warning(
-                self._dialog,
-                self.tr('Batch Inference'),
-                self.tr('Select an existing input folder.'),
-            )
+            self._warn(self.tr('Select an existing input folder.'))
             return
         if not options['output_folder']:
-            QMessageBox.warning(
-                self._dialog,
-                self.tr('Batch Inference'),
-                self.tr('Select an output folder.'),
-            )
+            self._warn(self.tr('Select an output folder.'))
             return
         if output_folder.exists() and not output_folder.is_dir():
-            QMessageBox.warning(
-                self._dialog,
-                self.tr('Batch Inference'),
-                self.tr('The output path exists and is not a folder.'),
-            )
+            self._warn(self.tr('The output path exists and is not a folder.'))
             return
 
         task = BatchInferenceTask(
@@ -549,7 +518,7 @@ class BatchInferencePlugin(Plugin):
             self._dialog.set_running(False)
             QMessageBox.critical(
                 self._dialog,
-                self.tr('Batch Inference'),
+                self.tr('OCT Segmentation'),
                 self.tr('Could not start batch inference: {}').format(error),
             )
 
@@ -560,9 +529,7 @@ class BatchInferencePlugin(Plugin):
         self._dialog.set_running(False)
 
         if summary.fatal_error:
-            QMessageBox.warning(
-                self._dialog, self.tr('Batch Inference'), summary.fatal_error
-            )
+            self._warn(summary.fatal_error)
             return
 
         message = self.tr(
@@ -571,13 +538,13 @@ class BatchInferencePlugin(Plugin):
         if summary.errors:
             error_lines = summary.errors[:20]
             if len(summary.errors) > len(error_lines):
-                error_lines.append(self.tr('…and {0} more').format(len(summary.errors) - 20))
+                error_lines.append(self.tr('...and {0} more').format(len(summary.errors) - 20))
             message += '\n\n' + '\n'.join(error_lines)
         box = QMessageBox(self._dialog)
         box.setIcon(
             QMessageBox.Icon.Warning if summary.failed else QMessageBox.Icon.Information
         )
-        box.setWindowTitle(self.tr('Batch Inference'))
+        box.setWindowTitle(self.tr('OCT Segmentation'))
         box.setText(message)
         box.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
