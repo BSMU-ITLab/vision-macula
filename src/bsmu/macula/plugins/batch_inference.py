@@ -5,11 +5,13 @@ from __future__ import annotations
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
+from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
+from PIL import Image
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -25,6 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from bsmu.macula.inference.keypoint_palette import KEYPOINT_COLORS
 from bsmu.vision.core.concurrent import ThreadPool
 from bsmu.vision.core.plugins import Plugin
 from bsmu.vision.core.task import DnnTask
@@ -341,7 +344,7 @@ class BatchInferenceTask(DnnTask):
             try:
                 keypoint_mask = self._keypoint_predictor.predict(image, segmentation)
                 generated = self._write_mask(
-                    kp_output, keypoint_mask, self._overwrite
+                    kp_output, keypoint_mask, self._overwrite, keypoint_palette=True
                 ) or generated
             except Exception as error:
                 image_failed = True
@@ -357,7 +360,13 @@ class BatchInferenceTask(DnnTask):
             summary.skipped += 1
 
     @staticmethod
-    def _write_mask(path: Path | None, mask: np.ndarray, overwrite: bool) -> bool:
+    def _write_mask(
+            path: Path | None,
+            mask: np.ndarray,
+            overwrite: bool,
+            *,
+            keypoint_palette: bool = False,
+    ) -> bool:
         if path is None:
             return False
         if path.exists() and not overwrite:
@@ -366,17 +375,27 @@ class BatchInferenceTask(DnnTask):
             raise OSError(f'Output mask path is not a file: {path}')
         path.parent.mkdir(parents=True, exist_ok=True)
         mask = mask.astype(np.uint8, copy=False)
-        if overwrite:
-            if cv2.imwrite(str(path), mask):
-                return True
-            raise OSError(f'Could not write output mask: {path}')
+        if keypoint_palette:
+            indexed_mask = Image.frombytes('P', (mask.shape[1], mask.shape[0]), mask.tobytes())
+            colors = [(0, 0, 0)] * 256
+            for class_index, color in KEYPOINT_COLORS.items():
+                colors[class_index] = color
+            indexed_mask.putpalette([channel for color in colors for channel in color])
+            encoded_buffer = BytesIO()
+            indexed_mask.save(encoded_buffer, format='PNG', transparency=0)
+            encoded_mask = encoded_buffer.getvalue()
+        else:
+            success, encoded_mask = cv2.imencode('.png', mask)
+            if not success:
+                raise OSError(f'Could not encode output mask: {path}')
 
-        success, encoded_mask = cv2.imencode('.png', mask)
-        if not success:
-            raise OSError(f'Could not encode output mask: {path}')
+        if overwrite:
+            if path.write_bytes(encoded_mask) != len(encoded_mask):
+                raise OSError(f'Could not write output mask: {path}')
+            return True
         try:
             with path.open('xb') as output_file:
-                output_file.write(encoded_mask.tobytes())
+                output_file.write(encoded_mask)
         except FileExistsError:
             return False
         return True

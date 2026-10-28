@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from bsmu.vision.core.image import FlatImage, MaskDrawMode
-from bsmu.vision.core.palette import Palette
 from bsmu.vision.core.visibility import Visibility
 
 from bsmu.macula.inference.keypoint import KeypointPredictor
+from bsmu.macula.inference.keypoint_palette import KEYPOINT_PALETTE
 from bsmu.macula.infervis.mdi import MdiSegmenter
 
 if TYPE_CHECKING:
@@ -21,11 +21,6 @@ if TYPE_CHECKING:
 
 MASK_LAYER_NAME = 'masks'
 KEYPOINT_LAYER_NAME = 'masks-fovea'
-KEYPOINT_PALETTE = Palette.from_row_by_name({
-    'background': [0, 0, 0, 0, 0],
-    'fovea': [1, 0, 0, 255, 255],
-    'foveola': [2, 0, 255, 0, 255],
-})
 
 
 class MdiKeypointPredictor(MdiSegmenter):

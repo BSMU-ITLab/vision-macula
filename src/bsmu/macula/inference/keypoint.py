@@ -14,6 +14,7 @@ from bsmu.vision.core.concurrent import ThreadPool
 from bsmu.vision.core.task import DnnTask
 
 from bsmu.macula.inference.enseble import EnsembleSegmenter
+from bsmu.macula.inference.utility import RoiTiler
 
 
 @dataclass(frozen=True)
@@ -99,11 +100,19 @@ class KeypointPredictor(QObject):
                 interpolation=cv2.INTER_NEAREST,
             ).astype(bool)
 
-        tensor, transform = self._preprocess(image)
+        # The ensemble runs inference on the detected scan ROI, not on the
+        # padded source image. Use the same crop so model X coordinates share
+        # the ensemble's coordinate frame, then restore the crop's X offset.
+        roi_tiler = RoiTiler()
+        roi_image = next(roi_tiler.split(image))
+        roi_x, _, _, _ = roi_tiler._coords
+
+        tensor, transform = self._preprocess(roi_image)
         logits = self._session.run([self._output_name], {self._input_name: tensor})[0]
         normalized_x = 1.0 / (1.0 + np.exp(-np.clip(logits.reshape(-1), -80.0, 80.0)))
         transformed_x = normalized_x * max(self._model_params.input_width - 1, 1)
-        original_x = self._reverse_x_transform(transformed_x, transform)
+        roi_local_x = self._reverse_x_transform(transformed_x, transform)
+        original_x = roi_local_x + roi_x
 
         point_mask = np.zeros(image.shape[:2], dtype=np.uint8)
         for keypoint_index, x in enumerate(original_x[:4]):
