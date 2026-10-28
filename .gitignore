@@ -159,9 +159,7 @@ dmypy.json
 cython_debug/
 
 # JetBrains IDEs
-.idea/*
-!.idea/inspectionProfiles/
-!.idea/vcs.xml
+.idea/
 
 # Visual Studio
 .vs/
