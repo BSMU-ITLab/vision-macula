@@ -36,4 +36,4 @@ plugins:
 
   - bsmu.macula.plugins.batch_inference.BatchInferencePlugin
 
-  - bsmu.macula.plugins.db.BD.BD
+  - bsmu.macula.plugins.db.DbPlugin

@@ -20,7 +20,7 @@ DEFAULT_DB_NAME = "database.db"
 DATA_DIR_NAME = "data"
 
 
-class BD(Plugin):
+class DbPlugin(Plugin):
     """Добавляет в меню алгоритмов пункт «Database»."""
 
     _DEFAULT_DEPENDENCY_PLUGIN_FULL_NAME_BY_KEY = {
@@ -105,4 +105,4 @@ class BD(Plugin):
         return True
 
 
-__all__ = ["BD", "LOGGER_NAME", "logger"]
+__all__ = ["DbPlugin", "LOGGER_NAME", "logger"]
