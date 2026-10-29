@@ -32,7 +32,7 @@ plugins:
   - bsmu.macula.plugins.gui.keypoint_predictor_gui.KeypointPredictorGuiPlugin
 
   - bsmu.macula.plugins.fovea_mask_loader.FoveaMaskLoaderPlugin
-  - bsmu.macula.plugins.analyser.plugin.MaskAnalyserPlugin
+  - bsmu.macula.plugins.analyser.MaskAnalyserPlugin
 
   - bsmu.macula.plugins.batch_inference.BatchInferencePlugin
 
