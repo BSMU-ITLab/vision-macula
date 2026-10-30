@@ -21,7 +21,7 @@ def find_L_in_image(image: np.ndarray) -> np.ndarray | None:
 
     Сначала ищет самый большой контур, затем левый нижний угол внутри него.
     """
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image.copy()
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) if len(image.shape) == 3 else image.copy()
     _, binary = cv2.threshold(gray, BACKGROUND_THRESHOLD, 255, cv2.THRESH_BINARY_INV)
 
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
