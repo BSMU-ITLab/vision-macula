@@ -6,8 +6,8 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 from bsmu.macula.plugins.analyser.location import (
-    location_by_check_order,
     location_by_x_columns,
+    location_by_zone,
     zones_by_x_columns,
 )
 from bsmu.macula.plugins.analyser.measurements.kernel import (
@@ -159,7 +159,7 @@ def measure_neuroepithelial_detachment(
     location = None
     if fovea_mask is not None:
         _, xs = np.where(detachment_mask == 1)
-        location = location_by_check_order(*zones_by_x_columns(fovea_mask, xs))
+        location = location_by_zone(*zones_by_x_columns(fovea_mask, xs))
 
     return (
         width_um,

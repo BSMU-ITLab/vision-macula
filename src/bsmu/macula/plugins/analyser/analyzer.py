@@ -22,7 +22,7 @@ from bsmu.macula.plugins.analyser.geometry import (
 from bsmu.macula.plugins.analyser.location import (
     cme_location,
     fovea_zones_by_columns,
-    location_by_check_order,
+    location_by_zone,
 )
 from bsmu.macula.plugins.analyser.measurements.detachment import (
     measure_detachment,
@@ -408,7 +408,7 @@ class MaskAnalyser:
         in_foveola = 1 in zone_values
         in_fovea = 2 in zone_values
         in_macula = bool(len(zone_values)) and not in_foveola and not in_fovea
-        location = location_by_check_order(in_foveola, in_fovea, in_macula)
+        location = location_by_zone(in_foveola, in_fovea, in_macula)
         rows.append(make_row("Sub-Bruch's Fluid (локализация)", location, "",
                              measurement_id=MeasurementId.SBF_LOCATION))
         return rows
