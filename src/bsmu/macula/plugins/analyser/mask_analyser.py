@@ -20,6 +20,7 @@ from .analyzer_utils import (
     extract_upper_boundary,
     smooth_boundary,
     get_foveola_center,
+    fovea_zones_by_columns,
     central_width_of_retina,
     central_width_near,
     perpendicular_through_foveola,
@@ -638,6 +639,7 @@ class MaskAnalyser:
     def __init__(self, image: np.ndarray, mask: np.ndarray, mask_fovea: np.ndarray, class_configs: List[Dict]):
         self.mask = mask
         self.fovea_mask = mask_fovea
+        self.fovea_zones = fovea_zones_by_columns(mask_fovea)
         self.class_configs = class_configs
         self.image = image
         
@@ -645,7 +647,7 @@ class MaskAnalyser:
         self.scale_calc = ScaleCalculator()
         
         # Используем DataConverter для преобразования в PatientExamData
-        self.data_converter = DataConverter(fovea_mask=mask_fovea)
+        self.data_converter = DataConverter(fovea_mask=self.fovea_zones)
     
     # Методы делегирования для обратной совместимости
     def _px_to_um_x(self, value_px: float) -> float | None:
@@ -923,7 +925,7 @@ class MaskAnalyser:
         
         # Определяем разрывы и локализацию дефектов РПЭ (одним вызовом)
         rpe_defects_location, gap_contours, defect_coord = detect_rpe_defects(
-            self.mask, self.fovea_mask, smooth_upper, spline, min_gap_width=32
+            self.mask, self.fovea_zones, smooth_upper, spline, min_gap_width=32
         )
 
         # Формируем итоговое состояние РПЭ по приоритету:
@@ -1069,7 +1071,7 @@ class MaskAnalyser:
             for y in range(h):
                 for x in range(w):
                     if irf_mask[y, x] > 0:
-                        zone = self.fovea_mask[y, x]
+                        zone = self.fovea_zones[y, x]
                         if zone == 1:  # Фовеола
                             in_foveola = True
                         elif zone == 2:  # Фовеа
@@ -1108,7 +1110,7 @@ class MaskAnalyser:
         for class_id, (name, measure_id) in DETACHMENTS.items():
             # print(f"Checking detachment class {class_id}: {name}")
             width, height, area, left_x, right_x, max_perp_point, location, choroid_segment = detect_and_measure_detachments(
-                self.mask, smooth_upper, spline, class_id, self.fovea_mask, self.scale_x, self.scale_y
+                self.mask, smooth_upper, spline, class_id, self.fovea_zones, self.scale_x, self.scale_y
             )
             # print(f"Result: width={width}, height={height}, area={area}, location={location}")
             
@@ -1160,7 +1162,7 @@ class MaskAnalyser:
         # --- 6а. Отслойка нейроэпителия (СРЖ) - класс 6 ---
         # print("Checking neuroepithelial detachment class 6")
         neuro_width, neuro_height, neuro_area, neuro_left_x, neuro_right_x, neuro_max_perp_point, neuro_location, neuro_upper_segment = measure_neuroepithelial_detachment(
-            self.mask, smooth_upper, spline, 6, self.fovea_mask, self.scale_x, self.scale_y
+            self.mask, smooth_upper, spline, 6, self.fovea_zones, self.scale_x, self.scale_y
         )
         # print(f"Neuroepithelial detachment result: width={neuro_width}, height={neuro_height}, area={neuro_area}, location={neuro_location}")
         
@@ -1226,7 +1228,7 @@ class MaskAnalyser:
                 
                 ys, xs = np.where(sbf_mask == 1)
                 for y, x in zip(ys, xs):
-                    zone = self.fovea_mask[y, x]
+                    zone = self.fovea_zones[y, x]
                     if zone == 1:
                         in_foveola = True
                     elif zone == 2:
@@ -1352,7 +1354,7 @@ class MaskAnalyser:
                 for i, cnt in enumerate(contours):
                     # Используем специальную функцию для друз (передаем контур конкретной друзы)
                     width, height, area, left_x, right_x, max_perp_point, location, choroid_segment = measure_drusen(
-                        self.mask, smooth_upper, spline, cnt, self.fovea_mask, self.scale_x, self.scale_y
+                        self.mask, smooth_upper, spline, cnt, self.fovea_zones, self.scale_x, self.scale_y
                     )
                     
                     if width is None or height is None:

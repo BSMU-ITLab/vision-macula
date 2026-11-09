@@ -80,6 +80,19 @@ def get_foveola_center(fovea_mask):
     return int(np.mean(xs)), int(np.mean(ys))
 
 
+def fovea_zones_by_columns(fovea_mask):
+    """Маска зон для локализации: зона занимает все X от крайнего левого до крайнего
+    правого пикселя своего класса (в mask-fovea размечены только края зон)."""
+    if fovea_mask is None:
+        return None
+    zones = np.zeros_like(fovea_mask)
+    for zone in (2, 1):
+        xs = np.where((fovea_mask == zone).any(axis=0))[0]
+        if len(xs):
+            zones[:, xs.min():xs.max() + 1] = zone
+    return zones
+
+
 # Классы, площадь которых вычитается из длины пути по документу:
 # отслойки (2, 10, 11, 16), друзы (1), СРГМ (4), ИРГМ (5), СРЖ (6), РПЭ (9).
 CTS_SUBTRACT_CLASSES = {1, 2, 4, 5, 6, 9, 10, 11, 16}
