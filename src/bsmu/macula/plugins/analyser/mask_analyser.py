@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QTableView, QMessageBox
 from bsmu.macula.plugins.analyser.analyzed_table import ObjectsTableModel
 from bsmu.vision.core.visibility import Visibility
 
-from .scale_calculator import ScaleCalculator
+from .scale_calculator import ANALYSIS_SIZE, DEFAULT_SCALE, ScaleCalculator, image_scale
 from .data_converter import DataConverter
 from .analyzer_utils import (
     extract_upper_boundary,
@@ -101,7 +101,17 @@ class MaskAnalyserPlugin(Plugin):
 
         classes = self.config_value("classes", [])
 
-        _ANALYSIS_SIZE = (1024, 512)  # (width, height)
+        scale_x, scale_y, scale_source = image_scale(image_pixels, ANALYSIS_SIZE)
+        if scale_source == "default":
+            QMessageBox.warning(
+                self._main_window,
+                self.tr('Process Mask'),
+                self.tr('Scale is unknown: no 200 µm marker and unknown image size {}x{}.\n'
+                        'Default scale is used, µm values are approximate.').format(
+                    image_pixels.shape[1], image_pixels.shape[0]),
+            )
+
+        _ANALYSIS_SIZE = ANALYSIS_SIZE
         _src_h, _src_w = mask_pixels.shape[:2]
         if (_src_w, _src_h) != _ANALYSIS_SIZE:
             _rx = _ANALYSIS_SIZE[0] / float(_src_w)
@@ -111,7 +121,8 @@ class MaskAnalyserPlugin(Plugin):
             mask_pixels = cv2.resize(mask_pixels, _ANALYSIS_SIZE, interpolation=cv2.INTER_NEAREST)
             mask_fovea_pixels = cv2.resize(mask_fovea_pixels, _ANALYSIS_SIZE, interpolation=cv2.INTER_NEAREST)
 
-        mask_analyser = MaskAnalyser(image_pixels, mask_pixels, mask_fovea_pixels, classes)
+        mask_analyser = MaskAnalyser(image_pixels, mask_pixels, mask_fovea_pixels, classes,
+                                     scale_x=scale_x, scale_y=scale_y)
         # Выполняем анализ
         objects = mask_analyser.analyze()
 
@@ -636,7 +647,8 @@ class MaskAnalyserPlugin(Plugin):
 class MaskAnalyser:
     """Основной класс для анализа OCT-масок."""
     
-    def __init__(self, image: np.ndarray, mask: np.ndarray, mask_fovea: np.ndarray, class_configs: List[Dict]):
+    def __init__(self, image: np.ndarray, mask: np.ndarray, mask_fovea: np.ndarray, class_configs: List[Dict],
+                 scale_x: float | None = None, scale_y: float | None = None):
         self.mask = mask
         self.fovea_mask = mask_fovea
         self.fovea_zones = fovea_zones_by_columns(mask_fovea)
@@ -645,6 +657,10 @@ class MaskAnalyser:
         
         # Используем ScaleCalculator для работы с масштабом
         self.scale_calc = ScaleCalculator()
+        if scale_x is not None:
+            self.scale_calc.scale_x = scale_x
+        if scale_y is not None:
+            self.scale_calc.scale_y = scale_y
         
         # Используем DataConverter для преобразования в PatientExamData
         self.data_converter = DataConverter(fovea_mask=self.fovea_zones)
@@ -777,27 +793,9 @@ class MaskAnalyser:
             "children": manual_fields,
         })
 
-        # --- 0. Масштаб ---
-        # Автодетект L нестабилен, поэтому фиксируем масштаб по эталонному L
-        # из скана 021-01-R (рабочий размер 1024x512): L = 200 мкм,
-        # ширина 24 px по X, высота 60 px по Y.
-        self.scale_x = 200.0 / 24.0   # = 8.333 мкм/px (по ширине)
-        self.scale_y = 200.0 / 60.0   # = 3.333 мкм/px (по высоте)
-        # L_contour = find_L_in_image(self.image)
-        # if L_contour is not None:
-        #     result = calculate_scales_from_L(L_contour, L_size_micrometers=200.0)
-        #     if result is not None:
-        #         self.scale_x, self.scale_y, L_width_px, L_height_px = result
-        #         avg_scale = (self.scale_x + self.scale_y) / 2
-        #
-        #         # Сохраняем L-контур для визуализации при наведении на измерения
-        #         self.L_contour = L_contour
-        #         self.L_width_px = L_width_px
-        #         self.L_height_px = L_height_px
-        #
-        #         # НЕ добавляем записи о L-объекте в таблицу
-        #         # L-объект используется только для расчёта масштаба
-        #         # и визуализируется при наведении на любое измерение
+        # --- 0. Масштаб --- (обычно передаётся снаружи: image_scale по исходному снимку)
+        if self.scale_x is None or self.scale_y is None:
+            self.scale_x, self.scale_y = DEFAULT_SCALE
 
         # --- 1. Верхняя граница хориоидеи ---
         xs, upper = extract_upper_boundary(self.mask)
