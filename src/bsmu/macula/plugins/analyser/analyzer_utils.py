@@ -585,9 +585,11 @@ def detect_rpe_defects(mask, fovea_mask, smooth_upper, spline, min_gap_width=10,
         cx1, cy1, cnt1, x1, y1, w1, h1 = contours_with_centers[i]
         cx2, cy2, cnt2, x2, y2, w2, h2 = contours_with_centers[i + 1]
 
-        # Счёт по числу фрагментов: КАЖДЫЙ промежуток между двумя значимыми
-        # фрагментами РПЭ считается разрывом (разрывы = число фрагментов − 1).
+        # Разрыв - промежуток между соседними значимыми фрагментами шириной >= min_gap_width.
         gap_width = x2 - (x1 + w1)
+        if gap_width < min_gap_width:
+            significant_contours.append(cnt1)
+            continue
 
         gap_x_center = (x1 + w1 + x2) // 2
         # Средний Y между центрами двух соседних фрагментов РПЭ:
