@@ -948,8 +948,8 @@ class MaskAnalyser:
             else:
                 # Нет разрывов - проверяем равномерность по std
                 if std_thickness is not None:
-                    # std до 50 (мкм) - это равномерный эпителий
-                    if std_thickness < 50:
+                    # std до 5.8 мкм - равномерный эпителий (порог по разметке врачей: RPE status 1 vs 2)
+                    if std_thickness < 5.8:
                         rpe_state_combined = "Эпителий сохранен"
                     else:
                         rpe_state_combined = "Эпителий неравномерный"
