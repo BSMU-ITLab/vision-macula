@@ -93,27 +93,28 @@ def fovea_zones_by_columns(fovea_mask):
     return zones
 
 
-# Классы, площадь которых вычитается из длины пути по документу:
+# Классы, которые не входят в толщину сетчатки по документу:
 # отслойки (2, 10, 11, 16), друзы (1), СРГМ (4), ИРГМ (5), СРЖ (6), РПЭ (9).
 CTS_SUBTRACT_CLASSES = {1, 2, 4, 5, 6, 9, 10, 11, 16}
+# Всё, кроме ИРГМ, лежит под сетчаткой: на первом таком пикселе отрезок ЦТС заканчивается.
+CTS_STOP_CLASSES = CTS_SUBTRACT_CLASSES - {5}
 
 
 def central_width_of_retina(smooth_upper, spline, foveola_center, mask,
                                   perp_len=200):
-    """Измеряет толщину сетчатки от точки foveola_center вниз по перпендикуляру
-    к сглаженной верхней границе хориоидеи.
+    """Толщина сетчатки от точки foveola_center вниз по перпендикуляру к сглаженной
+    верхней границе хориоидеи.
 
-    Алгоритм соответствует документу «Классы структур на ОКТ»:
-    «Находим длину до хориоидеи. Из неё вычитаем области отслоек; друз;
-    субретинального и интраретинального гиперрефлективного материала, СРЖ и РПЭ».
+    По документу «Классы структур на ОКТ» - длина отрезка от верхней границы сетчатки
+    до РПЭ или СРЖ: отрезок идёт до первого пикселя CTS_STOP_CLASSES, а если РПЭ разрушен
+    и их на пути нет - до хориоидеи. Пиксели ИРГМ на отрезке вычитаются.
 
     Returns:
-        Кортеж (cx, cy, dist_corrected_px, choroid_point, count_subtract_px)
-        либо None, если хориоидея не достигнута.
-        * dist_corrected_px — длина пути в пикселях за вычетом патологий.
-        * choroid_point — координата первого пикселя класса CHOROID_ID
-          (используется для отрисовки полного перпендикуляра).
-        * count_subtract_px — число пикселей патологических классов вдоль пути.
+        Кортеж (cx, cy, dist_corrected_px, end_point, count_subtract_px)
+        либо None, если конец отрезка не найден.
+        * dist_corrected_px — длина отрезка в пикселях за вычетом ИРГМ.
+        * end_point — нижний конец отрезка.
+        * count_subtract_px — число пикселей ИРГМ на отрезке.
     """
     cx, cy = foveola_center
     h, w = mask.shape
@@ -130,7 +131,7 @@ def central_width_of_retina(smooth_upper, spline, foveola_center, mask,
     nx /= L
     ny /= L
 
-    choroid_point = None
+    end_point = None
     count_subtract = 0
 
     for t in range(0, perp_len):
@@ -141,20 +142,20 @@ def central_width_of_retina(smooth_upper, spline, foveola_center, mask,
             break
 
         cls = mask[yy, xx]
-        if cls == CHOROID_ID:
-            choroid_point = (xx, yy)
+        if cls == CHOROID_ID or cls in CTS_STOP_CLASSES:
+            end_point = (xx, yy)
             break
 
         if cls in CTS_SUBTRACT_CLASSES:
             count_subtract += 1
 
-    if choroid_point is None:
+    if end_point is None:
         return None
 
-    dist_full_px = np.sqrt((choroid_point[0] - cx) ** 2 + (choroid_point[1] - cy) ** 2)
+    dist_full_px = np.sqrt((end_point[0] - cx) ** 2 + (end_point[1] - cy) ** 2)
     dist_corrected_px = max(0.0, dist_full_px - count_subtract)
 
-    return cx, cy, dist_corrected_px, choroid_point, count_subtract
+    return cx, cy, dist_corrected_px, end_point, count_subtract
 
 
 def central_width_near(img, smooth_upper, spline, fovea_mask, mask, ind):

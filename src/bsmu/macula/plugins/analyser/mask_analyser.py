@@ -824,12 +824,10 @@ class MaskAnalyser:
                     "center": foveola_center,
                 }
 
-                # Полный путь до хориоидеи и его длина в мкм
                 full_um = self._calculate_distance_um((x0, y0), pt)
                 full_px = float(np.sqrt((pt[0] - x0) ** 2 + (pt[1] - y0) ** 2))
 
                 if full_um is not None and full_px > 0:
-                    # Доля «чистой» сетчатки от полного пути
                     cts_um = full_um * dist_corrected_px / full_px
                     row_entry["value"] = f"{cts_um:.2f}"
                     row_entry["unit"] = "мкм"
@@ -861,9 +859,7 @@ class MaskAnalyser:
                 }
                 rows.append(row_entry_total)
 
-        # --- 4. Центральная толщина рядом с фовеолой / фовеей ---
-        # Тот же алгоритм, что и для ЦТС в фовеоле: длина пути до хориоидеи
-        # минус пиксели патологических классов.
+        # --- 4. Центральная толщина рядом с фовеолой / фовеей (тот же замер, что ЦТС в фовеоле) ---
         for ind, label, measure_id in [(1, "возле фовеолы", "cts_near_foveola"),
                                        (2, "возле фовеа", "cts_near_fovea")]:
             pts = central_width_near(
