@@ -242,6 +242,7 @@ DETACHMENT_BY_MEASUREMENT_ID: dict[str, DetachmentSpec] = {
 DRUSEN_CLASS_HINT = "drusen"
 DRUSEN_CLASS_HINT_RU = "друз"
 DRUSEN_EXCLUDE_HINT = "друзеноид"
+DRUSEN_EXCLUDE_HINT_EN = "drusenoid"
 
 
 def is_drusen_class(class_name: str) -> bool:
@@ -251,7 +252,7 @@ def is_drusen_class(class_name: str) -> bool:
     """
     lowered = class_name.lower()
     is_drusen = DRUSEN_CLASS_HINT in lowered or DRUSEN_CLASS_HINT_RU in lowered
-    return is_drusen and DRUSEN_EXCLUDE_HINT not in lowered
+    return is_drusen and DRUSEN_EXCLUDE_HINT not in lowered and DRUSEN_EXCLUDE_HINT_EN not in lowered
 
 
 def is_drusen_parameter(parameter: str) -> bool:
