@@ -12,6 +12,7 @@ from bsmu.vision.widgets.viewers.image.layered import LayeredImageViewerHolder
 from bsmu.macula.plugins.analyser.analyzed_table import MeasurementsSubWindow, TableWindow
 from bsmu.macula.plugins.analyser.analyzer import ANALYSIS_SIZE, MaskAnalyser
 from bsmu.macula.plugins.analyser.highlight import HighlightRenderer
+from bsmu.macula.plugins.analyser.scale import image_scale
 
 if TYPE_CHECKING:
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi, MdiPlugin
@@ -56,9 +57,11 @@ class MaskAnalyserPlugin(Plugin):
         if prepared is None:
             return
 
-        image_pixels, mask_pixels, fovea_pixels, original_size, layered_image = prepared
+        image_pixels, mask_pixels, fovea_pixels, original_size, layered_image, scale = prepared
+        scale_x, scale_y = scale[:2] if scale is not None else (None, None)
         analyser = MaskAnalyser(image_pixels, mask_pixels, fovea_pixels,
-                                self.config_value("classes", []))
+                                self.config_value("classes", []),
+                                scale_x=scale_x, scale_y=scale_y)
         rows = analyser.analyze()
         if not rows:
             return
@@ -73,9 +76,10 @@ class MaskAnalyserPlugin(Plugin):
         """Читает слои снимка и приводит их к рабочему размеру анализа.
 
         Если какого-то слоя нет или он без пикселей — говорим об этом
-        пользователю и анализ не начинаем.
+        пользователю и анализ не начинаем. Масштаб считается по исходному снимку;
+        если его не определить, предупреждаем, что значения в мкм приблизительные.
 
-        :return: ``(image, mask, fovea_mask, исходный_размер, layered_image)``
+        :return: ``(image, mask, fovea_mask, исходный_размер, layered_image, масштаб)``
             либо ``None``.
         """
         sub_window = self._mdi.active_sub_window_with_type(LayeredImageViewerHolder)
@@ -101,6 +105,18 @@ class MaskAnalyserPlugin(Plugin):
         mask_pixels = layers[MASK_LAYER_NAME].image_pixels
         fovea_pixels = layers[MASK_FOVEA_LAYER_NAME].image_pixels
 
+        scale = image_scale(image_pixels, ANALYSIS_SIZE)
+        if scale is None:
+            QMessageBox.warning(
+                self._main_window,
+                self.tr("Retinal Parameter Analysis"),
+                self.tr(
+                    "The scale could not be determined: the image has no 200 µm marker "
+                    "and its size ({}x{}) is unknown.\n"
+                    "A default scale is used, so µm values are approximate."
+                ).format(image_pixels.shape[1], image_pixels.shape[0]),
+            )
+
         source_height, source_width = mask_pixels.shape[:2]
         original_size = (source_width, source_height)
         if original_size != ANALYSIS_SIZE:
@@ -111,7 +127,7 @@ class MaskAnalyserPlugin(Plugin):
             mask_pixels = cv2.resize(mask_pixels, ANALYSIS_SIZE, interpolation=cv2.INTER_NEAREST)
             fovea_pixels = cv2.resize(fovea_pixels, ANALYSIS_SIZE, interpolation=cv2.INTER_NEAREST)
 
-        return image_pixels, mask_pixels, fovea_pixels, original_size, viewer.data
+        return image_pixels, mask_pixels, fovea_pixels, original_size, viewer.data, scale
 
     def _show_table(self, rows, patient_exam_data, renderer, analyser) -> None:
         """Показывает результаты как MDI-подокно, а не отдельное окно.

@@ -69,8 +69,8 @@ from bsmu.macula.plugins.analyser.schema import (
 
 #: Рабочий размер снимка, к которому приводятся все маски перед анализом.
 ANALYSIS_SIZE = (1024, 512)  # (ширина, высота)
-#: Масштаб задан эталонным L-объектом рабочего размера: 200 мкм / 24 px и
-#: 200 мкм / 60 px. Автодетект L нестабилен, поэтому используется константа.
+#: Запасной масштаб, если его не передали (на снимке нет уголка и размер снимка
+#: неизвестен): эталонный L-объект рабочего размера, 200 мкм / 24 px и 200 мкм / 60 px.
 REFERENCE_SCALE_X = 200.0 / 24.0
 REFERENCE_SCALE_Y = 200.0 / 60.0
 #: Коэффициент сглаживания верхней границы хориоидеи.
@@ -81,7 +81,8 @@ class MaskAnalyser:
     """Основной класс для анализа OCT-масок."""
 
     def __init__(self, image: np.ndarray, mask: np.ndarray,
-                 mask_fovea: np.ndarray, class_configs: List[Dict]):
+                 mask_fovea: np.ndarray, class_configs: List[Dict],
+                 scale_x: float | None = None, scale_y: float | None = None):
         self.mask = mask
         self.fovea_mask = mask_fovea
         self.fovea_zones = fovea_zones_by_columns(mask_fovea)
@@ -89,6 +90,8 @@ class MaskAnalyser:
         self.image = image
 
         self.scale_calc = ScaleCalculator()
+        self.scale_calc.scale_x = scale_x
+        self.scale_calc.scale_y = scale_y
         self.data_converter = DataConverter(fovea_mask=self.fovea_zones)
 
     # --- доступ к калибровке (сохранён для обратной совместимости) ---
@@ -189,9 +192,10 @@ class MaskAnalyser:
     # --- группы измерений ---
 
     def _apply_reference_scale(self) -> None:
-        """Фиксирует масштаб по эталонному L-объекту рабочего размера."""
-        self.scale_x = REFERENCE_SCALE_X
-        self.scale_y = REFERENCE_SCALE_Y
+        """Масштаб по эталонному L-объекту рабочего размера, если его не передали."""
+        if self.scale_x is None or self.scale_y is None:
+            self.scale_x = REFERENCE_SCALE_X
+            self.scale_y = REFERENCE_SCALE_Y
 
     def _foveal_thickness_rows(self, smooth_upper, spline, foveola_center) -> list[dict]:
         """Центральная толщина сетчатки в фовеоле."""
