@@ -24,6 +24,9 @@ RPE_UNDEFINED = "Эпителий не определяется"
 MIN_RPE_PIXELS = 100
 #: Коэффициент вариации высоты, ниже которого эпителий считается равномерным.
 UNIFORM_VARIATION_THRESHOLD = 0.2
+#: Std толщины РПЭ (мкм), с которой эпителий неравномерный: порог по разметке
+#: врачей (RPE status 1 против 2).
+UNEVEN_STD_UM = 5.8
 #: Полуокно поиска соседних точек скелета при оценке касательной.
 TANGENT_WINDOW = 10
 #: Максимальная длина перпендикуляра при измерении толщины РПЭ.
@@ -323,7 +326,7 @@ def combined_rpe_state(
     gap_contours: list[np.ndarray],
     std_thickness: float | None,
     fallback_state: str,
-    uneven_std_um: float = 50.0,
+    uneven_std_um: float = UNEVEN_STD_UM,
 ) -> str:
     """Итоговое состояние РПЭ по приоритету разрывов и равномерности высоты."""
     if int(rpe.sum()) < MIN_RPE_PIXELS:
