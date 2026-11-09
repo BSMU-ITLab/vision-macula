@@ -231,7 +231,7 @@ def detect_rpe_defects(
 
     :return: ``(локализация, контуры разрывов, координата первого дефекта)``.
     """
-    del smooth_upper, spline, min_gap_width
+    del smooth_upper, spline
 
     rpe = rpe_mask(mask)
     if rpe.sum() == 0:
@@ -262,13 +262,14 @@ def detect_rpe_defects(
     defect_coordinate: tuple[int, int] | None = None
     gap_circles: list[tuple[int, int, int]] = []
 
-    # Разрывов ровно на один меньше, чем значимых фрагментов: каждый промежуток
-    # между двумя соседними фрагментами считается разрывом.
+    # Разрыв - промежуток между соседними значимыми фрагментами шириной >= min_gap_width.
     for i in range(len(fragments) - 1):
         _, _, _, x1, y1, w1, h1 = fragments[i]
         _, _, _, x2, y2, _, h2 = fragments[i + 1]
 
         gap_width = x2 - (x1 + w1)
+        if gap_width < min_gap_width:
+            continue
         gap_x_center = (x1 + w1 + x2) // 2
         gap_y_center = (y1 + h1 // 2 + y2 + h2 // 2) // 2
 
