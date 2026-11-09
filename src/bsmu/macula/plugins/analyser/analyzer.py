@@ -19,7 +19,11 @@ from bsmu.macula.plugins.analyser.geometry import (
     get_foveola_center,
     smooth_boundary,
 )
-from bsmu.macula.plugins.analyser.location import cme_location, location_by_check_order
+from bsmu.macula.plugins.analyser.location import (
+    cme_location,
+    fovea_zones_by_columns,
+    location_by_check_order,
+)
 from bsmu.macula.plugins.analyser.measurements.detachment import (
     measure_detachment,
     measure_neuroepithelial_detachment,
@@ -80,11 +84,12 @@ class MaskAnalyser:
                  mask_fovea: np.ndarray, class_configs: List[Dict]):
         self.mask = mask
         self.fovea_mask = mask_fovea
+        self.fovea_zones = fovea_zones_by_columns(mask_fovea)
         self.class_configs = class_configs
         self.image = image
 
         self.scale_calc = ScaleCalculator()
-        self.data_converter = DataConverter(fovea_mask=mask_fovea)
+        self.data_converter = DataConverter(fovea_mask=self.fovea_zones)
 
     # --- доступ к калибровке (сохранён для обратной совместимости) ---
 
@@ -284,7 +289,7 @@ class MaskAnalyser:
             self.mask, self.fovea_mask, self.scale_x, self.scale_y
         )
         defects_location, gap_contours, defect_coord = detect_rpe_defects(
-            self.mask, self.fovea_mask, smooth_upper, spline, min_gap_width=32
+            self.mask, self.fovea_zones, smooth_upper, spline, min_gap_width=32
         )
         fallback_state = analyze_rpe(self.mask, self.fovea_mask, smooth_upper, spline)
         state = combined_rpe_state(rpe, gap_contours, std_thickness, fallback_state)
@@ -337,7 +342,7 @@ class MaskAnalyser:
         return [
             make_row(
                 Parameter.CME_LOCATION,
-                cme_location(self.fovea_mask, irf),
+                cme_location(self.fovea_zones, irf),
                 "",
                 **{RowKey.IRF_CONTOURS: contours},
             )
@@ -349,7 +354,7 @@ class MaskAnalyser:
         for spec in PED_DETACHMENTS:
             width, height, area, left_x, right_x, max_point, location, segment = measure_detachment(
                 self.mask, smooth_upper, spline, spec,
-                self.fovea_mask, self.scale_x, self.scale_y,
+                self.fovea_zones, self.scale_x, self.scale_y,
             )
             if width is None or height is None:
                 continue
@@ -370,7 +375,7 @@ class MaskAnalyser:
         width, height, area, left_x, right_x, max_point, location, segment = (
             measure_neuroepithelial_detachment(
                 self.mask, smooth_upper, spline, NEUROEPITHELIAL_DETACHMENT.class_id,
-                self.fovea_mask, self.scale_x, self.scale_y,
+                self.fovea_zones, self.scale_x, self.scale_y,
             )
         )
         if width is None or height is None:
@@ -399,7 +404,7 @@ class MaskAnalyser:
             )
 
         ys, xs = np.where(sbf == 1)
-        zone_values = self.fovea_mask[ys, xs] if len(xs) else np.array([])
+        zone_values = self.fovea_zones[ys, xs] if len(xs) else np.array([])
         in_foveola = 1 in zone_values
         in_fovea = 2 in zone_values
         in_macula = bool(len(zone_values)) and not in_foveola and not in_fovea
@@ -464,7 +469,7 @@ class MaskAnalyser:
             for index, contour in enumerate(self._find_objects_by_class(class_id)):
                 width, height, area, left_x, right_x, max_point, _, segment = measure_drusen(
                     self.mask, smooth_upper, spline, contour,
-                    self.fovea_mask, self.scale_x, self.scale_y,
+                    self.fovea_zones, self.scale_x, self.scale_y,
                 )
                 if width is None or height is None:
                     continue

@@ -20,6 +20,22 @@ from bsmu.macula.plugins.analyser.schema import (
 )
 
 
+def fovea_zones_by_columns(fovea_mask: np.ndarray | None) -> np.ndarray | None:
+    """Маска зон для локализации.
+
+    В ``mask-fovea`` у каждой зоны размечены только края, поэтому зона занимает
+    все X от крайнего левого до крайнего правого пикселя своего класса.
+    """
+    if fovea_mask is None:
+        return None
+    zones = np.zeros_like(fovea_mask)
+    for zone in (FOVEA_ZONE, FOVEOLA_ZONE):
+        xs = np.where((fovea_mask == zone).any(axis=0))[0]
+        if len(xs):
+            zones[:, xs.min():xs.max() + 1] = zone
+    return zones
+
+
 def classify_zones(values: np.ndarray) -> tuple[bool, bool, bool]:
     """Какие зоны присутствуют в переданных значениях маски фовеа."""
     unique = np.unique(values)
