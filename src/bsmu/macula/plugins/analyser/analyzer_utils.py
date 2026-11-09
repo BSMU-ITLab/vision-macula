@@ -1310,14 +1310,6 @@ def measure_neuroepithelial_detachment(mask, smooth_upper_choroid, spline_choroi
             location = "3 – Макула (без фовеа и фовеолы)"
         else:
             location = "0 – отсутствует"
-        if in_foveola:
-            location = "0 – Фовеола"
-        elif in_fovea:
-            location = "1 – Фовеа (без фovеолы)"
-        elif in_macula:
-            location = "2 – Макула (без фовеолы и фовеа)"
-        else:
-            location = "3 – Вне макулы"
     
     # print(f"Neuroepithelial detachment: width_um={width_um}, height_um={max_height_um}, area_um2={area_um2}, location={location}")
     return width_um, max_height_um, area_um2, left_x, right_x, max_perp_point, location, upper_boundary_segment

@@ -1238,13 +1238,13 @@ class MaskAnalyser:
                 
                 # Алгоритм 0-3
                 if in_foveola:
-                    sbf_location = "0 – Фовеола"
+                    sbf_location = "2 – Фовеола + фовеа + макула"
                 elif in_fovea:
-                    sbf_location = "1 – Фовеа (без фовеолы)"
+                    sbf_location = "1 – Фовеа + макула (без фовеолы)"
                 elif in_macula:
-                    sbf_location = "2 – Макула (без фовеолы и фовеа)"
+                    sbf_location = "3 – Макула (без фовеа и фовеолы)"
                 else:
-                    sbf_location = "3 – Вне макулы"
+                    sbf_location = "0 – отсутствует"
             
             # Добавляем площадь
             if sbf_area_um2 is not None:
