@@ -1346,7 +1346,8 @@ class MaskAnalyser:
             contours = self._find_objects_by_class(class_id)
             
             # Специальная обработка для друз (исключаем "друзеноидную отслойку")
-            is_drusen = (("Drusen" in class_name or "друз" in class_name.lower()) 
+            is_drusen = (("Drusen" in class_name or "друз" in class_name.lower())
+                        and "drusenoid" not in class_name.lower()
                         and "друзеноид" not in class_name.lower())
 
             if is_drusen and len(contours) > 0:
