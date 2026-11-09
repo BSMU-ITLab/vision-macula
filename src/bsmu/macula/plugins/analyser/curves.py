@@ -4,9 +4,11 @@
 фовеоле и рядом с фовеолой/фовеей, перпендикуляр через фовеолу и толщина
 хориоидеи в центре.
 
-Алгоритм ЦТС соответствует документу «Классы структур на ОКТ»: находим длину
-пути до хориоидеи и вычитаем из неё области отслоек, друз, субретинального и
-интраретинального гиперрефлективного материала, СРЖ и РПЭ.
+ЦТС по документу «Классы структур на ОКТ» - длина отрезка от верхней границы
+сетчатки до РПЭ или СРЖ. Отрезок идёт до первого пикселя ``STOP_CLASSES``
+(если РПЭ разрушен - отслойки, друзы или субретинального материала), а если их
+на пути нет - до хориоидеи. Интраретинальный гиперрефлективный материал на
+отрезке вычитается.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from bsmu.macula.plugins.analyser.schema import (
     CLASS_SUBRETINAL_HYPERREFLECTIVE,
 )
 
-#: Классы, площадь которых вычитается из длины пути до хориоидеи:
+#: Классы, которые не входят в толщину сетчатки:
 #: друзы (1), отслойки (2, 10, 11, 16), СРГМ (4), ИРГМ (5), СРЖ (6), РПЭ (9).
 SUBTRACTED_CLASSES = frozenset(
     {
@@ -39,6 +41,8 @@ SUBTRACTED_CLASSES = frozenset(
         16,
     }
 )
+#: Всё, кроме ИРГМ, лежит под сетчаткой: на первом таком пикселе отрезок ЦТС заканчивается.
+STOP_CLASSES = SUBTRACTED_CLASSES - {CLASS_INTRARETINAL_HYPERREFLECTIVE}
 
 #: Длина перпендикуляра по умолчанию (пиксели).
 DEFAULT_PERP_LENGTH = 200
@@ -53,10 +57,10 @@ def central_width_of_retina(
     mask: np.ndarray,
     perp_len: int = DEFAULT_PERP_LENGTH,
 ) -> tuple[int, int, float, tuple[int, int], int] | None:
-    """Толщина сетчатки от точки ``foveola_center`` вниз до хориоидеи.
+    """Толщина сетчатки от точки ``foveola_center`` вниз до РПЭ/СРЖ или хориоидеи.
 
-    :return: ``(cx, cy, dist_corrected_px, choroid_point, count_subtract_px)``
-        либо ``None``, если хориоидея не достигнута.
+    :return: ``(cx, cy, dist_corrected_px, end_point, count_subtract_px)``
+        либо ``None``, если конец отрезка не найден.
     """
     cx, cy = foveola_center
     height, width = mask.shape
@@ -65,7 +69,7 @@ def central_width_of_retina(
         return None
 
     nx, ny = downward_normal(spline, cx)
-    choroid_point = None
+    end_point = None
     count_subtract = 0
 
     for t in range(0, perp_len):
@@ -75,18 +79,18 @@ def central_width_of_retina(
             break
 
         cls = mask[yy, xx]
-        if cls == CLASS_CHOROID:
-            choroid_point = (xx, yy)
+        if cls == CLASS_CHOROID or cls in STOP_CLASSES:
+            end_point = (xx, yy)
             break
         if cls in SUBTRACTED_CLASSES:
             count_subtract += 1
 
-    if choroid_point is None:
+    if end_point is None:
         return None
 
-    dist_full_px = float(np.hypot(choroid_point[0] - cx, choroid_point[1] - cy))
+    dist_full_px = float(np.hypot(end_point[0] - cx, end_point[1] - cy))
     dist_corrected_px = max(0.0, dist_full_px - count_subtract)
-    return cx, cy, dist_corrected_px, choroid_point, count_subtract
+    return cx, cy, dist_corrected_px, end_point, count_subtract
 
 
 def central_width_near(
