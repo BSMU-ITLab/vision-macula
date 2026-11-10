@@ -5,9 +5,10 @@ from typing import TYPE_CHECKING
 import cv2
 from PySide6.QtWidgets import QMessageBox
 
+from bsmu.vision.core.layers import RasterLayer
 from bsmu.vision.core.plugins import Plugin
 from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindow, MainWindowPlugin
-from bsmu.vision.widgets.viewers.image.layered import LayeredImageViewerHolder
+from bsmu.vision.widgets.viewers.layered import LayeredDataViewerHolder
 
 from bsmu.macula.plugins.analyser.analyzed_table import MeasurementsSubWindow, TableWindow
 from bsmu.macula.plugins.analyser.analyzer import ANALYSIS_SIZE, MaskAnalyser
@@ -82,20 +83,20 @@ class MaskAnalyserPlugin(Plugin):
         :return: ``(image, mask, fovea_mask, исходный_размер, layered_image, масштаб)``
             либо ``None``.
         """
-        sub_window = self._mdi.active_sub_window_with_type(LayeredImageViewerHolder)
+        sub_window = self._mdi.active_sub_window_with_type(LayeredDataViewerHolder)
         if sub_window is None:
             return None
 
-        viewer = sub_window.layered_image_viewer
+        viewer = sub_window.layered_data_viewer
         layers = {}
         for layer_name in (IMAGE_LAYER_NAME, MASK_LAYER_NAME, MASK_FOVEA_LAYER_NAME):
             layer = viewer.layer_by_name(layer_name)
-            if layer is None or layer.image_pixels is None:
+            if layer is None or not isinstance(layer, RasterLayer) or layer.image_pixels is None:
                 QMessageBox.warning(
                     self._main_window,
                     self.tr("Retinal Parameter Analysis"),
                     self.tr(
-                        'No layer with name "{}".\nAnalysis cannot be started.'
+                        'No valid raster layer with name "{}".\nAnalysis cannot be started.'
                     ).format(layer_name),
                 )
                 return None

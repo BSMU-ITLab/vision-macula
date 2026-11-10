@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject
 from bsmu.vision.core.image import MaskDrawMode
-from bsmu.vision.widgets.viewers.image.layered import LayeredImageViewer, LayeredImageViewerHolder
+from bsmu.vision.core.layers import RasterLayer
+from bsmu.vision.widgets.viewers.layered import LayeredDataViewerHolder
 
 if TYPE_CHECKING:
-    from bsmu.vision.core.image.layered import LayeredImage
-    from bsmu.vision.core.image import Image
+    from bsmu.vision.core.data.layered import LayeredData
+    from bsmu.vision.core.data.raster import Raster
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi
+    from bsmu.vision.widgets.viewers.layered import LayeredDataViewer
 
 
 class MdiInferencer(QObject):
@@ -18,9 +20,9 @@ class MdiInferencer(QObject):
 
         self._mdi = mdi
 
-    def _active_layered_image_viewer(self) -> LayeredImageViewer | None:
-        layered_image_viewer_sub_window = self._mdi.active_sub_window_with_type(LayeredImageViewerHolder)
-        return layered_image_viewer_sub_window and layered_image_viewer_sub_window.layered_image_viewer
+    def _active_layered_data_viewer(self) -> LayeredDataViewer | None:
+        layered_data_viewer_sub_window = self._mdi.active_sub_window_with_type(LayeredDataViewerHolder)
+        return layered_data_viewer_sub_window and layered_data_viewer_sub_window.layered_data_viewer
 
 
 class MdiSegmenter(MdiInferencer):
@@ -29,15 +31,18 @@ class MdiSegmenter(MdiInferencer):
             mask_layer_name: str,
             show_repaint_confirmation: bool = True,
             mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
-    ) -> tuple[LayeredImage | None, Image | None]:
+    ) -> tuple[LayeredData | None, Raster | None]:
 
-        layered_image_viewer = self._active_layered_image_viewer()
-        if layered_image_viewer is None or (layered_image := layered_image_viewer.data) is None:
+        layered_data_viewer = self._active_layered_data_viewer()
+        if layered_data_viewer is None or (layered_data := layered_data_viewer.data) is None:
             return None, None
 
         if (show_repaint_confirmation and
-                not layered_image_viewer.is_confirmed_repaint_duplicate_mask_layer(mask_layer_name, mask_draw_mode)):
+                not layered_data_viewer.is_confirmed_repaint_duplicate_mask_layer(mask_layer_name, mask_draw_mode)):
             return None, None
 
-        image_layer = layered_image.layers[0]
-        return layered_image, image_layer.image
+        raster_layer = layered_data.layers[0]
+        if not isinstance(raster_layer, RasterLayer):
+            return layered_data, None
+
+        return layered_data, raster_layer.data

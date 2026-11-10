@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from bsmu.vision.core.plugins import Plugin
 from bsmu.macula.inference.enseble import EnsembleSegmenter
-from bsmu.macula.inference.inferecer import EnsembleImageModelParams
+from bsmu.macula.inference.inferecer import EnsembleImageModelConfig
 
 if TYPE_CHECKING:
     from bsmu.vision.plugins.palette.settings import PalettePackSettingsPlugin
@@ -44,7 +44,7 @@ class BinaryEnsemblePlugin(Plugin):
 
     def _enable(self):
         model_dir = self.data_path(self._DNN_MODELS_DIR_NAME)
-        ensemble_model_params = EnsembleImageModelParams.from_config(
+        ensemble_model_params = EnsembleImageModelConfig.from_config(
             self.config_value('binary_ensemble_models'), model_dir)
 
         missing_models = []

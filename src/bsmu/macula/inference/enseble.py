@@ -9,7 +9,7 @@ from PySide6.QtCore import QObject
 from bsmu.vision.core.concurrent import ThreadPool
 from bsmu.vision.core.task import DnnTask
 from bsmu.vision.dnn.segmenter import Segmenter as DnnSegmenter
-from bsmu.macula.inference.inferecer import EnsembleImageModelParams
+from bsmu.macula.inference.inferecer import EnsembleImageModelConfig
 from bsmu.vision.core.palette import Palette
 from bsmu.macula.inference.utility import (
     RoiTiler, sigmoid_2d, preprocess_for_model, reverse_preprocess,
@@ -160,7 +160,7 @@ class CurrentSOTA:
 
     def __call__(self, image: np.ndarray) -> np.ndarray:
         """Run the full ensemble segmentation pipeline."""
-        model_input_size = self.boundary_model.model_params.input_image_size  # (height, width)
+        model_input_size = self.boundary_model.model_config.input_image_size  # (height, width)
         target_size = (model_input_size[1], model_input_size[0])  # (width, height)
 
         # 1: Initial ROI via RoiTiler (cropping apps info)
@@ -237,7 +237,7 @@ class CurrentSOTA:
 class EnsembleSegmenter(QObject):
     def __init__(
         self,
-        ensemble_model_params: EnsembleImageModelParams,
+        ensemble_model_params: EnsembleImageModelConfig,
         mask_palette: Palette,
         task_storage: TaskStorage = None,
     ):

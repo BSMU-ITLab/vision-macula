@@ -1,12 +1,14 @@
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Dict, Sequence
-from bsmu.vision.dnn.inferencer import ImageModelParams
+from typing import Sequence
+
 import numpy as np
+from bsmu.vision.dnn.inferencer import ImageModelConfig
+
 
 @dataclass
-class EnsembleImageModelParams(ImageModelParams):
-    class_models: Dict[int, str] = field(default_factory=dict)
+class EnsembleImageModelConfig(ImageModelConfig):
+    class_models: dict[int, str] = field(default_factory=dict)
     boundary_model: str = ""
     ped_model: str = ""
     three_and_six_model: str = ""
@@ -14,7 +16,7 @@ class EnsembleImageModelParams(ImageModelParams):
     catboost_model: str = ""
 
     @classmethod
-    def from_config(cls, config_data: dict, model_dir: Path) -> "EnsembleImageModelParams":
+    def from_config(cls, config_data: dict, model_dir: Path) -> "EnsembleImageModelConfig":
         class_models_raw = config_data.get("class_models", {})
         boundary = config_data.get("boundary_model", "")
         ped = config_data.get("ped_model", "")

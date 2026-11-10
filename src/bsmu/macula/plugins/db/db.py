@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 from bsmu.vision.core.plugins import Plugin
 from bsmu.vision.plugins.doc_interfaces.mdi import MdiPlugin
-from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindow, MainWindowPlugin
+from bsmu.vision.plugins.windows.main import DatabaseMenu, MainWindow, MainWindowPlugin
 
 from bsmu.macula.plugins.db.debug_utils import LOGGER_NAME, logger
 from bsmu.macula.plugins.db.schema import create_database_file
@@ -41,7 +41,7 @@ class DbPlugin(Plugin):
     def _enable_gui(self) -> None:
         self._main_window = self._main_window_plugin.main_window
         self._main_window.add_menu_action(
-            AlgorithmsMenu, self.tr("Database..."), self._open_database_window
+            DatabaseMenu, self.tr("Patient Database..."), self._open_database_window
         )
 
     def _disable(self) -> None:

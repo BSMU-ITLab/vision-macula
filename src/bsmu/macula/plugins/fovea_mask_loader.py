@@ -52,7 +52,7 @@ class FoveaMaskLoaderPlugin(Plugin):
 
         self._main_window.add_menu_action(
             FileMenu,
-            self.tr("Select Fovea Mask"),
+            self.tr("Select Fovea Mask..."),
             self._select_fovea_mask_file,
         )
 

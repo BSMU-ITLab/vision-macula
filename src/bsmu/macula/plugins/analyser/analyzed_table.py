@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMessageBox,
-    QMdiSubWindow,
     QPushButton,
     QScrollArea,
     QSplitter,
@@ -29,6 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from bsmu.vision.widgets.mdi.windows.data import DataViewerSubWindow
 from bsmu.macula.plugins.analyser.data_converter import PatientExamDataBuilder
 from bsmu.macula.plugins.analyser.schema import (
     EDITABLE_PARAMETERS,
@@ -456,7 +456,7 @@ class TableWindow(QWidget):
         return self._exam_data_builder.build(self._measurements)
 
 
-class MeasurementsSubWindow(QMdiSubWindow):
+class MeasurementsSubWindow(DataViewerSubWindow):
     """Окно результатов измерений внутри ``QMdiArea``.
 
     Раньше ``TableWindow`` показывался как отдельное top-level окно и
@@ -466,11 +466,13 @@ class MeasurementsSubWindow(QMdiSubWindow):
     """
 
     def __init__(self, table_window: TableWindow):
-        super().__init__()
+        super().__init__(table_window)  # TODO: TableWindow have to be inherited from the DataViewer
 
         self.setWidget(table_window)
-        self.setWindowTitle(table_window.windowTitle())
         self.setAttribute(Qt.WA_DeleteOnClose)
+
+    def update_window_title(self):
+        self.setWindowTitle(self.viewer.windowTitle())
 
 
 __all__ = [
