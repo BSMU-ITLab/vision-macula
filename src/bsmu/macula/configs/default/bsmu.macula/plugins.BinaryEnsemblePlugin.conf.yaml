@@ -8,12 +8,12 @@ binary_ensemble_models:
   three_and_six_model: "Class_3and6.onnx"
   tr_model: "Class_tr.onnx"
   catboost_model: "catboost_model.onnx"
-  output_object_name: 'Tissue'
-  output_object_short_name: 'T'
+  output_object_name: 'Retina'
+  output_object_short_name: 'R'
   preload: false
   batch_size: 4
   input_size: [1, 256, 512]
   channels_axis: 0
   channels_order: 'rgb'
   normalize: false
-  mask_binarization_threshold: 0.5
+  mask_binarization_thresholds: 0.5

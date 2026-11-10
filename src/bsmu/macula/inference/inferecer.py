@@ -1,9 +1,13 @@
-from dataclasses import dataclass, field, fields
-from pathlib import Path
-from typing import Sequence
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
 from bsmu.vision.dnn.inferencer import ImageModelConfig
+
+if TYPE_CHECKING:
+    from typing import Sequence
 
 
 @dataclass
@@ -14,42 +18,6 @@ class EnsembleImageModelConfig(ImageModelConfig):
     three_and_six_model: str = ""
     tr_model: str = ""
     catboost_model: str = ""
-
-    @classmethod
-    def from_config(cls, config_data: dict, model_dir: Path) -> "EnsembleImageModelConfig":
-        class_models_raw = config_data.get("class_models", {})
-        boundary = config_data.get("boundary_model", "")
-        ped = config_data.get("ped_model", "")
-        three_and_six = config_data.get("three_and_six_model", "")
-        tr = config_data.get("tr_model", "")
-        catboost = config_data.get("catboost_model", "")
-
-        if not isinstance(class_models_raw, dict):
-            raise ValueError("'class_models' in config should be a dict mapping class ids to model names.")
-
-        field_names = {f.name for f in fields(cls)}
-        special_fields = {
-            "class_models", "boundary_model", "ped_model", "three_and_six_model",
-            "tr_model", "catboost_model",
-        }
-        SENTINEL = object()
-        field_name_to_config_value = {
-            field_name: config_value
-            for field_name in field_names
-            if field_name not in special_fields
-               and (config_value := config_data.get(field_name, SENTINEL)) != SENTINEL
-        }
-
-        return cls(
-            path=model_dir,
-            class_models={int(k): v for k, v in class_models_raw.items()},
-            boundary_model=boundary,
-            ped_model=ped,
-            three_and_six_model=three_and_six,
-            tr_model=tr,
-            catboost_model=catboost,
-            **field_name_to_config_value,
-        )
 
     def preprocessed_input(self, image: np.ndarray, _skip_preprocessing: bool = True) -> np.ndarray:
         """Minimal preprocessing: just add the channel/batch axis.

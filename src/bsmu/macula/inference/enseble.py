@@ -237,45 +237,45 @@ class CurrentSOTA:
 class EnsembleSegmenter(QObject):
     def __init__(
         self,
-        ensemble_model_params: EnsembleImageModelConfig,
+        ensemble_model_config: EnsembleImageModelConfig,
         mask_palette: Palette,
         task_storage: TaskStorage = None,
     ):
         super().__init__()
-        self._ensemble_model_params = ensemble_model_params
+        self._ensemble_model_config = ensemble_model_config
         self._mask_palette = mask_palette
         self._task_storage = task_storage
 
-        model_dir = ensemble_model_params.path
+        model_dir = ensemble_model_config.path
 
         def _create_segmenter(model_name: str) -> DnnSegmenter:
             """Create a DnnSegmenter for a single model file."""
-            model_params = copy.deepcopy(ensemble_model_params)
+            model_params = copy.deepcopy(ensemble_model_config)
             model_params.path = model_dir / model_name
             return DnnSegmenter(model_params)
 
         class_models = {
             cls_idx: _create_segmenter(model_name)
-            for cls_idx, model_name in ensemble_model_params.class_models.items()
+            for cls_idx, model_name in ensemble_model_config.class_models.items()
         }
 
-        boundary_model = _create_segmenter(ensemble_model_params.boundary_model)
+        boundary_model = _create_segmenter(ensemble_model_config.boundary_model)
 
         ped_model = (
-            _create_segmenter(ensemble_model_params.ped_model)
-            if ensemble_model_params.ped_model
+            _create_segmenter(ensemble_model_config.ped_model)
+            if ensemble_model_config.ped_model
             else None
         )
         three_and_six_model = (
-            _create_segmenter(ensemble_model_params.three_and_six_model)
-            if ensemble_model_params.three_and_six_model
+            _create_segmenter(ensemble_model_config.three_and_six_model)
+            if ensemble_model_config.three_and_six_model
             else None
         )
         tr_model = None
-        if ensemble_model_params.tr_model:
-            tr_model_path = model_dir / ensemble_model_params.tr_model
+        if ensemble_model_config.tr_model:
+            tr_model_path = model_dir / ensemble_model_config.tr_model
             if tr_model_path.is_file():
-                tr_model = _create_segmenter(ensemble_model_params.tr_model)
+                tr_model = _create_segmenter(ensemble_model_config.tr_model)
             else:
                 logging.warning(
                     f'TR model file not found: {tr_model_path}. '
@@ -283,8 +283,8 @@ class EnsembleSegmenter(QObject):
                 )
 
         catboost_model = None
-        if ensemble_model_params.catboost_model:
-            catboost_model_path = model_dir / ensemble_model_params.catboost_model
+        if ensemble_model_config.catboost_model:
+            catboost_model_path = model_dir / ensemble_model_config.catboost_model
             if catboost_model_path.is_file():
                 catboost_model = _load_catboost_model(catboost_model_path)
             else:
