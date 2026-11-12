@@ -64,15 +64,19 @@ extend-exclude = [
 [tool.ruff.lint]
 future-annotations = true
 select = [
-    'E',    # pycodestyle errors
-    'W',    # pycodestyle warnings
-    'F',    # Pyflakes
-    'I',    # isort
-    'UP',   # pyupgrade
-    'B',    # flake8-bugbear
+    'E',  # pycodestyle errors
+    'W',  # pycodestyle warnings
+    'F',  # Pyflakes
+    'I',  # isort
+    'UP',  # pyupgrade
+    'B',  # flake8-bugbear
     'SIM',  # flake8-simplify
-    'C4',   # flake8-comprehensions
-    'TC',   # flake8-type-checking
+    'C4',  # flake8-comprehensions
+    'TC',  # flake8-type-checking
+    # TODO: switch to full 'N' on Python 3.12 (typing.override for Qt methods)
+    'N999',  # Module names
+    'N801',  # Class names
+    'N818',  # Exception names
 ]
 ignore = [
     'E501',  # Line length handled by formatter
