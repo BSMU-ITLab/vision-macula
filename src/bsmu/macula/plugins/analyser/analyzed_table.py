@@ -374,12 +374,7 @@ class TableWindow(QWidget):
         if self._highlight_callback is None:
             return
         view.entered.connect(handler)
-        try:
-            view.viewportEntered.connect(self._on_viewport_entered)
-        except Exception:  # noqa: BLE001 — сигнала может не быть в некоторых сборках Qt
-            pass
-
-    # --- обработчики ---
+        view.viewportEntered.connect(self._on_viewport_entered)
 
     def _on_drusen_selected(self, index: int) -> None:
         number = self.drusen_combo.itemData(index)

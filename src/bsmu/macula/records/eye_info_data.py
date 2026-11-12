@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 if TYPE_CHECKING:
     from datetime import date
@@ -48,9 +48,7 @@ class Measurement:
     area: float | None = None
 
     @classmethod
-    def from_model(
-        cls, model: QSqlQueryModel, row: int, loc_idx: int, w_idx: int, h_idx: int, a_idx: int
-    ) -> 'Measurement':
+    def from_model(cls, model: QSqlQueryModel, row: int, loc_idx: int, w_idx: int, h_idx: int, a_idx: int) -> Self:
         return cls(
             location=_as_str(model, row, loc_idx),
             width=_as_float(model, row, w_idx),
@@ -67,7 +65,7 @@ class ZoneStatus:
     defect_location: str | None = None
 
     @classmethod
-    def from_model(cls, model: QSqlQueryModel, row: int, cond_idx: int, loc_idx: int) -> 'ZoneStatus':
+    def from_model(cls, model: QSqlQueryModel, row: int, cond_idx: int, loc_idx: int) -> Self:
         return cls(
             condition=_as_str(model, row, cond_idx),
             defect_location=_as_str(model, row, loc_idx),
@@ -149,7 +147,7 @@ class PatientExamData:
     hyperreflective_material: Measurement = field(default_factory=Measurement)
 
     @classmethod
-    def from_query_model(cls, model: QSqlQueryModel, row: int) -> 'PatientExamData':
+    def from_query_model(cls, model: QSqlQueryModel, row: int) -> Self:
         """Собирает данные осмотра из строки модели SQL-запроса."""
         return cls(
             visit_date=_as_date(model, row, ExamColumn.VISIT_DATE),

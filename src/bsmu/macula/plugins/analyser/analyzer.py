@@ -347,10 +347,8 @@ class MaskAnalyser:
         elif gaps == 0:
             state, defects_location = 'Сохранена', None
         else:
-            if gaps == 1 and single_gap_state is not None:
-                state = single_gap_state
-            else:
-                state = 'Неравномерная (фрагментация)'
+            is_single_gap = gaps == 1 and single_gap_state is not None
+            state = single_gap_state if is_single_gap else 'Неравномерная (фрагментация)'
             defects_location = self._get_zone_defects_location(significant)
 
         rows = [make_row(condition_parameter, state, '', **{contours_key: contours})]

@@ -94,5 +94,10 @@ section-order = [
 [tool.ruff.lint.isort.sections]
 'bsmu-framework' = ['bsmu.vision']
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    'PySide6.QtCore.QModelIndex',
+]
+
 [tool.ruff.format]
 quote-style = 'single'

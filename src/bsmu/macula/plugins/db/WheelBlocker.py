@@ -4,8 +4,9 @@ from PySide6.QtWidgets import QComboBox
 
 class WheelBlocker(QObject):
     def eventFilter(self, obj, event):
-        if isinstance(obj, QComboBox) and event.type() == QEvent.Type.Wheel:
-            # Блокируем прокрутку, если список не открыт
-            if not obj.view().isVisible():
-                return True  # игнорируем событие
-        return False
+        if event.type() != QEvent.Type.Wheel:
+            return False
+        if not isinstance(obj, QComboBox):
+            return False
+        # Блокируем прокрутку, если список не открыт
+        return not obj.view().isVisible()
