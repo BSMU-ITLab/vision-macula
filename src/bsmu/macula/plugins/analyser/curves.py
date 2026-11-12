@@ -13,9 +13,10 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import cv2
 import numpy as np
-from scipy.interpolate import UnivariateSpline
 
 from bsmu.macula.plugins.analyser.geometry import downward_normal
 from bsmu.macula.plugins.analyser.schema import (
@@ -25,6 +26,9 @@ from bsmu.macula.plugins.analyser.schema import (
     CLASS_RPE,
     CLASS_SUBRETINAL_HYPERREFLECTIVE,
 )
+
+if TYPE_CHECKING:
+    from scipy.interpolate import UnivariateSpline
 
 #: Классы, которые не входят в толщину сетчатки:
 #: друзы (1), отслойки (2, 10, 11, 16), СРГМ (4), ИРГМ (5), СРЖ (6), РПЭ (9).

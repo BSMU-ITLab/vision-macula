@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import re
-from typing import Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 from PySide6.QtWidgets import (
@@ -39,6 +39,9 @@ from bsmu.macula.plugins.analyser.schema import (
     drusen_number,
     is_drusen_parameter,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: Заголовки колонок таблиц.
 TABLE_HEADERS = ['Параметр', 'Значение']

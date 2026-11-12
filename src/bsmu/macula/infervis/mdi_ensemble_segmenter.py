@@ -8,12 +8,13 @@ import numpy as np
 from bsmu.vision.core.image import FlatImage, MaskDrawMode
 from bsmu.vision.core.visibility import Visibility
 
-from bsmu.macula.inference.enseble import EnsembleSegmenter
 from bsmu.macula.infervis.mdi import MdiSegmenter
 
 if TYPE_CHECKING:
     from bsmu.vision.core.image.layered import LayeredImage
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi
+
+    from bsmu.macula.inference.enseble import EnsembleSegmenter
 
 
 class EnsembleMdiSegmenter(MdiSegmenter):

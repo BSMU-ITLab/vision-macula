@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from PySide6.QtSql import QSqlQuery
 
-from bsmu.macula.plugins.db.database_manager import DatabaseManager
+if TYPE_CHECKING:
+    from bsmu.macula.plugins.db.database_manager import DatabaseManager
 
 
 class QueryBuilder:

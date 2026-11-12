@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import sqlite3
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 
 from bsmu.vision.core.plugins import Plugin
-from bsmu.vision.plugins.doc_interfaces.mdi import MdiPlugin
 from bsmu.vision.plugins.windows.main import DatabaseMenu, MainWindow, MainWindowPlugin
 
 from bsmu.macula.plugins.db.debug_utils import LOGGER_NAME, logger
 from bsmu.macula.plugins.db.schema import create_database_file
 from bsmu.macula.plugins.db.SQLiteTableViewer import DEFAULT_EDIT_ICON, TableWidgetExample
+
+if TYPE_CHECKING:
+    from bsmu.vision.plugins.doc_interfaces.mdi import MdiPlugin
 
 #: Значения по умолчанию, если в plugins.db.BD.conf.yaml их нет.
 DEFAULT_DB_NAME = 'database.db'

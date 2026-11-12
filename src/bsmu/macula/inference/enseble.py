@@ -2,18 +2,16 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
 from PySide6.QtCore import QObject
 
 from bsmu.vision.core.concurrent import ThreadPool
-from bsmu.vision.core.palette import Palette
 from bsmu.vision.core.task import DnnTask
 from bsmu.vision.dnn.segmenter import Segmenter as DnnSegmenter
 
-from bsmu.macula.inference.inferecer import EnsembleImageModelConfig
 from bsmu.macula.inference.postprocess import postprocess_mask
 from bsmu.macula.inference.utility import (
     RoiTiler,
@@ -23,8 +21,13 @@ from bsmu.macula.inference.utility import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from bsmu.vision.core.image import Image
+    from bsmu.vision.core.palette import Palette
     from bsmu.vision.plugins.storages.task import TaskStorage
+
+    from bsmu.macula.inference.inferecer import EnsembleImageModelConfig
 
 
 def _grayscale_image(image: np.ndarray) -> np.ndarray:

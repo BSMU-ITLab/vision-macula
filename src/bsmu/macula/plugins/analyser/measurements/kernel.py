@@ -13,12 +13,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import cv2
 import numpy as np
-from scipy.interpolate import UnivariateSpline
 
 from bsmu.macula.plugins.analyser.geometry import upward_normal
 from bsmu.macula.plugins.analyser.schema import to_um, to_um2
+
+if TYPE_CHECKING:
+    from scipy.interpolate import UnivariateSpline
 
 #: Максимальная длина перпендикуляра при поиске высоты (пиксели).
 DEFAULT_PERP_LENGTH = 400

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import cv2
 import numpy as np
-from scipy.interpolate import UnivariateSpline
 
 from bsmu.macula.plugins.analyser.measurements.kernel import (
     DEFAULT_PERP_LENGTH,
@@ -14,6 +15,9 @@ from bsmu.macula.plugins.analyser.measurements.kernel import (
     width_along_boundary,
 )
 from bsmu.macula.plugins.analyser.schema import to_um2
+
+if TYPE_CHECKING:
+    from scipy.interpolate import UnivariateSpline
 
 #: Порядок элементов результата измерения друзы.
 DrusenResult = tuple[

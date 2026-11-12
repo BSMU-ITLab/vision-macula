@@ -8,22 +8,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
-from typing import Optional
+from typing import TYPE_CHECKING
 
-from PySide6.QtSql import QSqlQueryModel
+if TYPE_CHECKING:
+    from datetime import date
+
+    from PySide6.QtSql import QSqlQueryModel
 
 
 def _value(model: QSqlQueryModel, row: int, column: int):
     return model.data(model.index(row, column))
 
 
-def _as_str(model: QSqlQueryModel, row: int, column: int) -> Optional[str]:
+def _as_str(model: QSqlQueryModel, row: int, column: int) -> str | None:
     value = _value(model, row, column)
     return str(value) if value else None
 
 
-def _as_float(model: QSqlQueryModel, row: int, column: int) -> Optional[float]:
+def _as_float(model: QSqlQueryModel, row: int, column: int) -> float | None:
     value = _value(model, row, column)
     try:
         return float(value) if value else None
@@ -40,10 +42,10 @@ def _as_date(model: QSqlQueryModel, row: int, column: int):
 class Measurement:
     """Измерение с локализацией и размерами."""
 
-    location: Optional[str] = None
-    width: Optional[float] = None
-    height: Optional[float] = None
-    area: Optional[float] = None
+    location: str | None = None
+    width: float | None = None
+    height: float | None = None
+    area: float | None = None
 
     @classmethod
     def from_model(
@@ -61,8 +63,8 @@ class Measurement:
 class ZoneStatus:
     """Состояние анатомической зоны: описание и локализация дефекта."""
 
-    condition: Optional[str] = None
-    defect_location: Optional[str] = None
+    condition: str | None = None
+    defect_location: str | None = None
 
     @classmethod
     def from_model(cls, model: QSqlQueryModel, row: int, cond_idx: int, loc_idx: int) -> 'ZoneStatus':
@@ -106,25 +108,25 @@ class PatientExamData:
     """Данные осмотра: метаданные, толщины, зоны и патологии."""
 
     # Основные метаданные
-    visit_date: Optional[date] = None
-    disease_duration: Optional[str] = None
-    tomograph_type: Optional[str] = 'Топкон'
-    areds_criteria: Optional[str] = None
-    refraction: Optional[str] = None
-    neovascularization_type: Optional[str] = None
-    bcva: Optional[str] = None
+    visit_date: date | None = None
+    disease_duration: str | None = None
+    tomograph_type: str | None = 'Топкон'
+    areds_criteria: str | None = None
+    refraction: str | None = None
+    neovascularization_type: str | None = None
+    bcva: str | None = None
 
     # Общие измерения сетчатки
-    choroidal_center_thickness: Optional[float] = None
-    foveal_retinal_thickness: Optional[float] = None
-    cts_near_foveolla: Optional[float] = None
-    cts_near_fovea: Optional[float] = None
-    total_retinal_volume: Optional[float] = None
-    average_retinal_volume: Optional[float] = None
+    choroidal_center_thickness: float | None = None
+    foveal_retinal_thickness: float | None = None
+    cts_near_foveolla: float | None = None
+    cts_near_fovea: float | None = None
+    total_retinal_volume: float | None = None
+    average_retinal_volume: float | None = None
 
     # Состояние РПЭ и отек
     rpe_status: ZoneStatus = field(default_factory=ZoneStatus)
-    cmo_location: Optional[str] = None
+    cmo_location: str | None = None
 
     # Отслойки пигментного эпителия
     serous_ped: Measurement = field(default_factory=Measurement)

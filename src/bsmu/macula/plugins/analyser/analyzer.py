@@ -8,8 +8,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
-
 import cv2
 import numpy as np
 
@@ -85,7 +83,7 @@ class MaskAnalyser:
         image: np.ndarray,
         mask: np.ndarray,
         mask_fovea: np.ndarray,
-        class_configs: List[Dict],
+        class_configs: list[dict],
         scale_x: float | None = None,
         scale_y: float | None = None,
     ):

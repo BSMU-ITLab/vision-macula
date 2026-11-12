@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime
-from typing import Iterable
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -38,6 +38,9 @@ from bsmu.macula.plugins.analyser.schema import (
     is_drusen_parameter,
 )
 from bsmu.macula.records.eye_info_data import Measurement, PatientExamData
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 #: Порог X для «слева» и «справа» в прежней эвристике локализации.
 LEGACY_LEFT_BOUND = 300

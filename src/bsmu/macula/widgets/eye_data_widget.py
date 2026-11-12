@@ -1,7 +1,12 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QLabel, QScrollArea, QVBoxLayout, QWidget
 
-from bsmu.macula.records.eye_info_data import PatientExamData
+if TYPE_CHECKING:
+    from bsmu.macula.records.eye_info_data import PatientExamData
 
 
 class EyeDataWidget(QWidget):

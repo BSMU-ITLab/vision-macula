@@ -5,18 +5,19 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from bsmu.vision.core.image import FlatImage, MaskDrawMode
 from bsmu.vision.core.visibility import Visibility
 
-from bsmu.macula.inference.keypoint import KeypointPredictor
 from bsmu.macula.inference.keypoint_palette import KEYPOINT_PALETTE
 from bsmu.macula.infervis.mdi import MdiSegmenter
 
 if TYPE_CHECKING:
+    import numpy as np
+
     from bsmu.vision.core.image.layered import LayeredImage
     from bsmu.vision.plugins.doc_interfaces.mdi import Mdi
+
+    from bsmu.macula.inference.keypoint import KeypointPredictor
 
 
 MASK_LAYER_NAME = 'masks'

@@ -1,7 +1,12 @@
-from typing import Any, Callable, Iterable, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import cv2
 import numpy as np
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 
 def smooth_boundary(boundary):
@@ -117,9 +122,9 @@ class BoundaryTiler(BaseTiler):  # noqa: D101  (используется чер�
         self.kernel = kernel
         self.stride = stride
         self.cls_num = cls_num
-        self._coords: Optional[tuple[int, int, int, int]] = None
+        self._coords: tuple[int, int, int, int] | None = None
 
-    def split(self, sample: np.ndarray, info: Optional[np.ndarray] = None) -> Iterable[np.ndarray]:
+    def split(self, sample: np.ndarray, info: np.ndarray | None = None) -> Iterable[np.ndarray]:
         self.original_shape = sample.shape
         H, W = sample.shape
         nW = get_resize_value(W, self.kernel[1], self.stride[1])
@@ -147,9 +152,9 @@ class BoundaryTiler(BaseTiler):  # noqa: D101  (используется чер�
 class RoiTiler(BaseTiler):
     def __init__(self):
         super().__init__()
-        self._coords: Optional[tuple[int, int, int, int]] = None
+        self._coords: tuple[int, int, int, int] | None = None
 
-    def split(self, sample: np.ndarray, info: Optional[Any] = None) -> Iterable[np.ndarray]:
+    def split(self, sample: np.ndarray, info: Any | None = None) -> Iterable[np.ndarray]:
         self.original_shape = sample.shape
         self.buffer = np.zeros_like(sample, dtype=np.float32)
         H, W = sample.shape

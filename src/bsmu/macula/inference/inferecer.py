@@ -8,7 +8,7 @@ import numpy as np
 from bsmu.vision.dnn.inferencer import ImageModelConfig
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from collections.abc import Sequence
 
 
 @dataclass

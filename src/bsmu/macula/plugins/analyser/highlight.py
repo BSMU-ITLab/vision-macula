@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -24,6 +24,9 @@ from bsmu.macula.plugins.analyser.schema import (
     HYPERREFLECTIVE_SUBRETINAL,
     RowKey,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: Имя слоя подсветки.
 HIGHLIGHT_LAYER_NAME = 'hover-highlight'

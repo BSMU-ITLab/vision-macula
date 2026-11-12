@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import TYPE_CHECKING
 
-import numpy as np
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class ScaleCalculator:
@@ -36,7 +37,7 @@ class ScaleCalculator:
         avg_scale = (self.scale_x + self.scale_y) / 2
         return value_px * avg_scale
 
-    def calculate_distance_um(self, point1: Tuple[float, float], point2: Tuple[float, float]) -> float | None:
+    def calculate_distance_um(self, point1: tuple[float, float], point2: tuple[float, float]) -> float | None:
         """
         Вычисляет расстояние между двумя точками в микрометрах.
 

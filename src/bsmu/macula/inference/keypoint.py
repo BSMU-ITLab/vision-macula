@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -13,8 +12,13 @@ from PySide6.QtCore import QObject
 from bsmu.vision.core.concurrent import ThreadPool
 from bsmu.vision.core.task import DnnTask
 
-from bsmu.macula.inference.enseble import EnsembleSegmenter
 from bsmu.macula.inference.utility import RoiTiler
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
+    from bsmu.macula.inference.enseble import EnsembleSegmenter
 
 
 @dataclass(frozen=True)
