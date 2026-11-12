@@ -54,10 +54,10 @@ class MdiKeypointPredictor(MdiSegmenter):
         return mask_layer.image_pixels
 
     def _on_prediction_finished(
-            self,
-            keypoint_mask: np.ndarray,
-            *,
-            layered_image: LayeredImage,
+        self,
+        keypoint_mask: np.ndarray,
+        *,
+        layered_image: LayeredImage,
     ) -> None:
         layered_image.add_layer_or_modify_pixels(
             KEYPOINT_LAYER_NAME,

@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from bsmu.macula.inference.enseble import EnsembleSegmenter
-from bsmu.macula.infervis.mdi import MdiSegmenter
 from bsmu.vision.core.image import FlatImage, MaskDrawMode
 from bsmu.vision.core.visibility import Visibility
+
+from bsmu.macula.inference.enseble import EnsembleSegmenter
+from bsmu.macula.infervis.mdi import MdiSegmenter
 
 if TYPE_CHECKING:
     from bsmu.vision.core.image.layered import LayeredImage
@@ -22,16 +23,16 @@ class EnsembleMdiSegmenter(MdiSegmenter):
 
     @property
     def mask_foreground_class(self) -> int:
-        return self._segmenter.mask_palette.row_index_by_name("foreground")
+        return self._segmenter.mask_palette.row_index_by_name('foreground')
 
     @property
     def mask_background_class(self) -> int:
-        return self._segmenter.mask_palette.row_index_by_name("background")
+        return self._segmenter.mask_palette.row_index_by_name('background')
 
     def segment_async(
-            self,
-            mask_layer_name: str,
-            mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
+        self,
+        mask_layer_name: str,
+        mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
     ) -> None:
         layered_image, image = self._check_duplicate_mask_and_get_active_layered_image(
             mask_layer_name,
@@ -49,29 +50,31 @@ class EnsembleMdiSegmenter(MdiSegmenter):
         self._segmenter.segment_async(image, on_finished=on_finished)
 
     def _on_segmentation_finished(
-            self,
-            mask: np.ndarray,
-            *,
-            layered_image: LayeredImage,
-            mask_layer_name: str,
-            mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
+        self,
+        mask: np.ndarray,
+        *,
+        layered_image: LayeredImage,
+        mask_layer_name: str,
+        mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
     ) -> None:
         self.update_mask_layer(mask, layered_image, mask_layer_name, mask_draw_mode)
 
     def update_mask_layer(
-            self,
-            mask: np.ndarray,
-            layered_image: LayeredImage,
-            mask_layer_name: str,
-            mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
+        self,
+        mask: np.ndarray,
+        layered_image: LayeredImage,
+        mask_layer_name: str,
+        mask_draw_mode: MaskDrawMode = MaskDrawMode.REDRAW_ALL,
     ) -> None:
         mask_layer = layered_image.layer_by_name(mask_layer_name)
         mask = mask.astype(np.uint8)
         # Temp fix to redraw the entire mask even for MaskDrawMode.OVERLAY_FOREGROUND mode
-        if (mask_draw_mode == MaskDrawMode.REDRAW_ALL
-                or mask_layer is None
-                or not mask_layer.is_image_pixels_valid
-                or mask_draw_mode == MaskDrawMode.OVERLAY_FOREGROUND):
+        if (
+            mask_draw_mode == MaskDrawMode.REDRAW_ALL
+            or mask_layer is None
+            or not mask_layer.is_image_pixels_valid
+            or mask_draw_mode == MaskDrawMode.OVERLAY_FOREGROUND
+        ):
             layered_image.add_layer_or_modify_pixels(
                 mask_layer_name,
                 mask,
@@ -84,4 +87,4 @@ class EnsembleMdiSegmenter(MdiSegmenter):
             mask_layer.image_pixels[is_modified] = mask[is_modified]
             mask_layer.image.emit_pixels_modified()
         else:
-            raise ValueError(f"Invalid MaskDrawMode: {mask_draw_mode}")
+            raise ValueError(f'Invalid MaskDrawMode: {mask_draw_mode}')

@@ -1,20 +1,26 @@
 from __future__ import annotations
 
-import cv2
-import numpy as np
 import copy
 import logging
 from typing import TYPE_CHECKING, Callable
+
+import cv2
+import numpy as np
 from PySide6.QtCore import QObject
+
 from bsmu.vision.core.concurrent import ThreadPool
+from bsmu.vision.core.palette import Palette
 from bsmu.vision.core.task import DnnTask
 from bsmu.vision.dnn.segmenter import Segmenter as DnnSegmenter
+
 from bsmu.macula.inference.inferecer import EnsembleImageModelConfig
-from bsmu.vision.core.palette import Palette
-from bsmu.macula.inference.utility import (
-    RoiTiler, sigmoid_2d, preprocess_for_model, reverse_preprocess,
-)
 from bsmu.macula.inference.postprocess import postprocess_mask
+from bsmu.macula.inference.utility import (
+    RoiTiler,
+    preprocess_for_model,
+    reverse_preprocess,
+    sigmoid_2d,
+)
 
 if TYPE_CHECKING:
     from bsmu.vision.core.image import Image
@@ -99,7 +105,9 @@ class CurrentSOTA:
         return (y_min, y_max + 1, x_min, x_max + 1)
 
     def _predict_direct_classes(
-        self, pp_roi: np.ndarray, content_shape: tuple[int, int],
+        self,
+        pp_roi: np.ndarray,
+        content_shape: tuple[int, int],
         target_shape: tuple[int, int],
     ) -> np.ndarray:
         """Run direct-threshold models and return a per-class prediction stack."""
@@ -113,7 +121,9 @@ class CurrentSOTA:
         return stack
 
     def _predict_combined_1_4(
-        self, pp_roi: np.ndarray, content_shape: tuple[int, int],
+        self,
+        pp_roi: np.ndarray,
+        content_shape: tuple[int, int],
         target_shape: tuple[int, int],
     ) -> np.ndarray:
         """Combine models 1, 4, and 4PED for classes 1 and 4."""
@@ -121,12 +131,9 @@ class CurrentSOTA:
         if not (1 in self.class_models and 4 in self.class_models and self.ped_model is not None):
             return stack
 
-        p_all = reverse_preprocess(
-            self._run_model(self.ped_model, pp_roi), content_shape, target_shape)
-        p_1 = reverse_preprocess(
-            self._run_model(self.class_models[1], pp_roi), content_shape, target_shape)
-        p_4 = reverse_preprocess(
-            self._run_model(self.class_models[4], pp_roi), content_shape, target_shape)
+        p_all = reverse_preprocess(self._run_model(self.ped_model, pp_roi), content_shape, target_shape)
+        p_1 = reverse_preprocess(self._run_model(self.class_models[1], pp_roi), content_shape, target_shape)
+        p_4 = reverse_preprocess(self._run_model(self.class_models[4], pp_roi), content_shape, target_shape)
 
         p_ped = p_1 > p_4
         p_1_result = p_all * p_ped
@@ -136,7 +143,9 @@ class CurrentSOTA:
         return stack
 
     def _predict_combined_3_6(
-        self, pp_roi: np.ndarray, content_shape: tuple[int, int],
+        self,
+        pp_roi: np.ndarray,
+        content_shape: tuple[int, int],
         target_shape: tuple[int, int],
     ) -> np.ndarray:
         """Combine models 3, 6, and 3and6 for classes 3 and 6."""
@@ -144,12 +153,9 @@ class CurrentSOTA:
         if not (3 in self.class_models and 6 in self.class_models and self.three_and_six_model is not None):
             return stack
 
-        p_all = reverse_preprocess(
-            self._run_model(self.three_and_six_model, pp_roi), content_shape, target_shape)
-        p_3 = reverse_preprocess(
-            self._run_model(self.class_models[3], pp_roi), content_shape, target_shape)
-        p_6 = reverse_preprocess(
-            self._run_model(self.class_models[6], pp_roi), content_shape, target_shape)
+        p_all = reverse_preprocess(self._run_model(self.three_and_six_model, pp_roi), content_shape, target_shape)
+        p_3 = reverse_preprocess(self._run_model(self.class_models[3], pp_roi), content_shape, target_shape)
+        p_6 = reverse_preprocess(self._run_model(self.class_models[6], pp_roi), content_shape, target_shape)
 
         p_3p = p_3 > p_6
         p_3_result = p_all * p_3p
@@ -211,7 +217,7 @@ class CurrentSOTA:
         if self.tr_model is not None and self.catboost_model is not None:
             tr_full = np.zeros(image.shape, dtype=bool)
             x, y, w, h = roi_tiler._coords
-            tr_full[y:y + h, x:x + w] = tr_roi
+            tr_full[y : y + h, x : x + w] = tr_roi
 
             refined_mask = postprocess_mask(self.catboost_model, image, tr_full, p_gt)
             p_gt = p_gt * (refined_mask == 0) + refined_mask
@@ -227,7 +233,8 @@ class CurrentSOTA:
         roi_image = next(roi_tiler.split(image))
         pp_image, content_shape = preprocess_for_model(roi_image, target_size)
         boundary_probabilities = reverse_preprocess(
-            self._run_model(self.boundary_model, pp_image), content_shape, roi_image.shape)
+            self._run_model(self.boundary_model, pp_image), content_shape, roi_image.shape
+        )
         boundary_mask = boundary_probabilities > 0.5
 
         roi_tiler.update(boundary_mask.astype(np.float32))
@@ -255,17 +262,12 @@ class EnsembleSegmenter(QObject):
             return DnnSegmenter(model_params)
 
         class_models = {
-            cls_idx: _create_segmenter(model_name)
-            for cls_idx, model_name in ensemble_model_config.class_models.items()
+            cls_idx: _create_segmenter(model_name) for cls_idx, model_name in ensemble_model_config.class_models.items()
         }
 
         boundary_model = _create_segmenter(ensemble_model_config.boundary_model)
 
-        ped_model = (
-            _create_segmenter(ensemble_model_config.ped_model)
-            if ensemble_model_config.ped_model
-            else None
-        )
+        ped_model = _create_segmenter(ensemble_model_config.ped_model) if ensemble_model_config.ped_model else None
         three_and_six_model = (
             _create_segmenter(ensemble_model_config.three_and_six_model)
             if ensemble_model_config.three_and_six_model
@@ -277,10 +279,7 @@ class EnsembleSegmenter(QObject):
             if tr_model_path.is_file():
                 tr_model = _create_segmenter(ensemble_model_config.tr_model)
             else:
-                logging.warning(
-                    f'TR model file not found: {tr_model_path}. '
-                    'CatBoost postprocessing will be skipped.'
-                )
+                logging.warning(f'TR model file not found: {tr_model_path}. CatBoost postprocessing will be skipped.')
 
         catboost_model = None
         if ensemble_model_config.catboost_model:
@@ -289,13 +288,16 @@ class EnsembleSegmenter(QObject):
                 catboost_model = _load_catboost_model(catboost_model_path)
             else:
                 logging.warning(
-                    f'CatBoost model file not found: {catboost_model_path}. '
-                    'Postprocessing will be skipped.'
+                    f'CatBoost model file not found: {catboost_model_path}. Postprocessing will be skipped.'
                 )
 
         self._sota_inference = CurrentSOTA(
-            class_models, boundary_model, ped_model, three_and_six_model,
-            tr_model=tr_model, catboost_model=catboost_model,
+            class_models,
+            boundary_model,
+            ped_model,
+            three_and_six_model,
+            tr_model=tr_model,
+            catboost_model=catboost_model,
         )
 
     @property
@@ -313,12 +315,13 @@ class EnsembleSegmenter(QObject):
         return self._sota_inference.predict_background_mask(image)
 
     def segment_async(self, image: Image, on_finished: Callable[[np.ndarray], None] | None = None):
-        task_name = f"SOTA Segmentation [{image.path_name}]"
+        task_name = f'SOTA Segmentation [{image.path_name}]'
         segmentation_task = EnsembleSegmentationTask(image.pixels, self._sota_inference, task_name)
         segmentation_task.on_finished = on_finished
         if self._task_storage is not None:
             self._task_storage.add_item(segmentation_task)
         ThreadPool.run_async_task(segmentation_task)
+
 
 class EnsembleSegmentationTask(DnnTask):
     def __init__(self, image: np.ndarray, sota_inference: CurrentSOTA, name: str = ''):
@@ -330,7 +333,7 @@ class EnsembleSegmentationTask(DnnTask):
         self._sota_inference = sota_inference
 
     def _run(self) -> np.ndarray:
-        logging.info("Starting SOTA segmentation task.")
+        logging.info('Starting SOTA segmentation task.')
         mask = self._sota_inference(_grayscale_image(self._image))
-        logging.info("SOTA segmentation task completed.")
+        logging.info('SOTA segmentation task completed.')
         return mask

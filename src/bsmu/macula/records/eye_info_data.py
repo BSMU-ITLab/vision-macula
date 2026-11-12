@@ -33,7 +33,7 @@ def _as_float(model: QSqlQueryModel, row: int, column: int) -> Optional[float]:
 
 def _as_date(model: QSqlQueryModel, row: int, column: int):
     value = _value(model, row, column)
-    return value.toPyDate() if hasattr(value, "toPyDate") else value
+    return value.toPyDate() if hasattr(value, 'toPyDate') else value
 
 
 @dataclass
@@ -46,8 +46,9 @@ class Measurement:
     area: Optional[float] = None
 
     @classmethod
-    def from_model(cls, model: QSqlQueryModel, row: int,
-                   loc_idx: int, w_idx: int, h_idx: int, a_idx: int) -> "Measurement":
+    def from_model(
+        cls, model: QSqlQueryModel, row: int, loc_idx: int, w_idx: int, h_idx: int, a_idx: int
+    ) -> 'Measurement':
         return cls(
             location=_as_str(model, row, loc_idx),
             width=_as_float(model, row, w_idx),
@@ -64,8 +65,7 @@ class ZoneStatus:
     defect_location: Optional[str] = None
 
     @classmethod
-    def from_model(cls, model: QSqlQueryModel, row: int,
-                   cond_idx: int, loc_idx: int) -> "ZoneStatus":
+    def from_model(cls, model: QSqlQueryModel, row: int, cond_idx: int, loc_idx: int) -> 'ZoneStatus':
         return cls(
             condition=_as_str(model, row, cond_idx),
             defect_location=_as_str(model, row, loc_idx),
@@ -108,7 +108,7 @@ class PatientExamData:
     # Основные метаданные
     visit_date: Optional[date] = None
     disease_duration: Optional[str] = None
-    tomograph_type: Optional[str] = "Топкон"
+    tomograph_type: Optional[str] = 'Топкон'
     areds_criteria: Optional[str] = None
     refraction: Optional[str] = None
     neovascularization_type: Optional[str] = None
@@ -147,7 +147,7 @@ class PatientExamData:
     hyperreflective_material: Measurement = field(default_factory=Measurement)
 
     @classmethod
-    def from_query_model(cls, model: QSqlQueryModel, row: int) -> "PatientExamData":
+    def from_query_model(cls, model: QSqlQueryModel, row: int) -> 'PatientExamData':
         """Собирает данные осмотра из строки модели SQL-запроса."""
         return cls(
             visit_date=_as_date(model, row, ExamColumn.VISIT_DATE),
@@ -159,9 +159,7 @@ class PatientExamData:
             foveal_retinal_thickness=_as_float(model, row, ExamColumn.FOVEAL_THICKNESS),
             total_retinal_volume=_as_float(model, row, ExamColumn.TOTAL_VOLUME),
             average_retinal_volume=_as_float(model, row, ExamColumn.AVERAGE_VOLUME),
-            rpe_status=ZoneStatus.from_model(
-                model, row, ExamColumn.RPE_CONDITION, ExamColumn.RPE_DEFECT_LOCATION
-            ),
+            rpe_status=ZoneStatus.from_model(model, row, ExamColumn.RPE_CONDITION, ExamColumn.RPE_DEFECT_LOCATION),
             cmo_location=_as_str(model, row, ExamColumn.CME_LOCATION),
             serous_ped=Measurement.from_model(model, row, *ExamColumn.SEROUS_PED),
             hemorrhagic_ped=Measurement.from_model(model, row, *ExamColumn.HEMORRHAGIC_PED),

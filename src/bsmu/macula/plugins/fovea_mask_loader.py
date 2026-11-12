@@ -21,23 +21,23 @@ if TYPE_CHECKING:
 
 
 #: Имя слоя с маской зон фовеа (1 — фовеола, 2 — фовеа, 3 — макула).
-MASK_FOVEA_LAYER_NAME = "masks-fovea"
+MASK_FOVEA_LAYER_NAME = 'masks-fovea'
 
 
 class FoveaMaskLoaderPlugin(Plugin):
     """Пункт меню «Select Fovea Mask»: загрузка маски зон фовеа из файла."""
 
     _DEFAULT_DEPENDENCY_PLUGIN_FULL_NAME_BY_KEY = {
-        "main_window_plugin": "bsmu.vision.plugins.windows.main.MainWindowPlugin",
-        "mdi_plugin": "bsmu.vision.plugins.doc_interfaces.mdi.MdiPlugin",
-        "palette_pack_settings_plugin": "bsmu.vision.plugins.palette.settings.PalettePackSettingsPlugin",
+        'main_window_plugin': 'bsmu.vision.plugins.windows.main.MainWindowPlugin',
+        'mdi_plugin': 'bsmu.vision.plugins.doc_interfaces.mdi.MdiPlugin',
+        'palette_pack_settings_plugin': 'bsmu.vision.plugins.palette.settings.PalettePackSettingsPlugin',
     }
 
     def __init__(
-            self,
-            main_window_plugin: MainWindowPlugin,
-            mdi_plugin: MdiPlugin,
-            palette_pack_settings_plugin: PalettePackSettingsPlugin,
+        self,
+        main_window_plugin: MainWindowPlugin,
+        mdi_plugin: MdiPlugin,
+        palette_pack_settings_plugin: PalettePackSettingsPlugin,
     ):
         super().__init__()
 
@@ -52,7 +52,7 @@ class FoveaMaskLoaderPlugin(Plugin):
 
         self._main_window.add_menu_action(
             FileMenu,
-            self.tr("Select Fovea Mask..."),
+            self.tr('Select Fovea Mask...'),
             self._select_fovea_mask_file,
         )
 
@@ -65,13 +65,13 @@ class FoveaMaskLoaderPlugin(Plugin):
         """LayeredImage активного окна или ``None`` (с сообщением пользователю)."""
         active_sub_window = self._mdi_plugin.mdi.activeSubWindow()
         if active_sub_window is None:
-            self._warn(self.tr("Откройте изображение, чтобы загрузить маску фовеа."))
+            self._warn(self.tr('Откройте изображение, чтобы загрузить маску фовеа.'))
             return None
 
         widget = active_sub_window.widget()
-        layered_image = getattr(widget, "data", None)
+        layered_image = getattr(widget, 'data', None)
         if layered_image is None:
-            self._warn(self.tr("Активное окно не содержит изображения."))
+            self._warn(self.tr('Активное окно не содержит изображения.'))
             return None
 
         return layered_image
@@ -84,15 +84,15 @@ class FoveaMaskLoaderPlugin(Plugin):
 
         file_name, _ = QFileDialog.getOpenFileName(
             parent=self._main_window,
-            caption=self.tr("Select Fovea Mask"),
-            filter=self.tr("Image Files (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;All Files (*)"),
+            caption=self.tr('Select Fovea Mask'),
+            filter=self.tr('Image Files (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;All Files (*)'),
         )
         if not file_name:
             return
 
         mask_fovea_pixels = cv2.imread(file_name, cv2.IMREAD_UNCHANGED)
         if mask_fovea_pixels is None:
-            self._warn(self.tr("Не удалось прочитать файл маски фовеа:\n{}").format(file_name))
+            self._warn(self.tr('Не удалось прочитать файл маски фовеа:\n{}').format(file_name))
             return
 
         # Цветную маску приводим к одному каналу: класс зоны хранится в значении.
@@ -125,7 +125,7 @@ class FoveaMaskLoaderPlugin(Plugin):
         )
 
     def _warn(self, text: str) -> None:
-        QMessageBox.warning(self._main_window, self.tr("Fovea Mask"), text)
+        QMessageBox.warning(self._main_window, self.tr('Fovea Mask'), text)
 
 
-__all__ = ["FoveaMaskLoaderPlugin", "MASK_FOVEA_LAYER_NAME"]
+__all__ = ['FoveaMaskLoaderPlugin', 'MASK_FOVEA_LAYER_NAME']

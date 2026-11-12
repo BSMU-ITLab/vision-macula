@@ -26,7 +26,7 @@ from bsmu.macula.plugins.analyser.schema import (
 )
 
 #: Имя слоя подсветки.
-HIGHLIGHT_LAYER_NAME = "hover-highlight"
+HIGHLIGHT_LAYER_NAME = 'hover-highlight'
 #: Цвет основной подсветки (BGR — белый).
 HIGHLIGHT_COLOR = (255, 255, 255)
 #: Цвет линии хориоидеи под объектом.
@@ -66,8 +66,9 @@ class OverlayResizeLayeredImage:
 class HighlightRenderer:
     """Рисует подсветку строки результата на изображении-оверлее."""
 
-    def __init__(self, layered_image, mask_shape: tuple[int, int],
-                 original_size: tuple[int, int], analysis_size: tuple[int, int]):
+    def __init__(
+        self, layered_image, mask_shape: tuple[int, int], original_size: tuple[int, int], analysis_size: tuple[int, int]
+    ):
         self._layered_image = OverlayResizeLayeredImage(layered_image, analysis_size, original_size)
         self._mask_shape = mask_shape
 
@@ -114,8 +115,8 @@ class HighlightRenderer:
                 handler(row_data, canvas, analyser)
                 return key
 
-        measurement_id = row_data.get(RowKey.MEASUREMENT_ID, "")
-        if "hyperreflective_" in measurement_id:
+        measurement_id = row_data.get(RowKey.MEASUREMENT_ID, '')
+        if 'hyperreflective_' in measurement_id:
             self._draw_hyperreflective(measurement_id, canvas, analyser)
         elif measurement_id:
             self._draw_measurement(row_data, canvas, analyser)
@@ -138,15 +139,29 @@ class HighlightRenderer:
             return
         _, _, width_px, height_px = scales
         moments = cv2.moments(contour)
-        if moments["m00"] == 0:
+        if moments['m00'] == 0:
             return
 
-        cx = int(moments["m10"] / moments["m00"])
-        cy = int(moments["m01"] / moments["m00"])
-        cv2.putText(canvas, f"W: {width_px:.1f}px = 200um", (cx - 80, cy - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, HIGHLIGHT_COLOR, 1)
-        cv2.putText(canvas, f"H: {height_px:.1f}px = 200um", (cx - 80, cy + 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, HIGHLIGHT_COLOR, 1)
+        cx = int(moments['m10'] / moments['m00'])
+        cy = int(moments['m01'] / moments['m00'])
+        cv2.putText(
+            canvas,
+            f'W: {width_px:.1f}px = 200um',
+            (cx - 80, cy - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            HIGHLIGHT_COLOR,
+            1,
+        )
+        cv2.putText(
+            canvas,
+            f'H: {height_px:.1f}px = 200um',
+            (cx - 80, cy + 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            HIGHLIGHT_COLOR,
+            1,
+        )
 
     def _draw_bounds(self, row_data: dict, canvas: np.ndarray, analyser) -> bool:
         """Рёбра отслойки/друзы: линия хориоидеи и максимальный перпендикуляр."""
@@ -190,7 +205,7 @@ class HighlightRenderer:
 
         self._draw_bounds(row_data, canvas, analyser)
 
-        measurement_id = row_data.get(RowKey.MEASUREMENT_ID, "")
+        measurement_id = row_data.get(RowKey.MEASUREMENT_ID, '')
         spec = next(
             (item for prefix, item in DETACHMENT_BY_MEASUREMENT_ID.items() if prefix in measurement_id),
             None,

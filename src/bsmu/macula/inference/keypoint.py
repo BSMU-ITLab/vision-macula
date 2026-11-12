@@ -34,11 +34,11 @@ class KeypointPredictor(QObject):
     """Predict five X coordinates and estimate their Y positions from a mask."""
 
     def __init__(
-            self,
-            model_path: Path,
-            model_params: KeypointModelParams,
-            segmenter: EnsembleSegmenter,
-            task_storage=None,
+        self,
+        model_path: Path,
+        model_params: KeypointModelParams,
+        segmenter: EnsembleSegmenter,
+        task_storage=None,
     ):
         super().__init__()
 
@@ -47,16 +47,15 @@ class KeypointPredictor(QObject):
         self._model_params = model_params
         self._segmenter = segmenter
         self._task_storage = task_storage
-        self._session = ort.InferenceSession(
-            str(model_path), providers=['CPUExecutionProvider'])
+        self._session = ort.InferenceSession(str(model_path), providers=['CPUExecutionProvider'])
         self._input_name = self._session.get_inputs()[0].name
         self._output_name = self._session.get_outputs()[0].name
 
     def predict_async(
-            self,
-            image: np.ndarray,
-            background_mask: np.ndarray | None,
-            on_finished: Callable[[np.ndarray], None] | None = None,
+        self,
+        image: np.ndarray,
+        background_mask: np.ndarray | None,
+        on_finished: Callable[[np.ndarray], None] | None = None,
     ) -> None:
         task = KeypointPredictionTask(
             image,
@@ -70,9 +69,9 @@ class KeypointPredictor(QObject):
         ThreadPool.run_async_task(task)
 
     def predict(
-            self,
-            image: np.ndarray,
-            background_mask: np.ndarray | None,
+        self,
+        image: np.ndarray,
+        background_mask: np.ndarray | None,
     ) -> np.ndarray:
         """Return a class-indexed overlay with fovea and foveola points."""
         if image.ndim == 3:
@@ -80,9 +79,7 @@ class KeypointPredictor(QObject):
 
         if background_mask is None:
             if self._segmenter is None:
-                raise RuntimeError(
-                    'Keypoint prediction requires a background mask when the ensemble is unavailable.'
-                )
+                raise RuntimeError('Keypoint prediction requires a background mask when the ensemble is unavailable.')
             background_mask = self._segmenter.predict_background_mask(image)
         else:
             background_mask = self._retina_mask_from_segmentation(background_mask)
@@ -152,8 +149,13 @@ class KeypointPredictor(QObject):
         pad_bottom = max(0, params.input_height - resized_height - pad_top)
         pad_right = max(0, params.input_width - resized_width - pad_left)
         image = cv2.copyMakeBorder(
-            image, pad_top, pad_bottom, pad_left, pad_right,
-            cv2.BORDER_CONSTANT, value=0,
+            image,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            cv2.BORDER_CONSTANT,
+            value=0,
         )
         padded_width = image.shape[1]
         image = cv2.resize(
@@ -176,8 +178,8 @@ class KeypointPredictor(QObject):
 
     @staticmethod
     def _reverse_x_transform(
-            transformed_x: np.ndarray,
-            transform: dict[str, int | float],
+        transformed_x: np.ndarray,
+        transform: dict[str, int | float],
     ) -> np.ndarray:
         """Map keypoint X coordinates back through the task's resize and padding."""
         resized_to_padded = transform['padded_width'] / transform['input_width']
@@ -204,11 +206,11 @@ class KeypointPredictionTask(DnnTask):
     """Background worker for ONNX keypoint inference."""
 
     def __init__(
-            self,
-            image: np.ndarray,
-            background_mask: np.ndarray | None,
-            predictor: KeypointPredictor,
-            name: str = '',
+        self,
+        image: np.ndarray,
+        background_mask: np.ndarray | None,
+        predictor: KeypointPredictor,
+        name: str = '',
     ):
         super().__init__(name)
         self._image = image

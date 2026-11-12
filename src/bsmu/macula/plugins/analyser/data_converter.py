@@ -26,24 +26,24 @@ from typing import Iterable
 import cv2
 import numpy as np
 
-from bsmu.macula.records.eye_info_data import Measurement, PatientExamData
 from bsmu.macula.plugins.analyser.schema import (
     NEUROEPITHELIAL_DETACHMENT,
     PED_DETACHMENTS,
+    SUFFIX_AREA,
+    SUFFIX_LOCATION,
     MeasurementId,
     Parameter,
     RowKey,
-    SUFFIX_AREA,
-    SUFFIX_LOCATION,
     is_drusen_class,
     is_drusen_parameter,
 )
+from bsmu.macula.records.eye_info_data import Measurement, PatientExamData
 
 #: Порог X для «слева» и «справа» в прежней эвристике локализации.
 LEGACY_LEFT_BOUND = 300
 LEGACY_RIGHT_BOUND = 700
 #: Форматы даты, которые принимает ручное поле «Дата визита».
-DATE_FORMATS = ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y")
+DATE_FORMATS = ('%Y-%m-%d', '%d.%m.%Y', '%d/%m/%Y')
 #: Ширина разрыва по умолчанию при определении локализации дефектов зоны.
 DEFAULT_ZONE_GAP = 18
 #: Приблизительная площадь отслойки как площадь эллипса (как было раньше).
@@ -51,32 +51,30 @@ ELLIPSE_AREA_FACTOR = 3.14159
 
 #: Соответствие «measurement_id толщины -> поле PatientExamData».
 THICKNESS_FIELDS = {
-    MeasurementId.CHOROID_THICKNESS_CENTER: "choroidal_center_thickness",
-    MeasurementId.CTS_FOVEOLA: "foveal_retinal_thickness",
-    MeasurementId.CTS_NEAR_FOVEOLA: "cts_near_foveolla",
-    MeasurementId.CTS_NEAR_FOVEA: "cts_near_fovea",
+    MeasurementId.CHOROID_THICKNESS_CENTER: 'choroidal_center_thickness',
+    MeasurementId.CTS_FOVEOLA: 'foveal_retinal_thickness',
+    MeasurementId.CTS_NEAR_FOVEOLA: 'cts_near_foveolla',
+    MeasurementId.CTS_NEAR_FOVEA: 'cts_near_fovea',
 }
 
 #: Соответствие «префикс измерения отслойки -> поле PatientExamData».
-DETACHMENT_FIELDS = {
-    spec.measurement_id: spec.measurement_id for spec in PED_DETACHMENTS
-}
-DETACHMENT_FIELDS[NEUROEPITHELIAL_DETACHMENT.measurement_id] = "nsr_detachment"
+DETACHMENT_FIELDS = {spec.measurement_id: spec.measurement_id for spec in PED_DETACHMENTS}
+DETACHMENT_FIELDS[NEUROEPITHELIAL_DETACHMENT.measurement_id] = 'nsr_detachment'
 
 #: Поля локализации зон: «параметр строки -> (объект, атрибут)».
 ZONE_FIELDS = {
-    Parameter.RPE_CONDITION: ("rpe_status", "condition"),
-    Parameter.RPE_DEFECTS_LOCATION: ("rpe_status", "defect_location"),
-    Parameter.ELLIPSOID_CONDITION: ("ellipsoid_zone", "condition"),
-    Parameter.ELLIPSOID_DEFECTS_LOCATION: ("ellipsoid_zone", "defect_location"),
-    Parameter.MYOID_CONDITION: ("myoid_zone", "condition"),
-    Parameter.MYOID_DEFECTS_LOCATION: ("myoid_zone", "defect_location"),
+    Parameter.RPE_CONDITION: ('rpe_status', 'condition'),
+    Parameter.RPE_DEFECTS_LOCATION: ('rpe_status', 'defect_location'),
+    Parameter.ELLIPSOID_CONDITION: ('ellipsoid_zone', 'condition'),
+    Parameter.ELLIPSOID_DEFECTS_LOCATION: ('ellipsoid_zone', 'defect_location'),
+    Parameter.MYOID_CONDITION: ('myoid_zone', 'condition'),
+    Parameter.MYOID_DEFECTS_LOCATION: ('myoid_zone', 'defect_location'),
 }
 
 
 def parse_float(value) -> float | None:
     """Мягкий парсинг числа (``None`` вместо исключения)."""
-    if value is None or value == "":
+    if value is None or value == '':
         return None
     try:
         return float(value)
@@ -103,11 +101,7 @@ class PatientExamDataBuilder:
     # --- ручные поля ---
 
     def _apply_manual_fields(self, exam_data: PatientExamData, rows: list[dict]) -> None:
-        manual = {
-            row.get(RowKey.PARAMETER): row.get(RowKey.VALUE, "")
-            for row in rows
-            if row.get(RowKey.PARAMETER)
-        }
+        manual = {row.get(RowKey.PARAMETER): row.get(RowKey.VALUE, '') for row in rows if row.get(RowKey.PARAMETER)}
 
         visit_date = manual.get(Parameter.VISIT_DATE)
         if visit_date:
@@ -133,8 +127,8 @@ class PatientExamDataBuilder:
 
     def _apply_measurements(self, exam_data: PatientExamData, rows: list[dict]) -> None:
         for row in rows:
-            measurement_id = row.get(RowKey.MEASUREMENT_ID, "")
-            value_str = row.get(RowKey.VALUE, "")
+            measurement_id = row.get(RowKey.MEASUREMENT_ID, '')
+            value_str = row.get(RowKey.VALUE, '')
             value = parse_float(value_str)
 
             if measurement_id in THICKNESS_FIELDS:
@@ -150,11 +144,11 @@ class PatientExamDataBuilder:
                 exam_data.sub_rpe_fluid.location = value_str
                 continue
 
-            if "hyperreflective_" in measurement_id:
-                if "area" in measurement_id:
+            if 'hyperreflective_' in measurement_id:
+                if 'area' in measurement_id:
                     if value is not None:
                         exam_data.hyperreflective_material.area = value
-                elif "location" in measurement_id:
+                elif 'location' in measurement_id:
                     exam_data.hyperreflective_material.location = value_str
                 continue
 
@@ -163,7 +157,7 @@ class PatientExamDataBuilder:
                 self._apply_detachment_value(exam_data, prefix, measurement_id, value, value_str)
                 continue
 
-            parameter = row.get(RowKey.PARAMETER, "")
+            parameter = row.get(RowKey.PARAMETER, '')
             if parameter in ZONE_FIELDS:
                 attribute, field_name = ZONE_FIELDS[parameter]
                 setattr(getattr(exam_data, attribute), field_name, value_str)
@@ -171,24 +165,25 @@ class PatientExamDataBuilder:
     @staticmethod
     def _detachment_prefix(measurement_id: str) -> str | None:
         for spec in DETACHMENT_FIELDS:
-            if measurement_id.startswith(spec + "_"):
+            if measurement_id.startswith(spec + '_'):
                 return spec
         return None
 
     @staticmethod
-    def _apply_detachment_value(exam_data: PatientExamData, prefix: str, measurement_id: str,
-                                value: float | None, value_str: str) -> None:
+    def _apply_detachment_value(
+        exam_data: PatientExamData, prefix: str, measurement_id: str, value: float | None, value_str: str
+    ) -> None:
         measurement = getattr(exam_data, DETACHMENT_FIELDS[prefix])
-        suffix = measurement_id.rsplit("_", 1)[-1]
+        suffix = measurement_id.rsplit('_', 1)[-1]
         if suffix == SUFFIX_LOCATION:
             measurement.location = value_str
         elif suffix == SUFFIX_AREA:
             if value is not None:
                 measurement.area = value
-        elif suffix == "height":
+        elif suffix == 'height':
             if value is not None:
                 measurement.height = value
-        elif suffix == "width":
+        elif suffix == 'width':
             if value is not None:
                 measurement.width = value
 
@@ -201,23 +196,23 @@ class PatientExamDataBuilder:
         locations: list[str] = []
 
         for row in rows:
-            parameter = row.get(RowKey.PARAMETER, "")
+            parameter = row.get(RowKey.PARAMETER, '')
             if not (is_drusen_class(parameter) and is_drusen_parameter(parameter)):
                 continue
 
-            value = parse_float(row.get(RowKey.VALUE, ""))
+            value = parse_float(row.get(RowKey.VALUE, ''))
             lowered = parameter.lower()
-            if "ширина" in lowered or "width" in lowered:
+            if 'ширина' in lowered or 'width' in lowered:
                 if value is not None:
                     widths.append(value)
-            elif "высота" in lowered or "height" in lowered:
+            elif 'высота' in lowered or 'height' in lowered:
                 if value is not None:
                     heights.append(value)
-            elif "площадь" in lowered or "area" in lowered:
+            elif 'площадь' in lowered or 'area' in lowered:
                 if value is not None:
                     areas.append(value)
-            elif "локализация" in lowered or "location" in lowered:
-                value_str = row.get(RowKey.VALUE, "")
+            elif 'локализация' in lowered or 'location' in lowered:
+                value_str = row.get(RowKey.VALUE, '')
                 if value_str:
                     locations.append(value_str)
 
@@ -245,10 +240,10 @@ class PatientExamDataBuilder:
         left_x, right_x = bounds[0], bounds[1]
         center_x = (left_x + right_x) / 2
         if center_x < LEGACY_LEFT_BOUND:
-            return "слева"
+            return 'слева'
         if center_x > LEGACY_RIGHT_BOUND:
-            return "справа"
-        return "в центре"
+            return 'справа'
+        return 'в центре'
 
     def _calculate_area(self, width: float | None, height: float | None) -> float | None:
         """Приблизительная площадь как площадь эллипса."""
@@ -261,13 +256,13 @@ class PatientExamDataBuilder:
         measurement = Measurement()
         if not value_str:
             return measurement
-        for part in value_str.split(";"):
+        for part in value_str.split(';'):
             part = part.strip()
-            if part.startswith("w="):
+            if part.startswith('w='):
                 measurement.width = parse_float(part[2:])
-            elif part.startswith("h="):
+            elif part.startswith('h='):
                 measurement.height = parse_float(part[2:])
-            elif part.startswith("area="):
+            elif part.startswith('area='):
                 measurement.area = parse_float(part[5:])
         return measurement
 
@@ -277,17 +272,18 @@ class PatientExamDataBuilder:
         if contour is None:
             return None
         moments = cv2.moments(contour)
-        if moments["m00"] == 0:
+        if moments['m00'] == 0:
             return None
-        cx = int(moments["m10"] / moments["m00"])
+        cx = int(moments['m10'] / moments['m00'])
         if cx < LEGACY_LEFT_BOUND:
-            return "слева"
+            return 'слева'
         if cx > LEGACY_RIGHT_BOUND:
-            return "справа"
-        return "в центре"
+            return 'справа'
+        return 'в центре'
 
-    def get_zone_defects_location(self, contours: list[np.ndarray],
-                                  min_gap_width: int = DEFAULT_ZONE_GAP) -> str | None:
+    def get_zone_defects_location(
+        self, contours: list[np.ndarray], min_gap_width: int = DEFAULT_ZONE_GAP
+    ) -> str | None:
         """Локализация дефектов (разрывов) эллипсоидной/миоидной зоны.
 
         Дефекты — горизонтальные разрывы между сегментами зоны; алгоритм тот
@@ -312,15 +308,12 @@ class PatientExamDataBuilder:
         if not gap_xs:
             return None
 
-        in_foveola, in_fovea, in_macula = classify_zones(
-            np.concatenate([self.fovea_mask[:, x] for x in gap_xs])
-        )
+        in_foveola, in_fovea, in_macula = classify_zones(np.concatenate([self.fovea_mask[:, x] for x in gap_xs]))
         if not (in_foveola or in_fovea or in_macula):
             return None
         return location_by_zone(in_foveola, in_fovea, in_macula)
 
-    def get_drusen_location(self, contour: np.ndarray | None,
-                            mask_shape: tuple) -> str | None:
+    def get_drusen_location(self, contour: np.ndarray | None, mask_shape: tuple) -> str | None:
         """Локализация друзы по совпадению её X-колонок с зонами фовеа."""
         from bsmu.macula.plugins.analyser.location import location_by_x_columns
 

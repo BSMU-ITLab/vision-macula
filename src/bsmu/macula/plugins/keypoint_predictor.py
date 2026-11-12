@@ -11,6 +11,7 @@ from bsmu.macula.inference.keypoint import KeypointModelParams, KeypointPredicto
 
 if TYPE_CHECKING:
     from bsmu.vision.plugins.storages.task import TaskStoragePlugin
+
     from bsmu.macula.plugins.ensemble_segmenter import BinaryEnsemblePlugin
 
 
@@ -26,9 +27,9 @@ class KeypointPredictorPlugin(Plugin):
     _DATA_DIRS = (_DNN_MODELS_DIR_NAME,)
 
     def __init__(
-            self,
-            ensemble_segmenter_plugin: BinaryEnsemblePlugin,
-            task_storage_plugin: TaskStoragePlugin,
+        self,
+        ensemble_segmenter_plugin: BinaryEnsemblePlugin,
+        task_storage_plugin: TaskStoragePlugin,
     ):
         super().__init__()
         self._ensemble_segmenter_plugin = ensemble_segmenter_plugin
@@ -56,12 +57,10 @@ class KeypointPredictorPlugin(Plugin):
             normalize_max_pixel_value=config.get('normalize_max_pixel_value', 255.0),
             keypoint_radius=config.get('keypoint_radius', 3),
         )
-        model_path = self.data_path(self._DNN_MODELS_DIR_NAME) / config.get(
-            'file_name', 'Keypoints.onnx')
+        model_path = self.data_path(self._DNN_MODELS_DIR_NAME) / config.get('file_name', 'Keypoints.onnx')
         if not model_path.is_file():
             self._unavailable_reason = (
-                f'Keypoint model file not found: {model_path}. '
-                'Keypoint prediction will be skipped.'
+                f'Keypoint model file not found: {model_path}. Keypoint prediction will be skipped.'
             )
             logging.warning(self._unavailable_reason)
             self._predictor = None

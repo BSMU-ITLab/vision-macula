@@ -32,7 +32,7 @@ def fovea_zones_by_columns(fovea_mask: np.ndarray | None) -> np.ndarray | None:
     for zone in (FOVEA_ZONE, FOVEOLA_ZONE):
         xs = np.where((fovea_mask == zone).any(axis=0))[0]
         if len(xs):
-            zones[:, xs.min():xs.max() + 1] = zone
+            zones[:, xs.min() : xs.max() + 1] = zone
     return zones
 
 
@@ -67,8 +67,7 @@ def location_by_check_order(in_foveola: bool, in_fovea: bool, in_macula: bool) -
     return Location.OUTSIDE_MACULA
 
 
-def location_from_fovea_mask(fovea_mask: np.ndarray, object_mask: np.ndarray,
-                             mode: str = "zone") -> str | None:
+def location_from_fovea_mask(fovea_mask: np.ndarray, object_mask: np.ndarray, mode: str = 'zone') -> str | None:
     """Локализация объекта по пикселям маски фовеа под этим объектом.
 
     :param mode: ``"zone"`` — приоритет фовеола → фовеа → макула,
@@ -83,7 +82,7 @@ def location_from_fovea_mask(fovea_mask: np.ndarray, object_mask: np.ndarray,
     if not (in_foveola or in_fovea or in_macula):
         return None
 
-    if mode == "order":
+    if mode == 'order':
         return location_by_check_order(in_foveola, in_fovea, in_macula)
     return location_by_zone(in_foveola, in_fovea, in_macula)
 

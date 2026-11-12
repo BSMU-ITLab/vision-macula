@@ -40,8 +40,8 @@ SCALE_BY_IMAGE_SIZE = (
     # (ширина от, до), (высота от, до), (scale_x, scale_y)
     ((490, 500), (255, 264), (6000.0 / 1024, 2.94)),  # 12
     ((668, 679), (382, 391), (6000.0 / 1024, 2.94)),  # 6g
-    ((439, 449), (342, 352), (5.310, 4.285)),         # 4g
-    ((723, 732), (551, 560), (8.496, 4.094)),         # 2v
+    ((439, 449), (342, 352), (5.310, 4.285)),  # 4g
+    ((723, 732), (551, 560), (8.496, 4.094)),  # 2v
 )
 
 
@@ -60,7 +60,7 @@ def find_L_in_image(image: np.ndarray) -> np.ndarray | None:
     x, y, width, height = cv2.boundingRect(max(contours, key=cv2.contourArea))
     corner_w = max(1, int(CORNER_WIDTH_RATIO * width))
     corner_h = max(1, int(CORNER_HEIGHT_RATIO * height))
-    corner = gray[y + height - corner_h:y + height, x:x + corner_w]
+    corner = gray[y + height - corner_h : y + height, x : x + corner_w]
 
     _, corner_bin = cv2.threshold(corner, CORNER_THRESHOLD, 255, cv2.THRESH_BINARY)
     corner_contours, _ = cv2.findContours(corner_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -74,8 +74,7 @@ def find_L_in_image(image: np.ndarray) -> np.ndarray | None:
     return contour + np.array([[[x, y]]], dtype=np.int32)
 
 
-def calculate_scale_from_L(contour: np.ndarray,
-                           L_size_micrometers: float = DEFAULT_L_SIZE_UM) -> float | None:
+def calculate_scale_from_L(contour: np.ndarray, L_size_micrometers: float = DEFAULT_L_SIZE_UM) -> float | None:
     """Единый масштаб (мкм/пиксель) по большей стороне L-контура."""
     if contour is None or len(contour) < 3:
         return None
@@ -90,8 +89,7 @@ def calculate_scale_from_L(contour: np.ndarray,
     return L_size_micrometers / max(width, height)
 
 
-def calculate_scales_from_L(contour: np.ndarray,
-                            L_size_micrometers: float = DEFAULT_L_SIZE_UM) -> tuple | None:
+def calculate_scales_from_L(contour: np.ndarray, L_size_micrometers: float = DEFAULT_L_SIZE_UM) -> tuple | None:
     """Масштабы по осям (мкм/пиксель) и размеры L в пикселях."""
     if contour is None or len(contour) < 3:
         return None
@@ -115,7 +113,7 @@ def measure_L_marker(image: np.ndarray) -> tuple[int, int, int, int] | None:
     gray = image if image.ndim == 2 else cv2.cvtColor(np.ascontiguousarray(image[..., :3]), cv2.COLOR_RGB2GRAY)
     height, width = gray.shape
     top = int(height * 0.70)
-    region = gray[top:height, 0:int(width * 0.33)]
+    region = gray[top:height, 0 : int(width * 0.33)]
     _, binary = cv2.threshold(region, MARKER_THRESHOLD, 255, cv2.THRESH_BINARY)
     count, labels, stats, _ = cv2.connectedComponentsWithStats(binary, 8)
 
@@ -125,10 +123,10 @@ def measure_L_marker(image: np.ndarray) -> tuple[int, int, int, int] | None:
         if box_h < region.shape[0] * 0.20 or area < 15:
             continue
         component = labels == i
-        base_width = int(component[max(0, y + box_h - 4):y + box_h, :].any(axis=0).sum())
+        base_width = int(component[max(0, y + box_h - 4) : y + box_h, :].any(axis=0).sum())
         if base_width < 8:
             continue
-        stroke = np.median(component[y + box_h // 4:y + box_h // 2, :].sum(axis=1))
+        stroke = np.median(component[y + box_h // 4 : y + box_h // 2, :].sum(axis=1))
         if stroke > MAX_MARKER_STROKE_PX:
             continue
         if best is None or x < best[0]:
@@ -138,8 +136,10 @@ def measure_L_marker(image: np.ndarray) -> tuple[int, int, int, int] | None:
 
 def _marker_scale(marker, width: int, height: int, analysis_size: tuple[int, int]) -> tuple[float, float]:
     marker_w, marker_h = marker[2:]
-    return (DEFAULT_L_SIZE_UM / marker_w * width / analysis_size[0],
-            DEFAULT_L_SIZE_UM / marker_h * height / analysis_size[1])
+    return (
+        DEFAULT_L_SIZE_UM / marker_w * width / analysis_size[0],
+        DEFAULT_L_SIZE_UM / marker_h * height / analysis_size[1],
+    )
 
 
 def image_scale(image: np.ndarray, analysis_size: tuple[int, int]) -> tuple[float, float, str] | None:
@@ -157,10 +157,10 @@ def image_scale(image: np.ndarray, analysis_size: tuple[int, int]) -> tuple[floa
     if marker is not None:
         if reference is not None and all(abs(a - b) <= MARKER_TOLERANCE_PX for a, b in zip(marker, reference)):
             marker = reference
-        return (*_marker_scale(marker, width, height, analysis_size), "L")
+        return (*_marker_scale(marker, width, height, analysis_size), 'L')
     if reference is not None:
-        return (*_marker_scale(reference, width, height, analysis_size), "size")
+        return (*_marker_scale(reference, width, height, analysis_size), 'size')
     for (w_min, w_max), (h_min, h_max), scale in SCALE_BY_IMAGE_SIZE:
         if w_min <= width <= w_max and h_min <= height <= h_max:
-            return (*scale, "size")
+            return (*scale, 'size')
     return None

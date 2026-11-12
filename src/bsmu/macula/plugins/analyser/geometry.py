@@ -54,8 +54,7 @@ def extract_upper_boundary(mask: np.ndarray) -> tuple[np.ndarray | None, np.ndar
     return xs, upper_interp
 
 
-def smooth_boundary(xs: np.ndarray, ys: np.ndarray,
-                    smooth_factor: float = 50) -> tuple[np.ndarray, UnivariateSpline]:
+def smooth_boundary(xs: np.ndarray, ys: np.ndarray, smooth_factor: float = 50) -> tuple[np.ndarray, UnivariateSpline]:
     """Сглаживает границу сплайном и возвращает значения вместе со сплайном."""
     spline = UnivariateSpline(xs, ys, s=smooth_factor)
     return spline(xs), spline
@@ -85,5 +84,3 @@ def upward_normal(spline: UnivariateSpline, x: float) -> tuple[float, float]:
     ny = -1.0
     length = np.sqrt(nx * nx + ny * ny)
     return nx / length, ny / length
-
-

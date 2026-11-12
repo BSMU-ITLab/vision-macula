@@ -15,5 +15,5 @@ class PatientsModel(QSqlQueryModel):
 
     def data(self, index, role=Qt.DisplayRole):
         if index.column() == super().columnCount() and role == Qt.DisplayRole:
-            return ""
+            return ''
         return super().data(index, role)

@@ -32,8 +32,14 @@ MIN_COMPONENT_AREA = 100
 
 #: Порядок элементов результата измерения отслойки.
 DetachmentResult = tuple[
-    float | None, float | None, float | None,
-    int | None, int | None, tuple | None, str | None, list | None,
+    float | None,
+    float | None,
+    float | None,
+    int | None,
+    int | None,
+    tuple | None,
+    str | None,
+    list | None,
 ]
 
 EMPTY_RESULT: DetachmentResult = (None, None, None, None, None, None, None, None)
@@ -59,12 +65,8 @@ def _measure_detachment_core(
         return EMPTY_RESULT
     left_x, right_x = extent
 
-    width_um, choroid_segment = width_along_boundary(
-        smooth_upper, target_mask, scale_x, scale_y
-    )
-    max_height_px, max_perp_point = max_perpendicular(
-        target_mask, smooth_upper, spline, left_x, right_x, perp_len
-    )
+    width_um, choroid_segment = width_along_boundary(smooth_upper, target_mask, scale_x, scale_y)
+    max_height_px, max_perp_point = max_perpendicular(target_mask, smooth_upper, spline, left_x, right_x, perp_len)
 
     return (
         width_um,
@@ -93,11 +95,7 @@ def measure_detachment(
     :return: ``(width, height, area, left_x, right_x, max_perp_point,
         location, choroid_segment)``.
     """
-    result = list(
-        _measure_detachment_core(
-            mask, smooth_upper, spline, spec.class_id, scale_x, scale_y, perp_len
-        )
-    )
+    result = list(_measure_detachment_core(mask, smooth_upper, spline, spec.class_id, scale_x, scale_y, perp_len))
     if result[0] is None and result[1] is None:
         return EMPTY_RESULT
 
@@ -148,11 +146,14 @@ def measure_neuroepithelial_detachment(
     except Exception:  # noqa: BLE001 — сплайн может не сойтись на коротких границах
         return EMPTY_RESULT
 
-    width_um, upper_segment = _detachment_upper_width(
-        spline_upper, detachment_mask, valid_xs, scale_x, scale_y
-    )
+    width_um, upper_segment = _detachment_upper_width(spline_upper, detachment_mask, valid_xs, scale_x, scale_y)
     max_height_px, max_perp_point = max_perpendicular(
-        detachment_mask, smooth_upper_choroid, spline_choroid, left_x, right_x, perp_len,
+        detachment_mask,
+        smooth_upper_choroid,
+        spline_choroid,
+        left_x,
+        right_x,
+        perp_len,
         integer_base=False,
     )
 

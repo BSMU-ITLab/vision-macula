@@ -1,6 +1,8 @@
+from typing import Any, Callable, Iterable, Optional
+
 import cv2
 import numpy as np
-from typing import Any, Callable, Iterable, Optional
+
 
 def smooth_boundary(boundary):
     """
@@ -15,24 +17,27 @@ def smooth_boundary(boundary):
     return y
 
 
-def extract_boundary(mask, tp="min", smooth=True, d_type=np.int16):
+def extract_boundary(mask, tp='min', smooth=True, d_type=np.int16):
     h, w = mask.shape
     top_row = np.full(w, np.nan, dtype=np.float32)
     for col in range(w):
         rows = np.where(mask[:, col] > 0)[0]
         if rows.size:
-            top_row[col] = rows.min() if tp == "min" else rows.max()
+            top_row[col] = rows.min() if tp == 'min' else rows.max()
     return smooth_boundary(top_row).astype(d_type) if smooth else top_row.astype(d_type)
+
 
 def sigmoid_2d(array_2d: np.ndarray) -> np.ndarray:
     if array_2d.ndim != 2:
-        raise ValueError(f"Expected 2D array, got {array_2d.ndim}D")
+        raise ValueError(f'Expected 2D array, got {array_2d.ndim}D')
     return 1 / (1 + np.exp(-array_2d))
+
 
 def get_resize_value(length, kernel_size, stride_size):
     i = (length - kernel_size + stride_size) // stride_size
     excess = length - (kernel_size + (i - 1) * stride_size)
     return (kernel_size + i * stride_size) if excess > kernel_size // 2 else length - excess
+
 
 def longest_max_size(image: np.ndarray, target_size: tuple[int, int] = (512, 512)) -> np.ndarray:
     """Resize image to fit within target_size, preserving aspect ratio."""
@@ -44,15 +49,13 @@ def longest_max_size(image: np.ndarray, target_size: tuple[int, int] = (512, 512
     return cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
 
-def pad_if_needed(image: np.ndarray, target_size: tuple[int, int] = (512, 512),
-                  pad_value: float = 0) -> np.ndarray:
+def pad_if_needed(image: np.ndarray, target_size: tuple[int, int] = (512, 512), pad_value: float = 0) -> np.ndarray:
     """Pad image to target_size, adding padding to bottom and right."""
     h, w = image.shape
     target_w, target_h = target_size
     if h > target_h or w > target_w:
-        raise ValueError(f"Image size ({h}, {w}) larger than target ({target_h}, {target_w})")
-    return cv2.copyMakeBorder(image, 0, target_h - h, 0, target_w - w,
-                              cv2.BORDER_CONSTANT, value=pad_value)
+        raise ValueError(f'Image size ({h}, {w}) larger than target ({target_h}, {target_w})')
+    return cv2.copyMakeBorder(image, 0, target_h - h, 0, target_w - w, cv2.BORDER_CONSTANT, value=pad_value)
 
 
 def preprocess_for_model(
@@ -107,6 +110,7 @@ class BaseTiler:
         self.original_shape = None
         self.buffer = None
 
+
 class BoundaryTiler(BaseTiler):  # noqa: D101  (используется через tiled_inference)
     def __init__(self, kernel: tuple[int, int], stride: tuple[int, int], cls_num: int):
         super().__init__()
@@ -139,6 +143,7 @@ class BoundaryTiler(BaseTiler):  # noqa: D101  (используется чер�
     def assemble(self) -> np.ndarray:
         return cv2.resize(self.buffer, self.original_shape[::-1], cv2.INTER_NEAREST)
 
+
 class RoiTiler(BaseTiler):
     def __init__(self):
         super().__init__()
@@ -159,14 +164,15 @@ class RoiTiler(BaseTiler):
         largest = max(contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest)
         self._coords = (x, y, w, h)
-        yield sample[y:y + h, x:x + w]
+        yield sample[y : y + h, x : x + w]
 
     def update(self, processed_tile: np.ndarray):
         x, y, w, h = self._coords
-        self.buffer[y:y + h, x:x + w] = processed_tile
+        self.buffer[y : y + h, x : x + w] = processed_tile
 
     def assemble(self) -> np.ndarray:
         return self.buffer
+
 
 def tiled_inference(tiler_factory: Callable[[Any], Any]):
     def decorator(model_fn: Callable):
@@ -176,5 +182,7 @@ def tiled_inference(tiler_factory: Callable[[Any], Any]):
                 processed = model_fn(self, tile)
                 tiler.update(processed)
             return tiler.assemble()
+
         return wrapper
+
     return decorator

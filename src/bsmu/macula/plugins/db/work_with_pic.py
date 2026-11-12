@@ -22,7 +22,7 @@ GRID_COLUMNS = 3
 THUMBNAIL_SIZE = 150
 PREVIEW_SIZE = 600
 #: Поддерживаемые расширения.
-IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".bmp", ".gif")
+IMAGE_SUFFIXES = ('.jpg', '.jpeg', '.png', '.bmp', '.gif')
 
 
 class ImagePreview(QLabel):
@@ -32,9 +32,7 @@ class ImagePreview(QLabel):
         super().__init__()
         self.path = str(path)
         pixmap = QPixmap(self.path)
-        self.setPixmap(
-            pixmap.scaled(THUMBNAIL_SIZE, THUMBNAIL_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        )
+        self.setPixmap(pixmap.scaled(THUMBNAIL_SIZE, THUMBNAIL_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.setFixedSize(THUMBNAIL_SIZE + 10, THUMBNAIL_SIZE + 10)
         self.setAlignment(Qt.AlignCenter)
 
@@ -44,14 +42,12 @@ class ImagePreview(QLabel):
 
     def show_full_image(self) -> None:
         dialog = QDialog()
-        dialog.setWindowTitle("Просмотр изображения")
+        dialog.setWindowTitle('Просмотр изображения')
         layout = QVBoxLayout(dialog)
 
         label = QLabel()
         label.setPixmap(
-            QPixmap(self.path).scaled(
-                PREVIEW_SIZE, PREVIEW_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation
-            )
+            QPixmap(self.path).scaled(PREVIEW_SIZE, PREVIEW_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         )
         label.setAlignment(Qt.AlignCenter)
         layout.addWidget(label)
@@ -101,11 +97,7 @@ def create_scroll_area(folder_path: str | Path) -> QScrollArea:
 
     grid_layout = QGridLayout()
     content = DropWidget(grid_layout, images_dir)
-    for path in sorted(
-        path
-        for suffix in IMAGE_SUFFIXES
-        for path in images_dir.glob(f"*{suffix}")
-    ):
+    for path in sorted(path for suffix in IMAGE_SUFFIXES for path in images_dir.glob(f'*{suffix}')):
         content.add_image(path)
 
     scroll_area.setWidget(content)

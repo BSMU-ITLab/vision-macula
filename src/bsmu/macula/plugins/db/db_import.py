@@ -694,13 +694,14 @@ from datetime import datetime
 
 import pandas as pd
 
-DB_PATH = "medical.db"
-EXCEL_PATH = "data.xlsx"
+DB_PATH = 'medical.db'
+EXCEL_PATH = 'data.xlsx'
 
 
 def normalize_columns(df):
-    df.columns = [str(c).strip().lower().replace(" ", "_").replace(".", "").replace("(", "").replace(")", "") for c in
-                  df.columns]
+    df.columns = [
+        str(c).strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns
+    ]
     return df
 
 
@@ -725,25 +726,28 @@ def create_injections_table(cursor):
         FOREIGN KEY (eye_id) REFERENCES eyes(id)
     );
     """)
+
+
 def create_table(cursor, text):
     cursor.execute(text)
 
-CREATE_PATIENTS = '''CREATE TABLE IF NOT EXISTS pacients (
+
+CREATE_PATIENTS = """CREATE TABLE IF NOT EXISTS pacients (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     name             VARCHAR(100) ,
     sex              VARCHAR(1)   ,
     year_of_birthday INTEGER
-)'''
+)"""
 
-CREATE_APPOINTMENTS = '''CREATE TABLE IF NOT EXISTS appointments (
+CREATE_APPOINTMENTS = """CREATE TABLE IF NOT EXISTS appointments (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     date                    DATE    ,
     duration_of_the_disease INTEGER ,
     pacient_id              INTEGER ,
     FOREIGN KEY (pacient_id) REFERENCES pacients (id)
-)'''
+)"""
 
-CREATE_EYES = '''CREATE TABLE IF NOT EXISTS eyes (
+CREATE_EYES = """CREATE TABLE IF NOT EXISTS eyes (
     id                                        INTEGER PRIMARY KEY AUTOINCREMENT,
     eye                                       VARCHAR(2)  ,
     appointment_id                            INTEGER     ,
@@ -797,7 +801,7 @@ CREATE_EYES = '''CREATE TABLE IF NOT EXISTS eyes (
     hyperreflective_material_localisation     NUMERIC     ,
     hyperreflective_material_area             NUMERIC     ,
     FOREIGN KEY (appointment_id) REFERENCES appointments (id)
-)'''
+)"""
 
 
 def parse_date(value):
@@ -806,7 +810,7 @@ def parse_date(value):
     if isinstance(value, datetime):
         return value.date()
     try:
-        return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
+        return datetime.strptime(str(value)[:10], '%Y-%m-%d').date()
     except:
         return None
 
@@ -814,12 +818,12 @@ def parse_date(value):
 def boolify(value):
     if pd.isna(value):
         return False
-    return str(value).strip().lower() in ["1", "true", "yes", "да"]
+    return str(value).strip().lower() in ['1', 'true', 'yes', 'да']
 
 
 def safe_float(value):
     try:
-        return float(str(value).replace(",", "."))
+        return float(str(value).replace(',', '.'))
     except:
         return 0.0
 
@@ -850,91 +854,98 @@ def main():
 
     for _, row in df.iterrows():
         # 🧑 Insert into pacients
-        id = str(row.get("id_пациента", "")).strip()
-        sex = str(row.get("пол", "")).strip()[:1].upper()
-        birth_date = parse_date(row.get("возраст_в_годах"))
+        id = str(row.get('id_пациента', '')).strip()
+        sex = str(row.get('пол', '')).strip()[:1].upper()
+        birth_date = parse_date(row.get('возраст_в_годах'))
         year_of_birth = birth_date.year if birth_date else 1970
         newPat = curPatId is None or curPatId != id
-        if (newPat):
+        if newPat:
             curPatId = id
-            cursor.execute("""
+            cursor.execute(
+                """
                     INSERT OR IGNORE INTO pacients (name, sex, year_of_birthday)
                     VALUES (?, ?, ?)
-                    """, (id, sex, year_of_birth))
+                    """,
+                (id, sex, year_of_birth),
+            )
 
-            pacient_id = cursor.execute("SELECT id FROM pacients WHERE name = ? AND sex = ? AND year_of_birthday = ?",
-                                        (id, sex, year_of_birth)).fetchone()[0]
+            pacient_id = cursor.execute(
+                'SELECT id FROM pacients WHERE name = ? AND sex = ? AND year_of_birthday = ?', (id, sex, year_of_birth)
+            ).fetchone()[0]
 
         # 📅 Insert into appointments
-        exam_date = parse_date(row.get("дата_обследования"))
-        duration = safe_int(row.get("длитзабол_лет"))
+        exam_date = parse_date(row.get('дата_обследования'))
+        duration = safe_int(row.get('длитзабол_лет'))
         newApp = curAppDate != exam_date or newPat
-        if (newApp):
+        if newApp:
             curAppDate = exam_date
-            cursor.execute("""
+            cursor.execute(
+                """
                                 INSERT INTO appointments (date, duration_of_the_disease, pacient_id)
                                 VALUES (?, ?, ?)
-                                """, (exam_date, duration, pacient_id))
+                                """,
+                (exam_date, duration, pacient_id),
+            )
 
             appointment_id = cursor.lastrowid
 
-
         # 👁️ Insert into eyes
         eye_values = (
-            str(row.get("глаз", "")).strip(),
+            str(row.get('глаз', '')).strip(),
             appointment_id,
             exam_date,
             duration,
-            boolify(row.get("топкон_true/false")),
-            boolify(row.get("оптопол_true/false")),
-            str(row.get("стадия_по_areds", "")).strip(),
-            str(row.get("рефракция", "")).strip(),
-            str(row.get("тип_неоваскуляризации", "")).strip(),
-            safe_float(row.get("мкоз")),
-            safe_float(row.get("толщина_хориоидеи_в_центре")),
-            safe_float(row.get("цтс_foveola")),
-            safe_float(row.get("цтс_supinner_fovea")),
-            safe_float(row.get("цтс_supout__fovea")),
-            safe_float(row.get("total_volume")),
-            safe_float(row.get("average_volume")),
-            safe_float(row.get("rpe_status")),
-            safe_float(row.get("rpe_localisation")),
-            safe_float(row.get("cme_localisation")),
-            safe_float(row.get("serouz_rpe_detachment_localisation")),
-            safe_float(row.get("serouz_rpe_detachment_width")),
-            safe_float(row.get("serouz_rpe_detachment_height")),
-            safe_float(row.get("serouz_rpe_detachment_area")),
-            safe_float(row.get("hemorrhagic_rpe_detachment_localisation")),
-            safe_float(row.get("hemorrhagic_rpe_detachment_width")),
-            safe_float(row.get("hemorrhagic_rpe_detachment_heidgt")),
-            safe_float(row.get("hemorrhagic_rpe_detachment_area")),
-            safe_float(row.get("fibrovascular_rpe_detachment_localisation")),
-            safe_float(row.get("fibrovascular_rpe_detachment_width")),
-            safe_float(row.get("fibrovascular_rpe_detachment_heidgt")),
-            safe_float(row.get("fibrovascular_rpe_detachment_area")),
-            safe_float(row.get("drusenoid_detachment_rpe_localisation")),
-            safe_float(row.get("drusenoid_detachment_rpe_width")),
-            safe_float(row.get("drusenoid_detachment_rpe_height")),
-            safe_float(row.get("drusenoid_detachment_rpe_area")),
-            safe_float(row.get("druses_localisation")),
-            safe_float(row.get("druses_weigt")),
-            safe_float(row.get("druses_heigt")),
-            safe_float(row.get("dzuses_area")),
-            safe_float(row.get("fluid_under_rpe_area")),
-            safe_float(row.get("fluid_under_rpe_localisation")),
-            safe_float(row.get("ez_status")),
-            safe_float(row.get("ez_localisation")),
-            safe_float(row.get("myoidnz_status")),
-            safe_float(row.get("myoidnz_localisation")),
-            safe_float(row.get("rne_detachment_localisation")),
-            safe_float(row.get("rne_detachment_width")),
-            safe_float(row.get("rne_detachment_heigt")),
-            safe_float(row.get("rne_detachment_area")),
-            safe_float(row.get("гиперрефлективный_материал_локализация")),
-            safe_float(row.get("гиперрефлективный_материал_площадь"))
+            boolify(row.get('топкон_true/false')),
+            boolify(row.get('оптопол_true/false')),
+            str(row.get('стадия_по_areds', '')).strip(),
+            str(row.get('рефракция', '')).strip(),
+            str(row.get('тип_неоваскуляризации', '')).strip(),
+            safe_float(row.get('мкоз')),
+            safe_float(row.get('толщина_хориоидеи_в_центре')),
+            safe_float(row.get('цтс_foveola')),
+            safe_float(row.get('цтс_supinner_fovea')),
+            safe_float(row.get('цтс_supout__fovea')),
+            safe_float(row.get('total_volume')),
+            safe_float(row.get('average_volume')),
+            safe_float(row.get('rpe_status')),
+            safe_float(row.get('rpe_localisation')),
+            safe_float(row.get('cme_localisation')),
+            safe_float(row.get('serouz_rpe_detachment_localisation')),
+            safe_float(row.get('serouz_rpe_detachment_width')),
+            safe_float(row.get('serouz_rpe_detachment_height')),
+            safe_float(row.get('serouz_rpe_detachment_area')),
+            safe_float(row.get('hemorrhagic_rpe_detachment_localisation')),
+            safe_float(row.get('hemorrhagic_rpe_detachment_width')),
+            safe_float(row.get('hemorrhagic_rpe_detachment_heidgt')),
+            safe_float(row.get('hemorrhagic_rpe_detachment_area')),
+            safe_float(row.get('fibrovascular_rpe_detachment_localisation')),
+            safe_float(row.get('fibrovascular_rpe_detachment_width')),
+            safe_float(row.get('fibrovascular_rpe_detachment_heidgt')),
+            safe_float(row.get('fibrovascular_rpe_detachment_area')),
+            safe_float(row.get('drusenoid_detachment_rpe_localisation')),
+            safe_float(row.get('drusenoid_detachment_rpe_width')),
+            safe_float(row.get('drusenoid_detachment_rpe_height')),
+            safe_float(row.get('drusenoid_detachment_rpe_area')),
+            safe_float(row.get('druses_localisation')),
+            safe_float(row.get('druses_weigt')),
+            safe_float(row.get('druses_heigt')),
+            safe_float(row.get('dzuses_area')),
+            safe_float(row.get('fluid_under_rpe_area')),
+            safe_float(row.get('fluid_under_rpe_localisation')),
+            safe_float(row.get('ez_status')),
+            safe_float(row.get('ez_localisation')),
+            safe_float(row.get('myoidnz_status')),
+            safe_float(row.get('myoidnz_localisation')),
+            safe_float(row.get('rne_detachment_localisation')),
+            safe_float(row.get('rne_detachment_width')),
+            safe_float(row.get('rne_detachment_heigt')),
+            safe_float(row.get('rne_detachment_area')),
+            safe_float(row.get('гиперрефлективный_материал_локализация')),
+            safe_float(row.get('гиперрефлективный_материал_площадь')),
         )
 
-        cursor.execute("""
+        cursor.execute(
+            """
         INSERT INTO eyes (
             eye, appointment_id, date, duration_of_the_disease, topkon, optopol,
             areds, refraction, type_of_neovascularization, "MKO3", choroidal_thickness_center,
@@ -950,7 +961,9 @@ def main():
             rne_detachment_localisation, rne_detachment_width, rne_detachment_heigt, rne_detachment_area,
             hyperreflective_material_localisation, hyperreflective_material_area
         ) VALUES ({})
-        """.format(",".join(["?"] * len(eye_values))), eye_values)
+        """.format(','.join(['?'] * len(eye_values))),
+            eye_values,
+        )
 
         eye_id = cursor.lastrowid
 
@@ -970,35 +983,39 @@ def main():
         #     row.get("афлиберцепт_эйлеа"),
         #     safe_int(row.get("количество_выполненых_инъекций"))
         # ))
-        cursor.execute("""
+        cursor.execute(
+            """
                 INSERT INTO injections (
                     eye_id, lutein_therapy, avastin, avastin_injections,
                     eylea, eylea_injections, visque, visque_injections,
                     diprospan, diprospan_injections, kenalog, kenalog_injections,
                     lucentis, lucentis_injections
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-            eye_id,
-            row.get("препараты_лютеина"),
-            row.get("бевацизумаб_авастин"),
-            safe_int(row.get("количество_выполненых_инъекций")),
-            row.get("афлиберцепт_эйлеа"),
-            safe_int(row.get("количество_выполненых_инъекций1")),
-            row.get("бролоцизумаб_визкью"),
-            safe_int(row.get("количество_выполненых_инъекций2")),
-            row.get("бетаметазон_дипроспан"),
-            safe_int(row.get("количество_выполненых_инъекций3")),
-            row.get("триамциналон_кеналог"),
-            safe_int(row.get("количество_выполненых_инъекций4")),
-            row.get("луцентис"),
-            safe_int(row.get("количество_выполненых_инъекций5"))
-        ))
+                """,
+            (
+                eye_id,
+                row.get('препараты_лютеина'),
+                row.get('бевацизумаб_авастин'),
+                safe_int(row.get('количество_выполненых_инъекций')),
+                row.get('афлиберцепт_эйлеа'),
+                safe_int(row.get('количество_выполненых_инъекций1')),
+                row.get('бролоцизумаб_визкью'),
+                safe_int(row.get('количество_выполненых_инъекций2')),
+                row.get('бетаметазон_дипроспан'),
+                safe_int(row.get('количество_выполненых_инъекций3')),
+                row.get('триамциналон_кеналог'),
+                safe_int(row.get('количество_выполненых_инъекций4')),
+                row.get('луцентис'),
+                safe_int(row.get('количество_выполненых_инъекций5')),
+            ),
+        )
 
     conn.commit()
     conn.close()
-    print("✅ Импорт завершён успешно.")
+    print('✅ Импорт завершён успешно.')
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()
 
 # import pandas as pd

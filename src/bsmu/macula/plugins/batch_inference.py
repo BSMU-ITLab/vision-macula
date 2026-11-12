@@ -27,17 +27,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from bsmu.macula.inference.keypoint_palette import KEYPOINT_COLORS
 from bsmu.vision.core.concurrent import ThreadPool
 from bsmu.vision.core.plugins import Plugin
 from bsmu.vision.core.task import DnnTask
 from bsmu.vision.plugins.windows.main import AlgorithmsMenu, MainWindowPlugin
 
+from bsmu.macula.inference.keypoint_palette import KEYPOINT_COLORS
+
 if TYPE_CHECKING:
-    from bsmu.macula.plugins.ensemble_segmenter import BinaryEnsemblePlugin
-    from bsmu.macula.plugins.keypoint_predictor import KeypointPredictorPlugin
     from bsmu.vision.plugins.storages.task import TaskStoragePlugin
     from bsmu.vision.plugins.windows.main import MainWindow
+
+    from bsmu.macula.plugins.ensemble_segmenter import BinaryEnsemblePlugin
+    from bsmu.macula.plugins.keypoint_predictor import KeypointPredictorPlugin
 
 
 SUPPORTED_SUFFIXES = {'.jpg', '.jpeg', '.png'}
@@ -137,23 +139,26 @@ class BatchInferenceDialog(QDialog):
             edit.setText(folder)
 
     def _start(self) -> None:
-        self.start_requested.emit({
-            'input_folder': self.input_folder_edit.text().strip(),
-            'output_folder': self.output_folder_edit.text().strip(),
-            'include_layer_seg': self.layer_seg_checkbox.isChecked(),
-            'include_kp_seg': self.kp_seg_checkbox.isChecked(),
-            'overwrite': self.overwrite_checkbox.isChecked(),
-            'recursive': self.recursive_checkbox.isChecked(),
-        })
+        self.start_requested.emit(
+            {
+                'input_folder': self.input_folder_edit.text().strip(),
+                'output_folder': self.output_folder_edit.text().strip(),
+                'include_layer_seg': self.layer_seg_checkbox.isChecked(),
+                'include_kp_seg': self.kp_seg_checkbox.isChecked(),
+                'overwrite': self.overwrite_checkbox.isChecked(),
+                'recursive': self.recursive_checkbox.isChecked(),
+            }
+        )
 
     def set_running(self, running: bool) -> None:
         for widget in (
-                self.input_folder_edit,
-                self.output_folder_edit,
-                self.layer_seg_checkbox,
-                self.kp_seg_checkbox,
-                self.overwrite_checkbox,
-                self.recursive_checkbox):
+            self.input_folder_edit,
+            self.output_folder_edit,
+            self.layer_seg_checkbox,
+            self.kp_seg_checkbox,
+            self.overwrite_checkbox,
+            self.recursive_checkbox,
+        ):
             widget.setEnabled(not running)
         self.start_button.setEnabled(not running)
         self.close_button.setEnabled(not running)
@@ -170,15 +175,15 @@ class BatchInferenceTask(DnnTask):
     """Sequentially infer and write selected masks for a folder of images."""
 
     def __init__(
-            self,
-            input_folder: Path,
-            output_folder: Path,
-            recursive: bool,
-            include_layer_seg: bool,
-            include_kp_seg: bool,
-            overwrite: bool,
-            segmenter,
-            keypoint_predictor,
+        self,
+        input_folder: Path,
+        output_folder: Path,
+        recursive: bool,
+        include_layer_seg: bool,
+        include_kp_seg: bool,
+        overwrite: bool,
+        segmenter,
+        keypoint_predictor,
     ):
         super().__init__(f'OCT Segmentation [{input_folder.name}]')
         self._input_folder = input_folder
@@ -225,19 +230,14 @@ class BatchInferenceTask(DnnTask):
         images, conflicts = self._remove_output_name_conflicts(images)
         for conflict in conflicts:
             summary.failed += len(conflict)
-            summary.errors.append(
-                'Output filename conflict; skipped: '
-                + ', '.join(str(path) for path in conflict)
-            )
+            summary.errors.append('Output filename conflict; skipped: ' + ', '.join(str(path) for path in conflict))
 
         for image_path in images:
             try:
                 self._process_image(image_path, summary)
             except Exception as error:
                 summary.failed += 1
-                summary.errors.append(
-                    f'Batch processing failed for {image_path}: {error}'
-                )
+                summary.errors.append(f'Batch processing failed for {image_path}: {error}')
         return summary
 
     def _discover_images(self) -> list[Path]:
@@ -246,9 +246,7 @@ class BatchInferenceTask(DnnTask):
 
         output_resolved = self._output_folder.resolve()
         output_is_input = output_resolved == self._input_folder
-        output_is_nested = output_resolved != self._input_folder and output_resolved.is_relative_to(
-            self._input_folder
-        )
+        output_is_nested = output_resolved != self._input_folder and output_resolved.is_relative_to(self._input_folder)
         generated_outputs = {
             output_resolved / LAYER_SEG_DIR_NAME,
             output_resolved / KP_SEG_DIR_NAME,
@@ -265,13 +263,11 @@ class BatchInferenceTask(DnnTask):
                 root_path = Path(root)
                 if output_is_input and root_path == self._input_folder:
                     dirs[:] = [
-                        directory for directory in dirs
-                        if directory not in {LAYER_SEG_DIR_NAME, KP_SEG_DIR_NAME}
+                        directory for directory in dirs if directory not in {LAYER_SEG_DIR_NAME, KP_SEG_DIR_NAME}
                     ]
                 elif output_is_nested:
                     dirs[:] = [
-                        directory for directory in dirs
-                        if (root_path / directory).resolve() not in generated_outputs
+                        directory for directory in dirs if (root_path / directory).resolve() not in generated_outputs
                     ]
 
                 dirs.sort()
@@ -282,8 +278,7 @@ class BatchInferenceTask(DnnTask):
 
         return sorted(paths)
 
-    def _remove_output_name_conflicts(
-            self, images: list[Path]) -> tuple[list[Path], list[list[Path]]]:
+    def _remove_output_name_conflicts(self, images: list[Path]) -> tuple[list[Path], list[list[Path]]]:
         groups: dict[tuple[str, str], list[Path]] = defaultdict(list)
         for image_path in images:
             relative_parent = image_path.parent.relative_to(self._input_folder).as_posix()
@@ -297,11 +292,13 @@ class BatchInferenceTask(DnnTask):
         relative_parent = image_path.parent.relative_to(self._input_folder)
         layer_output = (
             self._output_folder / LAYER_SEG_DIR_NAME / relative_parent / f'{image_path.stem}.png'
-            if self._include_layer_seg else None
+            if self._include_layer_seg
+            else None
         )
         kp_output = (
             self._output_folder / KP_SEG_DIR_NAME / relative_parent / f'{image_path.stem}.png'
-            if self._include_kp_seg else None
+            if self._include_kp_seg
+            else None
         )
 
         need_layer = layer_output is not None and (self._overwrite or not layer_output.is_file())
@@ -323,14 +320,10 @@ class BatchInferenceTask(DnnTask):
         if need_layer:
             try:
                 segmentation = self._segmenter.predict(image).astype(np.uint8, copy=False)
-                generated = self._write_mask(
-                    layer_output, segmentation, self._overwrite
-                ) or generated
+                generated = self._write_mask(layer_output, segmentation, self._overwrite) or generated
             except Exception as error:
                 image_failed = True
-                summary.errors.append(
-                    f'Ensemble segmentation failed for {image_path}: {error}'
-                )
+                summary.errors.append(f'Ensemble segmentation failed for {image_path}: {error}')
         elif need_kp and layer_output is not None and layer_output.is_file():
             try:
                 segmentation = cv2.imread(str(layer_output), cv2.IMREAD_UNCHANGED)
@@ -343,14 +336,12 @@ class BatchInferenceTask(DnnTask):
         if need_kp:
             try:
                 keypoint_mask = self._keypoint_predictor.predict(image, segmentation)
-                generated = self._write_mask(
-                    kp_output, keypoint_mask, self._overwrite, keypoint_palette=True
-                ) or generated
+                generated = (
+                    self._write_mask(kp_output, keypoint_mask, self._overwrite, keypoint_palette=True) or generated
+                )
             except Exception as error:
                 image_failed = True
-                summary.errors.append(
-                    f'Keypoint segmentation failed for {image_path}: {error}'
-                )
+                summary.errors.append(f'Keypoint segmentation failed for {image_path}: {error}')
 
         if image_failed:
             summary.failed += 1
@@ -361,11 +352,11 @@ class BatchInferenceTask(DnnTask):
 
     @staticmethod
     def _write_mask(
-            path: Path | None,
-            mask: np.ndarray,
-            overwrite: bool,
-            *,
-            keypoint_palette: bool = False,
+        path: Path | None,
+        mask: np.ndarray,
+        overwrite: bool,
+        *,
+        keypoint_palette: bool = False,
     ) -> bool:
         if path is None:
             return False
@@ -412,11 +403,11 @@ class BatchInferencePlugin(Plugin):
     }
 
     def __init__(
-            self,
-            main_window_plugin: MainWindowPlugin,
-            ensemble_segmenter_plugin: BinaryEnsemblePlugin,
-            keypoint_predictor_plugin: KeypointPredictorPlugin,
-            task_storage_plugin: TaskStoragePlugin,
+        self,
+        main_window_plugin: MainWindowPlugin,
+        ensemble_segmenter_plugin: BinaryEnsemblePlugin,
+        keypoint_predictor_plugin: KeypointPredictorPlugin,
+        task_storage_plugin: TaskStoragePlugin,
     ):
         super().__init__()
         self._main_window_plugin = main_window_plugin
@@ -429,9 +420,7 @@ class BatchInferencePlugin(Plugin):
 
     def _enable_gui(self) -> None:
         self._main_window = self._main_window_plugin.main_window
-        self._main_window.add_menu_action(
-            AlgorithmsMenu, self.tr('Segment OCT Images in Folder...'), self._show_dialog
-        )
+        self._main_window.add_menu_action(AlgorithmsMenu, self.tr('Segment OCT Images in Folder...'), self._show_dialog)
 
     def _disable(self) -> None:
         if self._dialog is not None:
@@ -462,9 +451,9 @@ class BatchInferencePlugin(Plugin):
                 self._dialog.kp_seg_checkbox.setToolTip(reason)
                 messages.append(self.tr('kp_seg unavailable: {}').format(reason))
             elif segmenter_unavailable:
-                reason = self.tr(
-                    'Keypoint batch inference requires the ensemble background model. {}'
-                ).format(self._ensemble_segmenter_plugin.unavailable_reason or '')
+                reason = self.tr('Keypoint batch inference requires the ensemble background model. {}').format(
+                    self._ensemble_segmenter_plugin.unavailable_reason or ''
+                )
                 self._dialog.kp_seg_checkbox.setEnabled(False)
                 self._dialog.kp_seg_checkbox.setToolTip(reason)
                 messages.append(self.tr('kp_seg unavailable: {}').format(reason))
@@ -551,23 +540,20 @@ class BatchInferencePlugin(Plugin):
             self._warn(summary.fatal_error)
             return
 
-        message = self.tr(
-            'Processed: {0}\nSkipped: {1}\nFailed: {2}'
-        ).format(summary.processed, summary.skipped, summary.failed)
+        message = self.tr('Processed: {0}\nSkipped: {1}\nFailed: {2}').format(
+            summary.processed, summary.skipped, summary.failed
+        )
         if summary.errors:
             error_lines = summary.errors[:20]
             if len(summary.errors) > len(error_lines):
                 error_lines.append(self.tr('...and {0} more').format(len(summary.errors) - 20))
             message += '\n\n' + '\n'.join(error_lines)
         box = QMessageBox(self._dialog)
-        box.setIcon(
-            QMessageBox.Icon.Warning if summary.failed else QMessageBox.Icon.Information
-        )
+        box.setIcon(QMessageBox.Icon.Warning if summary.failed else QMessageBox.Icon.Information)
         box.setWindowTitle(self.tr('OCT Segmentation'))
         box.setText(message)
         box.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+            Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
         box.exec()
 

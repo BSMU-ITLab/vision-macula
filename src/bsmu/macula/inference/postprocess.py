@@ -21,7 +21,9 @@ def refine_tr_mask(tr_mask: np.ndarray, gt_mask: np.ndarray) -> np.ndarray:
 
 
 def _filtered_rpe_mask(
-    gt_mask: np.ndarray, rpe_class: int, rpe_area_threshold: int,
+    gt_mask: np.ndarray,
+    rpe_class: int,
+    rpe_area_threshold: int,
 ) -> np.ndarray:
     rpe_mask = gt_mask == rpe_class
     structure = np.ones((3, 3), dtype=np.uint8)
@@ -35,7 +37,10 @@ def _filtered_rpe_mask(
 
 
 def remove_above_rpe(
-    tr_mask: np.ndarray, gt_mask: np.ndarray, rpe_class: int = 9, rpe_area_threshold: int = 50,
+    tr_mask: np.ndarray,
+    gt_mask: np.ndarray,
+    rpe_class: int = 9,
+    rpe_area_threshold: int = 50,
 ) -> np.ndarray:
     result = tr_mask.copy()
     H, W = result.shape
@@ -55,7 +60,10 @@ def remove_above_rpe(
 
 
 def remove_below_choria(
-    tr_mask: np.ndarray, gt_mask: np.ndarray, rpe_class: int = 14, rpe_area_threshold: int = 50,
+    tr_mask: np.ndarray,
+    gt_mask: np.ndarray,
+    rpe_class: int = 14,
+    rpe_area_threshold: int = 50,
 ) -> np.ndarray:
     result = tr_mask.copy()
     H, W = result.shape
@@ -76,8 +84,7 @@ def remove_below_choria(
 
 def filter_by(mask: np.ndarray, am: int, ah: int) -> np.ndarray:
     m = mask.copy()
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
-        (m > 0).astype(np.uint8), connectivity=8)
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats((m > 0).astype(np.uint8), connectivity=8)
     for i in range(1, num_labels):
         area = stats[i, cv2.CC_STAT_AREA]
         h = stats[i, cv2.CC_STAT_HEIGHT]
@@ -177,7 +184,7 @@ def component_statistics(
     if contours:
         cnt = contours[0]
         perimeter = cv2.arcLength(cnt, True)
-        circularity = 4 * np.pi * area / (perimeter ** 2) if perimeter > 0 else np.nan
+        circularity = 4 * np.pi * area / (perimeter**2) if perimeter > 0 else np.nan
         hull = cv2.convexHull(cnt)
         hull_area = cv2.contourArea(hull)
         solidity = area / hull_area if hull_area > 0 else np.nan
@@ -193,21 +200,24 @@ def component_statistics(
 
     mean_intensity = cv2.mean(intensity_image, mask=component)[0]
 
-    features = np.array([
-        area,
-        circularity,
-        o36,
-        o45,
-        height,
-        n_components - 1,
-        aspect_ratio,
-        solidity,
-        skeleton_length,
-        skeleton_thickness,
-        cx / W,
-        cy / H,
-        mean_intensity,
-    ], dtype=np.float32)
+    features = np.array(
+        [
+            area,
+            circularity,
+            o36,
+            o45,
+            height,
+            n_components - 1,
+            aspect_ratio,
+            solidity,
+            skeleton_length,
+            skeleton_thickness,
+            cx / W,
+            cy / H,
+            mean_intensity,
+        ],
+        dtype=np.float32,
+    )
 
     return features.reshape(1, -1)
 

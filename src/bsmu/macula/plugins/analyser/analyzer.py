@@ -13,6 +13,11 @@ from typing import Dict, List
 import cv2
 import numpy as np
 
+from bsmu.macula.plugins.analyser.curves import (
+    central_width_near,
+    central_width_of_retina,
+    measure_choroid_thickness_at_center,
+)
 from bsmu.macula.plugins.analyser.data_converter import DataConverter
 from bsmu.macula.plugins.analyser.geometry import (
     extract_upper_boundary,
@@ -40,11 +45,6 @@ from bsmu.macula.plugins.analyser.measurements.rpe import (
     measure_rpe_thickness,
     rpe_mask,
 )
-from bsmu.macula.plugins.analyser.curves import (
-    central_width_near,
-    central_width_of_retina,
-    measure_choroid_thickness_at_center,
-)
 from bsmu.macula.plugins.analyser.scale_calculator import ScaleCalculator
 from bsmu.macula.plugins.analyser.schema import (
     CLASS_ELLIPSOID_ZONE,
@@ -53,17 +53,17 @@ from bsmu.macula.plugins.analyser.schema import (
     CLASS_MYOID_ZONE,
     CLASS_SUB_BRUCH_FLUID,
     CLASS_SUBRETINAL_HYPERREFLECTIVE,
-    MeasurementId,
-    PED_DETACHMENTS,
     NEUROEPITHELIAL_DETACHMENT,
+    PED_DETACHMENTS,
+    MeasurementId,
     Parameter,
     RowKey,
+    detachment_rows,
+    drusen_rows,
     group_rows,
     is_drusen_class,
     make_row,
     manual_rows,
-    detachment_rows,
-    drusen_rows,
     to_um2,
 )
 
@@ -80,9 +80,15 @@ BOUNDARY_SMOOTH_FACTOR = 30000
 class MaskAnalyser:
     """Основной класс для анализа OCT-масок."""
 
-    def __init__(self, image: np.ndarray, mask: np.ndarray,
-                 mask_fovea: np.ndarray, class_configs: List[Dict],
-                 scale_x: float | None = None, scale_y: float | None = None):
+    def __init__(
+        self,
+        image: np.ndarray,
+        mask: np.ndarray,
+        mask_fovea: np.ndarray,
+        class_configs: List[Dict],
+        scale_x: float | None = None,
+        scale_y: float | None = None,
+    ):
         self.mask = mask
         self.fovea_mask = mask_fovea
         self.fovea_zones = fovea_zones_by_columns(mask_fovea)
@@ -168,15 +174,20 @@ class MaskAnalyser:
             rows.extend(self._choroid_thickness_rows(smooth_upper, spline, foveola_center))
         rows.extend(self._near_fovea_thickness_rows(smooth_upper, spline))
         rows.extend(self._rpe_rows(smooth_upper, spline))
-        rows.extend(self._zone_rows(CLASS_ELLIPSOID_ZONE,
-                                    Parameter.ELLIPSOID_CONDITION,
-                                    Parameter.ELLIPSOID_DEFECTS_LOCATION,
-                                    RowKey.ELLIPSOID_CONTOURS,
-                                    single_gap_state="Не определяется локально"))
-        rows.extend(self._zone_rows(CLASS_MYOID_ZONE,
-                                    Parameter.MYOID_CONDITION,
-                                    Parameter.MYOID_DEFECTS_LOCATION,
-                                    RowKey.MYOID_CONTOURS))
+        rows.extend(
+            self._zone_rows(
+                CLASS_ELLIPSOID_ZONE,
+                Parameter.ELLIPSOID_CONDITION,
+                Parameter.ELLIPSOID_DEFECTS_LOCATION,
+                RowKey.ELLIPSOID_CONTOURS,
+                single_gap_state='Не определяется локально',
+            )
+        )
+        rows.extend(
+            self._zone_rows(
+                CLASS_MYOID_ZONE, Parameter.MYOID_CONDITION, Parameter.MYOID_DEFECTS_LOCATION, RowKey.MYOID_CONTOURS
+            )
+        )
         rows.extend(self._irf_rows())
         rows.extend(self._ped_rows(smooth_upper, spline))
         rows.extend(self._neuroepithelial_rows(smooth_upper, spline))
@@ -205,7 +216,7 @@ class MaskAnalyser:
 
         x0, y0, corrected_px, point, _ = cts
         row = make_row(
-            "Центральная толщина сетчатки (фовеола)",
+            'Центральная толщина сетчатки (фовеола)',
             measurement_id=MeasurementId.CTS_FOVEOLA,
             **{RowKey.POINTS: [(x0, y0), point], RowKey.CENTER: foveola_center},
         )
@@ -213,29 +224,34 @@ class MaskAnalyser:
         full_px = distance_px((x0, y0), point)
         corrected_um = corrected_distance_um(full_um, full_px, corrected_px)
         if corrected_um is not None:
-            row[RowKey.VALUE] = f"{corrected_um:.2f}"
-            row[RowKey.UNIT] = "мкм"
+            row[RowKey.VALUE] = f'{corrected_um:.2f}'
+            row[RowKey.UNIT] = 'мкм'
         else:
-            row[RowKey.VALUE] = f"{corrected_px:.2f}"
-            row[RowKey.UNIT] = "пиксели"
+            row[RowKey.VALUE] = f'{corrected_px:.2f}'
+            row[RowKey.UNIT] = 'пиксели'
         return [row]
 
     def _choroid_thickness_rows(self, smooth_upper, spline, foveola_center) -> list[dict]:
         """Толщина хориоидеи в центре (перпендикуляр к верхней границе)."""
         result = measure_choroid_thickness_at_center(
-            self.mask, smooth_upper, spline, foveola_center[0],
-            self.scale_x, self.scale_y, foveola_center,
+            self.mask,
+            smooth_upper,
+            spline,
+            foveola_center[0],
+            self.scale_x,
+            self.scale_y,
+            foveola_center,
         )
         if result is None:
             return []
 
         upper_point, lower_point, dx_um, dy_um = result
-        total_um = float((dx_um ** 2 + dy_um ** 2) ** 0.5)
+        total_um = float((dx_um**2 + dy_um**2) ** 0.5)
         return [
             make_row(
-                "Толщина хориоидеи в центре",
-                f"{total_um:.2f}",
-                "мкм",
+                'Толщина хориоидеи в центре',
+                f'{total_um:.2f}',
+                'мкм',
                 measurement_id=MeasurementId.CHOROID_THICKNESS_CENTER,
                 **{RowKey.POINTS: [upper_point, lower_point]},
             )
@@ -245,8 +261,8 @@ class MaskAnalyser:
         """ЦТС рядом с фовеолой и рядом с фовеей (тот же алгоритм, что и в фовеоле)."""
         rows: list[dict] = []
         groups = (
-            (1, "возле фовеолы", MeasurementId.CTS_NEAR_FOVEOLA),
-            (2, "возле фовеа", MeasurementId.CTS_NEAR_FOVEA),
+            (1, 'возле фовеолы', MeasurementId.CTS_NEAR_FOVEOLA),
+            (2, 'возле фовеа', MeasurementId.CTS_NEAR_FOVEA),
         )
         for zone, label, measure_id in groups:
             points = central_width_near(self.image, smooth_upper, spline, self.fovea_mask, self.mask, zone)
@@ -260,7 +276,7 @@ class MaskAnalyser:
                 continue
 
             row = make_row(
-                f"Центральная толщина сетчатки ({label})",
+                f'Центральная толщина сетчатки ({label})',
                 measurement_id=measure_id,
                 **{RowKey.PERPENDICULARS: [(left_point, cts_left[3]), (right_point, cts_right[3])]},
             )
@@ -276,11 +292,11 @@ class MaskAnalyser:
                 cts_right[2],
             )
             if left_um is not None and right_um is not None:
-                row[RowKey.VALUE] = f"{(left_um + right_um) / 2:.2f}"
-                row[RowKey.UNIT] = "мкм"
+                row[RowKey.VALUE] = f'{(left_um + right_um) / 2:.2f}'
+                row[RowKey.UNIT] = 'мкм'
             else:
-                row[RowKey.VALUE] = f"{(cts_left[2] + cts_right[2]) / 2:.2f}"
-                row[RowKey.UNIT] = "пиксели"
+                row[RowKey.VALUE] = f'{(cts_left[2] + cts_right[2]) / 2:.2f}'
+                row[RowKey.UNIT] = 'пиксели'
             rows.append(row)
         return rows
 
@@ -306,37 +322,42 @@ class MaskAnalyser:
             RowKey.DEFECT_COORD: defect_coord,
         }
         return [
-            make_row(Parameter.RPE_CONDITION, state, "", **extras),
+            make_row(Parameter.RPE_CONDITION, state, '', **extras),
             make_row(
                 Parameter.RPE_DEFECTS_LOCATION,
                 defects_location,
-                "",
+                '',
                 **{RowKey.GAP_CONTOURS: gap_contours, RowKey.DEFECT_COORD: defect_coord},
             ),
         ]
 
-    def _zone_rows(self, class_id: int, condition_parameter: str,
-                   defects_parameter: str, contours_key: str,
-                   single_gap_state: str | None = None) -> list[dict]:
+    def _zone_rows(
+        self,
+        class_id: int,
+        condition_parameter: str,
+        defects_parameter: str,
+        contours_key: str,
+        single_gap_state: str | None = None,
+    ) -> list[dict]:
         """Состояние эллипсоидной/миоидной зоны и локализация её дефектов."""
         zone = (self.mask == class_id).astype(np.uint8)
         contours, _ = cv2.findContours(zone, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         significant, gaps = self._zone_fragments(class_id)
 
         if zone.sum() < 50 or not significant:
-            state, defects_location = "Не определяется", None
+            state, defects_location = 'Не определяется', None
         elif gaps == 0:
-            state, defects_location = "Сохранена", None
+            state, defects_location = 'Сохранена', None
         else:
             if gaps == 1 and single_gap_state is not None:
                 state = single_gap_state
             else:
-                state = "Неравномерная (фрагментация)"
+                state = 'Неравномерная (фрагментация)'
             defects_location = self._get_zone_defects_location(significant)
 
-        rows = [make_row(condition_parameter, state, "", **{contours_key: contours})]
+        rows = [make_row(condition_parameter, state, '', **{contours_key: contours})]
         if defects_location is not None:
-            rows.append(make_row(defects_parameter, defects_location, ""))
+            rows.append(make_row(defects_parameter, defects_location, ''))
         return rows
 
     def _irf_rows(self) -> list[dict]:
@@ -347,7 +368,7 @@ class MaskAnalyser:
             make_row(
                 Parameter.CME_LOCATION,
                 cme_location(self.fovea_zones, irf),
-                "",
+                '',
                 **{RowKey.IRF_CONTOURS: contours},
             )
         ]
@@ -357,8 +378,13 @@ class MaskAnalyser:
         rows: list[dict] = []
         for spec in PED_DETACHMENTS:
             width, height, area, left_x, right_x, max_point, location, segment = measure_detachment(
-                self.mask, smooth_upper, spline, spec,
-                self.fovea_zones, self.scale_x, self.scale_y,
+                self.mask,
+                smooth_upper,
+                spline,
+                spec,
+                self.fovea_zones,
+                self.scale_x,
+                self.scale_y,
             )
             if width is None or height is None:
                 continue
@@ -376,11 +402,14 @@ class MaskAnalyser:
 
     def _neuroepithelial_rows(self, smooth_upper, spline) -> list[dict]:
         """Отслойка нейроэпителия (СРЖ, класс 6)."""
-        width, height, area, left_x, right_x, max_point, location, segment = (
-            measure_neuroepithelial_detachment(
-                self.mask, smooth_upper, spline, NEUROEPITHELIAL_DETACHMENT.class_id,
-                self.fovea_zones, self.scale_x, self.scale_y,
-            )
+        width, height, area, left_x, right_x, max_point, location, segment = measure_neuroepithelial_detachment(
+            self.mask,
+            smooth_upper,
+            spline,
+            NEUROEPITHELIAL_DETACHMENT.class_id,
+            self.fovea_zones,
+            self.scale_x,
+            self.scale_y,
         )
         if width is None or height is None:
             return []
@@ -403,8 +432,9 @@ class MaskAnalyser:
         rows = []
         if area_um2 is not None:
             rows.append(
-                make_row("Sub-Bruch's Fluid (площадь)", f"{area_um2:.2f}", "мкм²",
-                         measurement_id=MeasurementId.SBF_AREA)
+                make_row(
+                    "Sub-Bruch's Fluid (площадь)", f'{area_um2:.2f}', 'мкм²', measurement_id=MeasurementId.SBF_AREA
+                )
             )
 
         ys, xs = np.where(sbf == 1)
@@ -413,8 +443,9 @@ class MaskAnalyser:
         in_fovea = 2 in zone_values
         in_macula = bool(len(zone_values)) and not in_foveola and not in_fovea
         location = location_by_zone(in_foveola, in_fovea, in_macula)
-        rows.append(make_row("Sub-Bruch's Fluid (локализация)", location, "",
-                             measurement_id=MeasurementId.SBF_LOCATION))
+        rows.append(
+            make_row("Sub-Bruch's Fluid (локализация)", location, '', measurement_id=MeasurementId.SBF_LOCATION)
+        )
         return rows
 
     def _hyperreflective_rows(self) -> list[dict]:
@@ -425,61 +456,77 @@ class MaskAnalyser:
         has_intraretinal = bool(intraretinal.sum())
 
         if not has_subretinal and not has_intraretinal:
-            location = "Отсутствует"
+            location = 'Отсутствует'
         elif has_subretinal and has_intraretinal:
-            location = "Субретинальный + интраретинальный"
+            location = 'Субретинальный + интраретинальный'
         elif has_subretinal:
-            location = "Субретинальный"
+            location = 'Субретинальный'
         else:
-            location = "Интраретинальный"
+            location = 'Интраретинальный'
 
         rows = [
-            make_row(Parameter.HYPERREFLECTIVE_LOCATION, location, "",
-                     measurement_id=MeasurementId.HYPERREFLECTIVE_LOCATION)
+            make_row(
+                Parameter.HYPERREFLECTIVE_LOCATION, location, '', measurement_id=MeasurementId.HYPERREFLECTIVE_LOCATION
+            )
         ]
 
         subretinal_area = to_um2(float(subretinal.sum()), self.scale_x, self.scale_y)
         intraretinal_area = to_um2(float(intraretinal.sum()), self.scale_x, self.scale_y)
 
         if has_subretinal and subretinal_area is not None:
-            rows.append(make_row(
-                "Гиперрефлективный материал субретинальный (площадь)",
-                f"{subretinal_area:.2f}", "мкм²",
-                measurement_id=MeasurementId.HYPERREFLECTIVE_SUBRETINAL_AREA,
-            ))
+            rows.append(
+                make_row(
+                    'Гиперрефлективный материал субретинальный (площадь)',
+                    f'{subretinal_area:.2f}',
+                    'мкм²',
+                    measurement_id=MeasurementId.HYPERREFLECTIVE_SUBRETINAL_AREA,
+                )
+            )
         if has_intraretinal and intraretinal_area is not None:
-            rows.append(make_row(
-                "Гиперрефлективный материал интраретинальный (площадь)",
-                f"{intraretinal_area:.2f}", "мкм²",
-                measurement_id=MeasurementId.HYPERREFLECTIVE_INTRARETINAL_AREA,
-            ))
+            rows.append(
+                make_row(
+                    'Гиперрефлективный материал интраретинальный (площадь)',
+                    f'{intraretinal_area:.2f}',
+                    'мкм²',
+                    measurement_id=MeasurementId.HYPERREFLECTIVE_INTRARETINAL_AREA,
+                )
+            )
         if has_subretinal and has_intraretinal and subretinal_area is not None and intraretinal_area is not None:
-            rows.append(make_row(
-                "Гиперрефлективный материал общая площадь",
-                f"{subretinal_area + intraretinal_area:.2f}", "мкм²",
-                measurement_id=MeasurementId.HYPERREFLECTIVE_TOTAL_AREA,
-            ))
+            rows.append(
+                make_row(
+                    'Гиперрефлективный материал общая площадь',
+                    f'{subretinal_area + intraretinal_area:.2f}',
+                    'мкм²',
+                    measurement_id=MeasurementId.HYPERREFLECTIVE_TOTAL_AREA,
+                )
+            )
         return rows
 
     def _drusen_rows(self, smooth_upper, spline) -> list[dict]:
         """Объекты по конфигурации классов: друзы измеряются относительно хориоидеи."""
         rows: list[dict] = []
         for class_cfg in self.class_configs:
-            class_id = class_cfg["id"]
-            class_name = class_cfg["name"]
+            class_id = class_cfg['id']
+            class_name = class_cfg['name']
             if not is_drusen_class(class_name):
                 continue
 
             for index, contour in enumerate(self._find_objects_by_class(class_id)):
                 width, height, area, left_x, right_x, max_point, _, segment = measure_drusen(
-                    self.mask, smooth_upper, spline, contour,
-                    self.fovea_zones, self.scale_x, self.scale_y,
+                    self.mask,
+                    smooth_upper,
+                    spline,
+                    contour,
+                    self.fovea_zones,
+                    self.scale_x,
+                    self.scale_y,
                 )
                 if width is None or height is None:
                     continue
                 rows.extend(
                     drusen_rows(
-                        class_name, index,
+                        class_name,
+                        index,
                         width=width,
                         height=height,
                         area=area,

@@ -13,7 +13,7 @@ from pathlib import Path
 from PySide6.QtSql import QSqlDatabase
 
 #: Имя соединения по умолчанию (QSqlDatabase требует уникальные имена).
-DEFAULT_CONNECTION_NAME = "main_connection"
+DEFAULT_CONNECTION_NAME = 'main_connection'
 
 
 class DatabaseManager:
@@ -36,14 +36,13 @@ class DatabaseManager:
 
     # --- API ---
 
-    def open(self, path: Path | str,
-             connection_name: str = DEFAULT_CONNECTION_NAME) -> QSqlDatabase:
+    def open(self, path: Path | str, connection_name: str = DEFAULT_CONNECTION_NAME) -> QSqlDatabase:
         """Открывает (или переоткрывает) БД по указанному пути."""
         candidate = Path(path)
         # SQLite создаёт файл при открытии: без явной проверки опечатка в
         # имени базы давала бы пустое окно вместо понятной ошибки.
         if not candidate.exists():
-            raise ConnectionError(f"Файл базы данных не найден: {candidate}")
+            raise ConnectionError(f'Файл базы данных не найден: {candidate}')
 
         # Каталог может отсутствовать (например, база лежит в каталоге данных
         # приложения) — QSqlDatabase иначе падает с "unable to open database file".
@@ -57,12 +56,12 @@ class DatabaseManager:
         self._connection_name = connection_name
         self._path = path_str
 
-        self.db = QSqlDatabase.addDatabase("QSQLITE", connection_name)
+        self.db = QSqlDatabase.addDatabase('QSQLITE', connection_name)
         self.db.setDatabaseName(path_str)
         if not self.db.open():
             error = self.db.lastError().text()
             self.close()
-            raise ConnectionError(f"Не удалось открыть базу данных {path_str}: {error}")
+            raise ConnectionError(f'Не удалось открыть базу данных {path_str}: {error}')
         return self.db
 
     def is_open(self) -> bool:
@@ -71,7 +70,7 @@ class DatabaseManager:
     def get_connection(self) -> QSqlDatabase:
         """Активное соединение; исключение, если БД ещё не открыта."""
         if not self.is_open():
-            raise ConnectionError("База данных не открыта")
+            raise ConnectionError('База данных не открыта')
         return self.db
 
     def close(self) -> None:

@@ -7,7 +7,7 @@ name = 'bsmu.macula'
 dynamic = [ 'version' ]
 description = 'This application analyzes OCT images to detect and monitor Age-Related Macular Degeneration'
 readme = 'README.md'
-requires-python = '>= 3.10'
+requires-python = '>= 3.11'
 license = { file = 'LICENSE' }
 authors = [
     { name = 'Elena Himbitskaya', email = 'fpm.gimbicka@bsu.by' },
@@ -25,8 +25,8 @@ classifiers = [
     'Intended Audience :: Healthcare Industry',
     'License :: OSI Approved :: BSD License',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
     'Operating System :: OS Independent',
     'Topic :: Software Development :: Version Control :: Git',
 ]
@@ -53,3 +53,44 @@ where = [ 'src' ]
 
 [tool.setuptools.package-data]
 '*' = [ '**/*.conf.yaml' ]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = [
+    'temp',
+    '*_rc.py',  # E.g. icons_rc.py
+]
+
+[tool.ruff.lint]
+select = [
+    'E',    # pycodestyle errors
+    'W',    # pycodestyle warnings
+    'F',    # Pyflakes
+    'I',    # isort
+    'UP',   # pyupgrade
+    'B',    # flake8-bugbear
+    'SIM',  # flake8-simplify
+    'C4',   # flake8-comprehensions
+]
+ignore = [
+    'E501',  # Line length handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+'__init__.py' = ['F401']  # Allow unused imports for re-exports
+
+[tool.ruff.lint.isort]
+section-order = [
+    'future',
+    'standard-library',
+    'third-party',
+    'bsmu-framework',
+    'first-party',
+    'local-folder',
+]
+
+[tool.ruff.lint.isort.sections]
+'bsmu-framework' = ['bsmu.vision']
+
+[tool.ruff.format]
+quote-style = 'single'

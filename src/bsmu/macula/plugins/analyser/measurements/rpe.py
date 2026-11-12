@@ -14,11 +14,11 @@ from skimage.morphology import skeletonize
 from bsmu.macula.plugins.analyser.schema import CLASS_RPE, Location
 
 #: Текст состояния эпителия.
-RPE_PRESERVED = "Эпителий сохранен"
-RPE_UNEVEN = "Эпителий неравномерный"
-RPE_SINGLE_GAPS = "Единичные разрывы"
-RPE_MULTIPLE_GAPS = "Множественные разрывы"
-RPE_UNDEFINED = "Эпителий не определяется"
+RPE_PRESERVED = 'Эпителий сохранен'
+RPE_UNEVEN = 'Эпителий неравномерный'
+RPE_SINGLE_GAPS = 'Единичные разрывы'
+RPE_MULTIPLE_GAPS = 'Множественные разрывы'
+RPE_UNDEFINED = 'Эпителий не определяется'
 
 #: Минимальное количество пикселей РПЭ, чтобы считать его определимым.
 MIN_RPE_PIXELS = 100
@@ -76,7 +76,7 @@ def local_tangent(skeleton: np.ndarray, y_skel: int, x_skel: int) -> tuple[float
     else:
         tangent_x, tangent_y = 0.0, 1.0
 
-    norm = np.sqrt(tangent_x ** 2 + tangent_y ** 2)
+    norm = np.sqrt(tangent_x**2 + tangent_y**2)
     if norm <= 0:
         return 0.0, 1.0
     return tangent_x / norm, tangent_y / norm
@@ -149,7 +149,7 @@ def measure_rpe_thickness(
         if scale_x is not None and scale_y is not None:
             dx_um = abs(boundary_1[0] - boundary_2[0]) * scale_x
             dy_um = abs(boundary_1[1] - boundary_2[1]) * scale_y
-            thickness = float(np.sqrt(dx_um ** 2 + dy_um ** 2))
+            thickness = float(np.sqrt(dx_um**2 + dy_um**2))
         else:
             thickness = float(np.hypot(boundary_1[0] - boundary_2[0], boundary_1[1] - boundary_2[1]))
 
@@ -248,10 +248,10 @@ def detect_rpe_defects(
     fragments = []
     for contour in contours:
         moments = cv2.moments(contour)
-        if moments["m00"] == 0:
+        if moments['m00'] == 0:
             continue
-        cx = int(moments["m10"] / moments["m00"])
-        cy = int(moments["m01"] / moments["m00"])
+        cx = int(moments['m10'] / moments['m00'])
+        cy = int(moments['m01'] / moments['m00'])
         x, y, box_w, box_h = cv2.boundingRect(contour)
         if box_w >= min_contour_width:
             fragments.append((cx, cy, contour, x, y, box_w, box_h))

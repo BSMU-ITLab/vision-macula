@@ -31,74 +31,74 @@ class RowKey:
     мутируют Qt-модели), но имена ключей больше не пишутся строками по коду.
     """
 
-    PARAMETER = "parameter"
-    VALUE = "value"
-    UNIT = "unit"
-    MEASUREMENT_ID = "measurement_id"
-    IS_GROUP = "is_group"
-    EXPANDED = "expanded"
-    CHILDREN = "children"
+    PARAMETER = 'parameter'
+    VALUE = 'value'
+    UNIT = 'unit'
+    MEASUREMENT_ID = 'measurement_id'
+    IS_GROUP = 'is_group'
+    EXPANDED = 'expanded'
+    CHILDREN = 'children'
 
     # Данные для подсветки объектов в окне визуализации
-    POINTS = "points"
-    PERPENDICULAR = "perpendicular"
-    PERPENDICULARS = "perpendiculars"
-    RPE_PERPENDICULARS = "rpe_perpendiculars"
-    SKELETON_POINTS = "skeleton_points"
-    CENTER = "center"
-    CONTOUR = "contour"
-    DETACHMENT_BOUNDS = "detachment_bounds"
-    DEFECT_COORD = "defect_coord"
-    RPE_CONTOURS = "rpe_contours"
-    GAP_CONTOURS = "gap_contours"
-    IRF_CONTOURS = "irf_contours"
-    ELLIPSOID_CONTOURS = "ellipsoid_contours"
-    MYOID_CONTOURS = "myoid_contours"
-    L_CONTOUR = "L_contour"
+    POINTS = 'points'
+    PERPENDICULAR = 'perpendicular'
+    PERPENDICULARS = 'perpendiculars'
+    RPE_PERPENDICULARS = 'rpe_perpendiculars'
+    SKELETON_POINTS = 'skeleton_points'
+    CENTER = 'center'
+    CONTOUR = 'contour'
+    DETACHMENT_BOUNDS = 'detachment_bounds'
+    DEFECT_COORD = 'defect_coord'
+    RPE_CONTOURS = 'rpe_contours'
+    GAP_CONTOURS = 'gap_contours'
+    IRF_CONTOURS = 'irf_contours'
+    ELLIPSOID_CONTOURS = 'ellipsoid_contours'
+    MYOID_CONTOURS = 'myoid_contours'
+    L_CONTOUR = 'L_contour'
 
 
 class MeasurementId:
     """Идентификаторы измерений (``measurement_id``)."""
 
-    CTS_FOVEOLA = "cts_foveola"
-    CTS_NEAR_FOVEOLA = "cts_near_foveola"
-    CTS_NEAR_FOVEA = "cts_near_fovea"
-    CHOROID_THICKNESS_CENTER = "choroid_thickness_center"
+    CTS_FOVEOLA = 'cts_foveola'
+    CTS_NEAR_FOVEOLA = 'cts_near_foveola'
+    CTS_NEAR_FOVEA = 'cts_near_fovea'
+    CHOROID_THICKNESS_CENTER = 'choroid_thickness_center'
 
-    SBF_AREA = "sbf_area"
-    SBF_LOCATION = "sbf_location"
+    SBF_AREA = 'sbf_area'
+    SBF_LOCATION = 'sbf_location'
 
-    HYPERREFLECTIVE_LOCATION = "hyperreflective_material_location"
-    HYPERREFLECTIVE_SUBRETINAL_AREA = "hyperreflective_subretinal_area"
-    HYPERREFLECTIVE_INTRARETINAL_AREA = "hyperreflective_intraretinal_area"
-    HYPERREFLECTIVE_TOTAL_AREA = "hyperreflective_total_area"
+    HYPERREFLECTIVE_LOCATION = 'hyperreflective_material_location'
+    HYPERREFLECTIVE_SUBRETINAL_AREA = 'hyperreflective_subretinal_area'
+    HYPERREFLECTIVE_INTRARETINAL_AREA = 'hyperreflective_intraretinal_area'
+    HYPERREFLECTIVE_TOTAL_AREA = 'hyperreflective_total_area'
 
 
 class Parameter:
     """Названия строк «Параметр» (они же ключи ручных полей и полей БД)."""
 
-    VISIT_DATE = "Дата визита"
-    DISEASE_DURATION = "Длительность заболевания"
-    AREDS = "Стадия по AREDS"
-    NEOVASCULARIZATION = "Тип неоваскуляризации"
-    REFRACTION = "Рефракция"
-    BCVA = "МКОЗ"
-    RETINA_VOLUME = "Объем сетчатки"
-    DRUG = "Препарат"
-    INJECTIONS_PLANNED = "Количество назначенных инъекций"
-    INJECTIONS_DONE = "Количество выполненных инъекций"
+    VISIT_DATE = 'Дата визита'
+    DISEASE_DURATION = 'Длительность заболевания'
+    AREDS = 'Стадия по AREDS'
+    NEOVASCULARIZATION = 'Тип неоваскуляризации'
+    REFRACTION = 'Рефракция'
+    BCVA = 'МКОЗ'
+    RETINA_VOLUME = 'Объем сетчатки'
+    DRUG = 'Препарат'
+    INJECTIONS_PLANNED = 'Количество назначенных инъекций'
+    INJECTIONS_DONE = 'Количество выполненных инъекций'
 
-    RPE_CONDITION = "Состояние РПЭ"
-    RPE_DEFECTS_LOCATION = "Локализация дефектов РПЭ"
-    ELLIPSOID_CONDITION = "Состояние эллипсоидной зоны"
-    ELLIPSOID_DEFECTS_LOCATION = "Локализация дефектов эллипсоидной зоны"
-    MYOID_CONDITION = "Состояние миоидной зоны"
-    MYOID_DEFECTS_LOCATION = "Локализация дефектов миоидной зоны"
-    CME_LOCATION = "Локализация кистозного макулярного отека"
-    HYPERREFLECTIVE_LOCATION = "Гиперрефлективный материал (локализация)"
+    RPE_CONDITION = 'Состояние РПЭ'
+    RPE_DEFECTS_LOCATION = 'Локализация дефектов РПЭ'
+    ELLIPSOID_CONDITION = 'Состояние эллипсоидной зоны'
+    ELLIPSOID_DEFECTS_LOCATION = 'Локализация дефектов эллипсоидной зоны'
+    MYOID_CONDITION = 'Состояние миоидной зоны'
+    MYOID_DEFECTS_LOCATION = 'Локализация дефектов миоидной зоны'
+    CME_LOCATION = 'Локализация кистозного макулярного отека'
+    HYPERREFLECTIVE_LOCATION = 'Гиперрефлективный материал (локализация)'
 
     #: Группа ручного заполнения (значения вводит пользователь)
-    MANUAL_GROUP = "       "
+    MANUAL_GROUP = '       '
 
 
 #: Поля, которые пользователь может редактировать в основной таблице.
@@ -120,16 +120,16 @@ EDITABLE_PARAMETERS = frozenset(
 
 #: Ручные поля в порядке отображения: (название, единица измерения).
 MANUAL_FIELDS: tuple[tuple[str, str], ...] = (
-    (Parameter.VISIT_DATE, ""),
-    (Parameter.DISEASE_DURATION, ""),
-    (Parameter.AREDS, ""),
-    (Parameter.NEOVASCULARIZATION, ""),
-    (Parameter.REFRACTION, "D"),
-    (Parameter.BCVA, ""),
-    (Parameter.RETINA_VOLUME, "мм³"),
-    (Parameter.DRUG, ""),
-    (Parameter.INJECTIONS_PLANNED, ""),
-    (Parameter.INJECTIONS_DONE, ""),
+    (Parameter.VISIT_DATE, ''),
+    (Parameter.DISEASE_DURATION, ''),
+    (Parameter.AREDS, ''),
+    (Parameter.NEOVASCULARIZATION, ''),
+    (Parameter.REFRACTION, 'D'),
+    (Parameter.BCVA, ''),
+    (Parameter.RETINA_VOLUME, 'мм³'),
+    (Parameter.DRUG, ''),
+    (Parameter.INJECTIONS_PLANNED, ''),
+    (Parameter.INJECTIONS_DONE, ''),
 )
 
 
@@ -144,18 +144,18 @@ class Location:
       по порядку (СРЖ, гиперрефлективный материал).
     """
 
-    NONE_ZONE = "0 – Дефекты отсутствуют"
-    FOVEOLA_FOVEA_MACULA = "2 – Фовеола + фовеа + макула"
-    FOVEA_MACULA = "1 – Фовеа + макула (без фовеолы)"
-    MACULA_ONLY = "3 – Макула (без фовеа и фовеолы)"
-    ABSENT = "0 – отсутствует"
+    NONE_ZONE = '0 – Дефекты отсутствуют'
+    FOVEOLA_FOVEA_MACULA = '2 – Фовеола + фовеа + макула'
+    FOVEA_MACULA = '1 – Фовеа + макула (без фовеолы)'
+    MACULA_ONLY = '3 – Макула (без фовеа и фовеолы)'
+    ABSENT = '0 – отсутствует'
 
-    FOVEOLA = "0 – Фовеола"
-    FOVEA = "1 – Фовеа (без фовеолы)"
-    MACULA = "2 – Макула (без фовеолы и фовеа)"
-    OUTSIDE_MACULA = "3 – Вне макулы"
+    FOVEOLA = '0 – Фовеола'
+    FOVEA = '1 – Фовеа (без фовеолы)'
+    MACULA = '2 – Макула (без фовеолы и фовеа)'
+    OUTSIDE_MACULA = '3 – Вне макулы'
 
-    CME_ABSENT = "0 – Отек отсутствует"
+    CME_ABSENT = '0 – Отек отсутствует'
 
 
 #: Идентификаторы зон маски фовеа.
@@ -176,14 +176,14 @@ CLASS_MYOID_ZONE = 13
 CLASS_CHOROID = 14
 
 #: Идентификаторы, различающие состояние гиперрефлективного материала.
-HYPERREFLECTIVE_SUBRETINAL = "subretinal"
-HYPERREFLECTIVE_INTRARETINAL = "intraretinal"
+HYPERREFLECTIVE_SUBRETINAL = 'subretinal'
+HYPERREFLECTIVE_INTRARETINAL = 'intraretinal'
 
 #: Суффиксы измерений, порождаемых для каждого объекта/отслойки.
-SUFFIX_WIDTH = "width"
-SUFFIX_HEIGHT = "height"
-SUFFIX_AREA = "area"
-SUFFIX_LOCATION = "location"
+SUFFIX_WIDTH = 'width'
+SUFFIX_HEIGHT = 'height'
+SUFFIX_AREA = 'area'
+SUFFIX_LOCATION = 'location'
 
 
 @dataclass(frozen=True)
@@ -202,21 +202,17 @@ class DetachmentSpec:
     table_item: str
 
     def row_id(self, suffix: str) -> str:
-        return f"{self.measurement_id}_{suffix}"
+        return f'{self.measurement_id}_{suffix}'
 
 
-SEROUS_PED = DetachmentSpec(2, "Серозная отслойка ПЭ (СОПЭ)", "serous_ped", "Серозная ОПЭ")
-HEMORRHAGIC_PED = DetachmentSpec(
-    16, "Геморрагическая отслойка ПЭ (ГОПЭ)", "hemorrhagic_ped", "Геморрагическая ОПЭ"
-)
+SEROUS_PED = DetachmentSpec(2, 'Серозная отслойка ПЭ (СОПЭ)', 'serous_ped', 'Серозная ОПЭ')
+HEMORRHAGIC_PED = DetachmentSpec(16, 'Геморрагическая отслойка ПЭ (ГОПЭ)', 'hemorrhagic_ped', 'Геморрагическая ОПЭ')
 FIBROVASCULAR_PED = DetachmentSpec(
-    10, "Фиброваскулярная отслойка ПЭ (ФВОПЭ)", "fibrovascular_ped", "Фиброваскулярная ОПЭ"
+    10, 'Фиброваскулярная отслойка ПЭ (ФВОПЭ)', 'fibrovascular_ped', 'Фиброваскулярная ОПЭ'
 )
-DRUSENOID_PED = DetachmentSpec(
-    11, "Друзеноидная отслойка ПЭ", "drusenoid_ped", "Друзеноидная ОПЭ"
-)
+DRUSENOID_PED = DetachmentSpec(11, 'Друзеноидная отслойка ПЭ', 'drusenoid_ped', 'Друзеноидная ОПЭ')
 NEUROEPITHELIAL_DETACHMENT = DetachmentSpec(
-    6, "Отслойка нейроэпителия", "neuroepithelial_detachment", "Отслойка нейроэпителия"
+    6, 'Отслойка нейроэпителия', 'neuroepithelial_detachment', 'Отслойка нейроэпителия'
 )
 
 #: PED-отслойки: отдельные измерения ширины/высоты/площади/локализации.
@@ -234,15 +230,13 @@ ALL_DETACHMENTS: tuple[DetachmentSpec, ...] = PED_DETACHMENTS + (NEUROEPITHELIAL
 DETACHMENT_BY_CLASS: dict[int, DetachmentSpec] = {spec.class_id: spec for spec in ALL_DETACHMENTS}
 
 #: Соответствие «префикс measurement_id -> спецификация отслойки».
-DETACHMENT_BY_MEASUREMENT_ID: dict[str, DetachmentSpec] = {
-    spec.measurement_id: spec for spec in ALL_DETACHMENTS
-}
+DETACHMENT_BY_MEASUREMENT_ID: dict[str, DetachmentSpec] = {spec.measurement_id: spec for spec in ALL_DETACHMENTS}
 
 #: Подсказки для распознавания класса «друзы» по названию из конфигурации.
-DRUSEN_CLASS_HINT = "drusen"
-DRUSEN_CLASS_HINT_RU = "друз"
-DRUSEN_EXCLUDE_HINT = "друзеноид"
-DRUSEN_EXCLUDE_HINT_EN = "drusenoid"
+DRUSEN_CLASS_HINT = 'drusen'
+DRUSEN_CLASS_HINT_RU = 'друз'
+DRUSEN_EXCLUDE_HINT = 'друзеноид'
+DRUSEN_EXCLUDE_HINT_EN = 'drusenoid'
 
 
 def is_drusen_class(class_name: str) -> bool:
@@ -257,17 +251,15 @@ def is_drusen_class(class_name: str) -> bool:
 
 def is_drusen_parameter(parameter: str) -> bool:
     """Строка таблицы описывает измерение конкретной друзы (``...#1 (ширина)``)."""
-    return "#" in parameter and (
-        DRUSEN_CLASS_HINT in parameter.lower() or DRUSEN_CLASS_HINT_RU in parameter.lower()
-    )
+    return '#' in parameter and (DRUSEN_CLASS_HINT in parameter.lower() or DRUSEN_CLASS_HINT_RU in parameter.lower())
 
 
 def drusen_number(parameter: str) -> int | None:
     """Номер друзы из строки вида ``Drusen #1 (ширина)``."""
-    hash_index = parameter.find("#")
+    hash_index = parameter.find('#')
     if hash_index < 0:
         return None
-    digits = ""
+    digits = ''
     for char in parameter[hash_index + 1 :]:
         if not char.isdigit():
             break
@@ -298,8 +290,8 @@ def to_um(
 
 def make_row(
     parameter: str,
-    value: Any = "",
-    unit: str = "",
+    value: Any = '',
+    unit: str = '',
     measurement_id: str | None = None,
     **extra: Any,
 ) -> dict:
@@ -317,11 +309,11 @@ def make_row(
 
 def manual_rows() -> list[dict]:
     """Строки группы «ручное заполнение» для основной таблицы."""
-    return [make_row(name, "", unit) for name, unit in MANUAL_FIELDS]
+    return [make_row(name, '', unit) for name, unit in MANUAL_FIELDS]
 
 
 def _format(value: float | str) -> str:
-    return f"{value:.2f}" if isinstance(value, (int, float)) else value
+    return f'{value:.2f}' if isinstance(value, (int, float)) else value
 
 
 def detachment_rows(
@@ -345,10 +337,10 @@ def detachment_rows(
         row_extra[RowKey.DETACHMENT_BOUNDS] = bounds
 
     candidates = (
-        (SUFFIX_WIDTH, f"{spec.section} (ширина)", "мкм", width),
-        (SUFFIX_HEIGHT, f"{spec.section} (высота)", "мкм", height),
-        (SUFFIX_AREA, f"{spec.section} (площадь)", "мкм²", area),
-        (SUFFIX_LOCATION, f"{spec.section} (локализация)", "", location),
+        (SUFFIX_WIDTH, f'{spec.section} (ширина)', 'мкм', width),
+        (SUFFIX_HEIGHT, f'{spec.section} (высота)', 'мкм', height),
+        (SUFFIX_AREA, f'{spec.section} (площадь)', 'мкм²', area),
+        (SUFFIX_LOCATION, f'{spec.section} (локализация)', '', location),
     )
     return [
         make_row(
@@ -383,17 +375,17 @@ def drusen_rows(
 
     number = index + 1
     candidates = (
-        (SUFFIX_WIDTH, "ширина", "мкм", width),
-        (SUFFIX_HEIGHT, "высота", "мкм", height),
-        (SUFFIX_AREA, "площадь", "мкм²", area),
-        (SUFFIX_LOCATION, "локализация", "", location),
+        (SUFFIX_WIDTH, 'ширина', 'мкм', width),
+        (SUFFIX_HEIGHT, 'высота', 'мкм', height),
+        (SUFFIX_AREA, 'площадь', 'мкм²', area),
+        (SUFFIX_LOCATION, 'локализация', '', location),
     )
     return [
         make_row(
-            f"{class_name} #{number} ({label})",
+            f'{class_name} #{number} ({label})',
             _format(value),
             unit,
-            measurement_id=f"drusen_{number}_{suffix}",
+            measurement_id=f'drusen_{number}_{suffix}',
             **row_extra,
         )
         for suffix, label, unit, value in candidates
@@ -405,8 +397,8 @@ def group_rows(title: str, children: Iterable[dict], expanded: bool = True) -> d
     """Сворачиваемая группа строк для основной таблицы."""
     return {
         RowKey.PARAMETER: title,
-        RowKey.VALUE: "",
-        RowKey.UNIT: "",
+        RowKey.VALUE: '',
+        RowKey.UNIT: '',
         RowKey.IS_GROUP: True,
         RowKey.EXPANDED: expanded,
         RowKey.CHILDREN: list(children),

@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from bsmu.vision.core.plugins import Plugin
+
 from bsmu.macula.inference.enseble import EnsembleSegmenter
 from bsmu.macula.inference.inferecer import EnsembleImageModelConfig
 
@@ -22,9 +23,9 @@ class BinaryEnsemblePlugin(Plugin):
     _DATA_DIRS = (_DNN_MODELS_DIR_NAME,)
 
     def __init__(
-            self,
-            palette_pack_settings_plugin: PalettePackSettingsPlugin,
-            task_storage_plugin: TaskStoragePlugin,
+        self,
+        palette_pack_settings_plugin: PalettePackSettingsPlugin,
+        task_storage_plugin: TaskStoragePlugin,
     ):
         super().__init__()
 
@@ -45,7 +46,8 @@ class BinaryEnsemblePlugin(Plugin):
     def _enable(self):
         model_dir = self.data_path(self._DNN_MODELS_DIR_NAME)
         ensemble_model_config = EnsembleImageModelConfig.from_dict(
-            self.config_value('binary_ensemble_models'), path=model_dir)
+            self.config_value('binary_ensemble_models'), path=model_dir
+        )
 
         missing_models = []
         if not ensemble_model_config.class_models:
@@ -68,16 +70,13 @@ class BinaryEnsemblePlugin(Plugin):
         if {3, 6}.issubset(class_ids) and not ensemble_model_config.three_and_six_model:
             missing_models.append('three_and_six_model (required for classes 3 and 6)')
 
-        for model_name in (
-                ensemble_model_config.ped_model,
-                ensemble_model_config.three_and_six_model):
+        for model_name in (ensemble_model_config.ped_model, ensemble_model_config.three_and_six_model):
             if model_name and not (model_dir / model_name).is_file():
                 missing_models.append(str(model_dir / model_name))
 
         if missing_models:
-            self._unavailable_reason = (
-                'Ensemble segmentation is unavailable. Missing model files: '
-                + ', '.join(sorted(set(missing_models)))
+            self._unavailable_reason = 'Ensemble segmentation is unavailable. Missing model files: ' + ', '.join(
+                sorted(set(missing_models))
             )
             logging.warning(self._unavailable_reason)
             self._binary_segmenter = None
@@ -86,8 +85,7 @@ class BinaryEnsemblePlugin(Plugin):
         self._unavailable_reason = None
         main_palette = self._palette_pack_settings_plugin.settings.main_palette
         task_storage = self._task_storage_plugin.task_storage
-        self._binary_segmenter = EnsembleSegmenter(
-            ensemble_model_config, main_palette, task_storage)
+        self._binary_segmenter = EnsembleSegmenter(ensemble_model_config, main_palette, task_storage)
 
     def _disable(self):
         self._binary_segmenter = None

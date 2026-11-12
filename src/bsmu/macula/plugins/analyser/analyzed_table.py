@@ -29,10 +29,11 @@ from PySide6.QtWidgets import (
 )
 
 from bsmu.vision.widgets.mdi.windows.data import DataViewerSubWindow
+
 from bsmu.macula.plugins.analyser.data_converter import PatientExamDataBuilder
 from bsmu.macula.plugins.analyser.schema import (
-    EDITABLE_PARAMETERS,
     ALL_DETACHMENTS,
+    EDITABLE_PARAMETERS,
     DetachmentSpec,
     RowKey,
     drusen_number,
@@ -40,12 +41,10 @@ from bsmu.macula.plugins.analyser.schema import (
 )
 
 #: Заголовки колонок таблиц.
-TABLE_HEADERS = ["Параметр", "Значение"]
+TABLE_HEADERS = ['Параметр', 'Значение']
 #: Суффиксы измерений отслойки, отбрасываемые в заголовках деталей.
-_DETACHMENT_SECTION_RE = re.compile(
-    r"^(" + "|".join(re.escape(spec.section) for spec in ALL_DETACHMENTS) + r") \("
-)
-_DRUSEN_PREFIX_RE = re.compile(r"^(.*?)\s*#\d+\s*\(")
+_DETACHMENT_SECTION_RE = re.compile(r'^(' + '|'.join(re.escape(spec.section) for spec in ALL_DETACHMENTS) + r') \(')
+_DRUSEN_PREFIX_RE = re.compile(r'^(.*?)\s*#\d+\s*\(')
 
 
 def group_measurements_data(data: list[dict]) -> list[dict]:
@@ -57,13 +56,13 @@ def group_measurements_data(data: list[dict]) -> list[dict]:
     return [
         item
         for item in data
-        if "#" not in item.get(RowKey.PARAMETER, "")
-        and not is_detachment_measurement_id(item.get(RowKey.MEASUREMENT_ID, ""))
+        if '#' not in item.get(RowKey.PARAMETER, '')
+        and not is_detachment_measurement_id(item.get(RowKey.MEASUREMENT_ID, ''))
     ]
 
 
 def is_detachment_measurement_id(measurement_id: str) -> bool:
-    return any(measurement_id.startswith(spec.measurement_id + "_") for spec in ALL_DETACHMENTS)
+    return any(measurement_id.startswith(spec.measurement_id + '_') for spec in ALL_DETACHMENTS)
 
 
 def group_drusen_measurements(data: list[dict]) -> dict[int, list[dict]]:
@@ -72,8 +71,8 @@ def group_drusen_measurements(data: list[dict]) -> dict[int, list[dict]]:
     for item in data:
         if item.get(RowKey.IS_GROUP):
             continue
-        number = drusen_number(item.get(RowKey.PARAMETER, ""))
-        if number is not None and is_drusen_parameter(item.get(RowKey.PARAMETER, "")):
+        number = drusen_number(item.get(RowKey.PARAMETER, ''))
+        if number is not None and is_drusen_parameter(item.get(RowKey.PARAMETER, '')):
             groups.setdefault(number, []).append(item)
     return groups
 
@@ -82,9 +81,9 @@ def group_detachment_measurements(data: list[dict]) -> dict[str, list[dict]]:
     """Группирует строки измерений по типу отслойки."""
     groups: dict[str, list[dict]] = {}
     for item in data:
-        measurement_id = item.get(RowKey.MEASUREMENT_ID, "")
+        measurement_id = item.get(RowKey.MEASUREMENT_ID, '')
         for spec in ALL_DETACHMENTS:
-            if measurement_id.startswith(spec.measurement_id + "_"):
+            if measurement_id.startswith(spec.measurement_id + '_'):
                 groups.setdefault(spec.measurement_id, []).append(item)
                 break
     return groups
@@ -124,12 +123,12 @@ class ObjectsTableModel(QAbstractTableModel):
             return None
 
         row = self._visible_rows[index.row()]
-        parameter = row.get(RowKey.PARAMETER, "")
+        parameter = row.get(RowKey.PARAMETER, '')
         if role == Qt.DisplayRole and row.get(RowKey.IS_GROUP):
-            arrow = "▼" if row.get(RowKey.EXPANDED) else "▶"
-            parameter = f"{arrow} {parameter}"
+            arrow = '▼' if row.get(RowKey.EXPANDED) else '▶'
+            parameter = f'{arrow} {parameter}'
 
-        value = f"{row.get(RowKey.VALUE, '')} {row.get(RowKey.UNIT, '')}".strip()
+        value = f'{row.get(RowKey.VALUE, "")} {row.get(RowKey.UNIT, "")}'.strip()
         return [parameter, value][index.column()]
 
     def flags(self, index):
@@ -150,7 +149,7 @@ class ObjectsTableModel(QAbstractTableModel):
 
         row = self._visible_rows[index.row()]
         row[RowKey.VALUE] = str(value)
-        self._sync_manual_field(row.get(RowKey.PARAMETER, ""), str(value))
+        self._sync_manual_field(row.get(RowKey.PARAMETER, ''), str(value))
         self.dataChanged.emit(index, index)
         return True
 
@@ -160,12 +159,12 @@ class ObjectsTableModel(QAbstractTableModel):
             return
 
         field_by_parameter = {
-            "Стадия по AREDS": "areds_criteria",
-            "Тип неоваскуляризации": "neovascularization_type",
-            "Рефракция": "refraction",
-            "МКОЗ": "bcva",
-            "Длительность заболевания": "disease_duration",
-            "Локализация кистозного макулярного отека": "cmo_location",
+            'Стадия по AREDS': 'areds_criteria',
+            'Тип неоваскуляризации': 'neovascularization_type',
+            'Рефракция': 'refraction',
+            'МКОЗ': 'bcva',
+            'Длительность заболевания': 'disease_duration',
+            'Локализация кистозного макулярного отека': 'cmo_location',
         }
         attribute = field_by_parameter.get(parameter)
         if attribute is not None:
@@ -215,8 +214,8 @@ class DetachmentDetailModel(QAbstractTableModel):
             return None
 
         row = self._data[index.row()]
-        parameter = short_parameter_name(row.get(RowKey.PARAMETER, ""))
-        value = f"{row.get(RowKey.VALUE, '')} {row.get(RowKey.UNIT, '')}".strip()
+        parameter = short_parameter_name(row.get(RowKey.PARAMETER, ''))
+        value = f'{row.get(RowKey.VALUE, "")} {row.get(RowKey.UNIT, "")}'.strip()
         return [parameter, value][index.column()]
 
     def headerData(self, section, orientation, role):
@@ -227,19 +226,18 @@ class DetachmentDetailModel(QAbstractTableModel):
 def short_parameter_name(parameter: str) -> str:
     """Убирает из названия номер друзы и заголовок отслойки для компактности."""
     if _DRUSEN_PREFIX_RE.match(parameter):
-        parameter = _DRUSEN_PREFIX_RE.sub("", parameter)
-    parameter = _DETACHMENT_SECTION_RE.sub("", parameter)
-    return parameter.rstrip(") ").strip()
+        parameter = _DRUSEN_PREFIX_RE.sub('', parameter)
+    parameter = _DETACHMENT_SECTION_RE.sub('', parameter)
+    return parameter.rstrip(') ').strip()
 
 
 class TableWindow(QWidget):
     """Окно результатов: основная таблица слева, детали справа."""
 
-    def __init__(self, measurements: list[dict], patient_exam_data=None,
-                 highlight_callback: Callable | None = None):
+    def __init__(self, measurements: list[dict], patient_exam_data=None, highlight_callback: Callable | None = None):
         super().__init__()
 
-        self.setWindowTitle("Результаты измерений")
+        self.setWindowTitle('Результаты измерений')
         # Жёсткий размер не задаём: виджет живёт внутри QMdiSubWindow и должен
         # уметь ужиматься, чтобы помещаться рядом со снимком даже на ноутбуке.
 
@@ -307,7 +305,7 @@ class TableWindow(QWidget):
         self.table.clicked.connect(self._on_table_clicked)
         layout.addWidget(self.table)
 
-        save_button = QPushButton("Сохранить в БД")
+        save_button = QPushButton('Сохранить в БД')
         save_button.clicked.connect(self._save_to_database)
         layout.addWidget(save_button)
         return layout
@@ -323,15 +321,15 @@ class TableWindow(QWidget):
         return layout
 
     def _build_drusen_group(self) -> QGroupBox:
-        group = QGroupBox("Детали друзы")
+        group = QGroupBox('Детали друзы')
         layout = QVBoxLayout()
 
         selector = QHBoxLayout()
-        selector.addWidget(QLabel("Выберите друзу:"))
+        selector.addWidget(QLabel('Выберите друзу:'))
         self.drusen_combo = QComboBox()
-        self.drusen_combo.addItem("(не выбрано)", None)
+        self.drusen_combo.addItem('(не выбрано)', None)
         for number in sorted(self._drusen_groups):
-            self.drusen_combo.addItem(f"Друза #{number}", number)
+            self.drusen_combo.addItem(f'Друза #{number}', number)
         self.drusen_combo.currentIndexChanged.connect(self._on_drusen_selected)
         selector.addWidget(self.drusen_combo)
         selector.addStretch()
@@ -361,8 +359,8 @@ class TableWindow(QWidget):
         layout.addWidget(table)
 
         group.setLayout(layout)
-        self.detachment_tables = getattr(self, "detachment_tables", {})
-        self.detachment_models = getattr(self, "detachment_models", {})
+        self.detachment_tables = getattr(self, 'detachment_tables', {})
+        self.detachment_models = getattr(self, 'detachment_models', {})
         self.detachment_tables[spec.measurement_id] = table
         self.detachment_models[spec.measurement_id] = model
         return group
@@ -434,22 +432,20 @@ class TableWindow(QWidget):
             patient_exam_data = self._exam_data_builder.build(self._measurements)
             QMessageBox.information(
                 self,
-                "Данные подготовлены",
-                f"PatientExamData успешно заполнен:\n"
-                f"Дата визита: {patient_exam_data.visit_date}\n"
-                f"Длительность заболевания: {patient_exam_data.disease_duration}\n"
-                f"МКОЗ: {patient_exam_data.bcva}\n"
-                f"Объем сетчатки: {patient_exam_data.total_retinal_volume}\n"
-                f"Толщина хориоидеи: {patient_exam_data.choroidal_center_thickness}\n"
-                f"ЦТС фовеола: {patient_exam_data.cts_near_foveolla}\n"
-                f"ЦТС фовеа: {patient_exam_data.cts_near_fovea}\n"
-                f"\nДрузы (средние): width={patient_exam_data.drusen.width}, "
-                f"height={patient_exam_data.drusen.height}, area={patient_exam_data.drusen.area}",
+                'Данные подготовлены',
+                f'PatientExamData успешно заполнен:\n'
+                f'Дата визита: {patient_exam_data.visit_date}\n'
+                f'Длительность заболевания: {patient_exam_data.disease_duration}\n'
+                f'МКОЗ: {patient_exam_data.bcva}\n'
+                f'Объем сетчатки: {patient_exam_data.total_retinal_volume}\n'
+                f'Толщина хориоидеи: {patient_exam_data.choroidal_center_thickness}\n'
+                f'ЦТС фовеола: {patient_exam_data.cts_near_foveolla}\n'
+                f'ЦТС фовеа: {patient_exam_data.cts_near_fovea}\n'
+                f'\nДрузы (средние): width={patient_exam_data.drusen.width}, '
+                f'height={patient_exam_data.drusen.height}, area={patient_exam_data.drusen.area}',
             )
         except Exception as exc:  # noqa: BLE001 — показываем пользователю любую ошибку
-            QMessageBox.critical(
-                self, "Ошибка", f"Ошибка при заполнении PatientExamData:\n{exc}"
-            )
+            QMessageBox.critical(self, 'Ошибка', f'Ошибка при заполнении PatientExamData:\n{exc}')
 
     def _fill_patient_exam_data(self):
         """Совместимый метод: собрать ``PatientExamData`` из строк таблицы."""
@@ -476,13 +472,13 @@ class MeasurementsSubWindow(DataViewerSubWindow):
 
 
 __all__ = [
-    "DetachmentDetailModel",
-    "MeasurementsSubWindow",
-    "ObjectsTableModel",
-    "TableWindow",
-    "group_detachment_measurements",
-    "group_drusen_measurements",
-    "group_measurements_data",
-    "is_detachment_measurement_id",
-    "short_parameter_name",
+    'DetachmentDetailModel',
+    'MeasurementsSubWindow',
+    'ObjectsTableModel',
+    'TableWindow',
+    'group_detachment_measurements',
+    'group_drusen_measurements',
+    'group_measurements_data',
+    'is_detachment_measurement_id',
+    'short_parameter_name',
 ]

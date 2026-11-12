@@ -1,7 +1,6 @@
-from PySide6.QtWidgets import (
-    QComboBox, QLabel, QListView
-)
-from PySide6.QtCore import Qt, QPoint, QEvent, QObject
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt
+from PySide6.QtWidgets import QComboBox, QLabel, QListView
+
 
 class HoverEventFilter(QObject):
     def __init__(self, combo, label):
@@ -27,13 +26,14 @@ class HoverEventFilter(QObject):
             self.label.hide()
         return False
 
+
 class HoverComboBox(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setView(QListView())
-        self.popup_label = QLabel("", self)
+        self.popup_label = QLabel('', self)
         self.popup_label.setWindowFlags(Qt.ToolTip)
-        self.popup_label.setStyleSheet("background-color: lightyellow; padding: 5px; border: 1px solid gray;")
+        self.popup_label.setStyleSheet('background-color: lightyellow; padding: 5px; border: 1px solid gray;')
         self.view().viewport().installEventFilter(HoverEventFilter(self, self.popup_label))
 
     def addItem(self, text, db_value=None, tooltip=None):
@@ -41,7 +41,6 @@ class HoverComboBox(QComboBox):
         if tooltip:
             index = self.count() - 1
             self.setItemData(index, tooltip, Qt.ItemDataRole.ToolTipRole)
-
 
     def hideEvent(self, event):
         self.popup_label.hide()

@@ -12,6 +12,7 @@ from bsmu.macula.infervis.mdi_keypoint_predictor import MdiKeypointPredictor
 if TYPE_CHECKING:
     from bsmu.vision.plugins.doc_interfaces.mdi import MdiPlugin
     from bsmu.vision.plugins.windows.main import MainWindow, MainWindowPlugin
+
     from bsmu.macula.plugins.keypoint_predictor import KeypointPredictorPlugin
 
 
@@ -25,10 +26,10 @@ class KeypointPredictorGuiPlugin(Plugin):
     }
 
     def __init__(
-            self,
-            main_window_plugin: MainWindowPlugin,
-            mdi_plugin: MdiPlugin,
-            keypoint_predictor_plugin: KeypointPredictorPlugin,
+        self,
+        main_window_plugin: MainWindowPlugin,
+        mdi_plugin: MdiPlugin,
+        keypoint_predictor_plugin: KeypointPredictorPlugin,
     ):
         super().__init__()
         self._main_window_plugin = main_window_plugin

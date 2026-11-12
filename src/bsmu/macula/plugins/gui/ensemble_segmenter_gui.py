@@ -14,24 +14,25 @@ from bsmu.macula.infervis.mdi_ensemble_segmenter import EnsembleMdiSegmenter
 if TYPE_CHECKING:
     from bsmu.vision.plugins.doc_interfaces.mdi import MdiPlugin
     from bsmu.vision.plugins.windows.main import MainWindow, MainWindowPlugin
+
     from bsmu.macula.plugins.ensemble_segmenter import BinaryEnsemblePlugin
 
 
-MASK_LAYER_NAME = "masks"
+MASK_LAYER_NAME = 'masks'
 
 
 class EnsembleSegmenterGuiPlugin(Plugin):
     _DEFAULT_DEPENDENCY_PLUGIN_FULL_NAME_BY_KEY = {
-        "main_window_plugin": "bsmu.vision.plugins.windows.main.MainWindowPlugin",
-        "mdi_plugin": "bsmu.vision.plugins.doc_interfaces.mdi.MdiPlugin",
-        "ensemble_segmenter_plugin": "bsmu.macula.plugins.ensemble_segmenter.BinaryEnsemblePlugin",
+        'main_window_plugin': 'bsmu.vision.plugins.windows.main.MainWindowPlugin',
+        'mdi_plugin': 'bsmu.vision.plugins.doc_interfaces.mdi.MdiPlugin',
+        'ensemble_segmenter_plugin': 'bsmu.macula.plugins.ensemble_segmenter.BinaryEnsemblePlugin',
     }
 
     def __init__(
-            self,
-            main_window_plugin: MainWindowPlugin,
-            mdi_plugin: MdiPlugin,
-            ensemble_segmenter_plugin: BinaryEnsemblePlugin,
+        self,
+        main_window_plugin: MainWindowPlugin,
+        mdi_plugin: MdiPlugin,
+        ensemble_segmenter_plugin: BinaryEnsemblePlugin,
     ):
         super().__init__()
         self._main_window_plugin = main_window_plugin
@@ -63,7 +64,7 @@ class EnsembleSegmenterGuiPlugin(Plugin):
 
         self._main_window.add_menu_action(
             AlgorithmsMenu,
-            self.tr("Segment Retinal Structures"),
+            self.tr('Segment Retinal Structures'),
             callback,
         )
 

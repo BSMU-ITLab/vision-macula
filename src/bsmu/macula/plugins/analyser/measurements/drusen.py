@@ -17,8 +17,14 @@ from bsmu.macula.plugins.analyser.schema import to_um2
 
 #: Порядок элементов результата измерения друзы.
 DrusenResult = tuple[
-    float | None, float | None, float | None,
-    int | None, int | None, tuple | None, str | None, list | None,
+    float | None,
+    float | None,
+    float | None,
+    int | None,
+    int | None,
+    tuple | None,
+    str | None,
+    list | None,
 ]
 
 EMPTY_RESULT: DrusenResult = (None, None, None, None, None, None, None, None)
@@ -54,12 +60,8 @@ def measure_drusen(
         return EMPTY_RESULT
     left_x, right_x = extent
 
-    width_um, choroid_segment = width_along_boundary(
-        smooth_upper, target_mask, scale_x, scale_y
-    )
-    max_height_px, max_perp_point = max_perpendicular(
-        target_mask, smooth_upper, spline, left_x, right_x, perp_len
-    )
+    width_um, choroid_segment = width_along_boundary(smooth_upper, target_mask, scale_x, scale_y)
+    max_height_px, max_perp_point = max_perpendicular(target_mask, smooth_upper, spline, left_x, right_x, perp_len)
 
     return (
         width_um,

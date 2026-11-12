@@ -78,12 +78,15 @@ def width_along_boundary(
             if bridge_gap is not None and (x - prev_point[0]) > bridge_gap:
                 segment.append(None)
             elif width_um is not None:
-                width_um += to_um(
-                    (prev_point[0], float(boundary[prev_point[0]])),
-                    (x, float(boundary[x])),
-                    scale_x,
-                    scale_y,
-                ) or 0.0
+                width_um += (
+                    to_um(
+                        (prev_point[0], float(boundary[prev_point[0]])),
+                        (x, float(boundary[x])),
+                        scale_x,
+                        scale_y,
+                    )
+                    or 0.0
+                )
         segment.append(point)
         prev_point = point
 
@@ -135,7 +138,7 @@ def farthest_pair(
     best_distance = -1.0
     best_a, best_b = points[0], points[0]
     for i, point_a in enumerate(points):
-        for point_b in points[i + 1:]:
+        for point_b in points[i + 1 :]:
             distance = float(np.hypot(point_b[0] - point_a[0], point_b[1] - point_a[1]))
             if distance > best_distance:
                 best_distance = distance

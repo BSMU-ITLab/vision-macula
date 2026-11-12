@@ -10,23 +10,22 @@ from __future__ import annotations
 import logging
 from typing import Any, Iterable
 
-LOGGER_NAME = "bsmu.macula.plugins.db"
+LOGGER_NAME = 'bsmu.macula.plugins.db'
 
 logger = logging.getLogger(LOGGER_NAME)
 
 
-def log_sql(query_text: str, query=None, fields: Iterable[str] = (),
-            extra: dict[str, Any] | None = None) -> None:
+def log_sql(query_text: str, query=None, fields: Iterable[str] = (), extra: dict[str, Any] | None = None) -> None:
     """Пишет текст запроса и связанные значения на уровне DEBUG."""
     if not logger.isEnabledFor(logging.DEBUG):
         return
 
-    logger.debug("SQL:\n%s", query_text.strip())
+    logger.debug('SQL:\n%s', query_text.strip())
     for field in fields:
-        bound = query.boundValue(f":{field}") if query is not None else None
-        logger.debug("  %s = %r", field, bound)
+        bound = query.boundValue(f':{field}') if query is not None else None
+        logger.debug('  %s = %r', field, bound)
     for name, value in (extra or {}).items():
-        logger.debug("  %s = %r", name, value)
+        logger.debug('  %s = %r', name, value)
 
 
 #: Прежнее имя функции (использовалось в SQLiteTableViewer).

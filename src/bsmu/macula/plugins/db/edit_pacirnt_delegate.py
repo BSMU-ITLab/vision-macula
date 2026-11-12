@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QStyledItemDelegate, QStyle
+from PySide6.QtWidgets import QStyle, QStyledItemDelegate
 
 # Регистрируем ресурсы иконок здесь же: делегат может импортироваться и
 # использоваться без окна БД, а без этой регистрации QIcon(":/dbicons/...")
@@ -52,9 +52,7 @@ class EditPacientDelegate(QStyledItemDelegate):
         side = max(1, min(option.rect.width(), option.rect.height()) - 2 * ICON_PADDING)
         icon_rect = QRect(0, 0, side, side)
         icon_rect.moveCenter(option.rect.center())
-        self._icon.paint(
-            painter, icon_rect, Qt.AlignCenter, QIcon.Mode.Normal, QIcon.State.Off
-        )
+        self._icon.paint(painter, icon_rect, Qt.AlignCenter, QIcon.Mode.Normal, QIcon.State.Off)
 
     def editorEvent(self, event, model, option, index) -> bool:
         if event.type() == event.Type.MouseButtonPress and self.callback is not None:

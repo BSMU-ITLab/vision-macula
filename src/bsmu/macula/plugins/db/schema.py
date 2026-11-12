@@ -14,10 +14,10 @@ from __future__ import annotations
 from pathlib import Path
 
 #: Имена таблиц.
-PACIENTS_TABLE = "pacients"
-APPOINTMENTS_TABLE = "appointments"
-EYES_TABLE = "eyes"
-INJECTIONS_TABLE = "injections"
+PACIENTS_TABLE = 'pacients'
+APPOINTMENTS_TABLE = 'appointments'
+EYES_TABLE = 'eyes'
+INJECTIONS_TABLE = 'injections'
 
 #: Пациенты.
 CREATE_PACIENTS = """
