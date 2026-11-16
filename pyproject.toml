@@ -31,7 +31,17 @@ classifiers = [
     'Topic :: Software Development :: Version Control :: Git',
 ]
 dependencies = [
-    'bsmu.vision[common,pdf,nn_inference,build] @ git+https://github.com/BSMU-ITLab/vision.git@v0.54.0',
+    'bsmu.vision[common,pdf,nn_inference] @ git+https://github.com/BSMU-ITLab/vision.git@v0.55.0',
+]
+
+[project.optional-dependencies]
+# Repo-local dev tools
+# TODO: move to [dependency-groups] (PEP 735) once pip >= 25.1
+dev = [
+    'pytest>=8',
+    'ruff==0.17.4',  # Keep equal to pre-commit hook rev
+    'pre-commit>=4',
+    'cx-Freeze==7.2.5',
 ]
 
 [project.urls]
