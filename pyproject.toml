@@ -11,6 +11,9 @@ requires-python = '>= 3.11'
 license = { file = 'LICENSE' }
 authors = [
     { name = 'Elena Himbitskaya', email = 'fpm.gimbicka@bsu.by' },
+    { name = 'Siarhei Kezik', email = 'sergeyk8008@gmail.com' },
+    { name = 'Evgeniy Fando', email = 'fando.evgeniy@gmail.com' },
+    { name = 'Ivan Kosik', email = 'ivankosik91@gmail.com' },
 ]
 keywords = [
     'age-related macular degeneration',
